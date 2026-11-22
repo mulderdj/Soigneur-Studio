@@ -57,6 +57,8 @@ textarea {
 
 .page {
     display: none;
+    min-height: 0;
+    padding: 0;
 }
 
 .page.active {
@@ -195,10 +197,64 @@ textarea {
 .app-bar__tab:nth-child(3) { order: 4; }
 .app-bar__tab:nth-child(4) { order: 5; }
 
+/* tablet and up: name · controls · tabs */
+@media (min-width: 600px) {
+    :root, body { --app-bar-h: 68px; }
+
+    .app-bar {
+        grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+        padding: 0 var(--space-4) env(safe-area-inset-bottom, 0px);
+        gap: var(--space-4);
+    }
+
+    .app-bar__name {
+        display: block;
+        order: 1;
+        justify-self: start;
+    }
+
+    .app-bar__controls {
+        order: 2;
+    }
+
+    .app-bar__tabs {
+        order: 3;
+        display: flex;
+        justify-content: flex-end;
+        gap: var(--space-1);
+    }
+
+    .app-bar__tab {
+        order: 0 !important;
+        padding: 0 var(--space-2);
+    }
+
+    .app-bar__tab.active {
+        background-color: var(--surface-2);
+    }
+
+}
+
+@media (min-width: 1200px) {
+    .app-bar__tab {
+        flex-direction: row;
+        gap: var(--space-2);
+        padding: 0 var(--space-3);
+    }
+
+    .app-bar__tab-label {
+        font-size: var(--text-s);
+    }
+}
+
 /* phone, riding: only the ride controls; pages behind the menu button */
-@media (max-width: 599px) {
+@media (max-width: 599px), (max-height: 599px) and (orientation: landscape) and (max-width: 1199px) {
     .app-bar[data-mode="riding"] {
         grid-template-columns: var(--tap) minmax(0, 1fr) var(--tap);
+    }
+
+    .app-bar[data-mode="riding"] .app-bar__name {
+        display: none;
     }
 
     .app-bar[data-mode="riding"] .app-bar__controls {
@@ -229,49 +285,6 @@ textarea {
 
     .app-bar[data-mode="riding"][data-menu-open] .app-bar__tab {
         order: 0;
-    }
-}
-
-/* tablet and up: name · controls · tabs */
-@media (min-width: 600px) {
-    :root, body { --app-bar-h: 68px; }
-
-    .app-bar {
-        grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
-        padding: 0 var(--space-4) env(safe-area-inset-bottom, 0px);
-        gap: var(--space-4);
-    }
-
-    .app-bar__name {
-        display: block;
-        order: 1;
-        justify-self: start;
-    }
-
-    .app-bar__controls {
-        order: 2;
-    }
-
-    .app-bar__tabs {
-        order: 3;
-        display: flex;
-        justify-content: flex-end;
-        gap: var(--space-1);
-    }
-
-    .app-bar__tab {
-        order: 0 !important;
-        flex-direction: row;
-        gap: var(--space-2);
-        padding: 0 var(--space-3);
-    }
-
-    .app-bar__tab.active {
-        background-color: var(--surface-2);
-    }
-
-    .app-bar__tab-label {
-        font-size: var(--text-s);
     }
 }
 

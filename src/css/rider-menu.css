@@ -1,1 +1,6 @@
 /* rider-menu page layout: arranges components, uses tokens only. */
+
+/* the rider pill is tapped on phones too */
+.rm--pill {
+    min-height: var(--tap);
+}

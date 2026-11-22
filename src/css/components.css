@@ -102,8 +102,10 @@
 /* ---------- metric tile ---------- */
 
 .tile {
+    container-type: inline-size;
     position: relative;
     min-width: 0;
+    text-align: left;
     display: flex;
     flex-direction: column;
     justify-content: space-between;

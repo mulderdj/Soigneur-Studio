@@ -135,6 +135,18 @@ async function main() {
     for(const [sizeName, size] of Object.entries(SIZES)) {
         for(const theme of THEMES) {
             const context = await browser.newContext({viewport: {width: size.width, height: size.height}, hasTouch: !!size.phone});
+            // headless Chrome has no Web Bluetooth; a stub shows what a Chrome
+            // user sees instead of the "browser not supported" banner
+            await context.addInitScript(() => {
+                if(!('bluetooth' in navigator)) {
+                    Object.defineProperty(navigator, 'bluetooth', {value: {
+                        getAvailability: async () => false,
+                        getDevices: async () => [],
+                        requestDevice: async () => { throw new DOMException('stub', 'NotFoundError'); },
+                        addEventListener() {}, removeEventListener() {},
+                    }});
+                }
+            });
             const page = await context.newPage();
             const errors = [];
             page.on('pageerror', e => errors.push(e.message));

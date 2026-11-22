@@ -5,6 +5,7 @@ import './effect-views.js';
 import './editor.js';
 import './tabs.js';
 import './app-bar.js';
+import './panel-pager.js';
 import './workout-list.js';
 import './planned-list.js';
 import './active-list-item.js';

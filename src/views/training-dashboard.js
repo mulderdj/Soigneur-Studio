@@ -12,6 +12,7 @@ import { xf } from '../functions.js';
 import { db } from '../db.js';
 import { riders } from '../riders.js';
 import { SessionStats, zoneIndex, ZONES, DEFAULT_WPRIME } from '../analytics.js';
+import { currentLayout, chartRangeFor } from './layout.js';
 
 // --- session feed ---------------------------------------------------------
 
@@ -139,7 +140,7 @@ function startHeroTile() {
 
     xf.sub('db:power1s', power => {
         const z = ZONES[zoneIndex(power, session.ftp)];
-        $tile.style.setProperty('--zone-color', power > 0 ? z.color : 'var(--dash-line)');
+        $tile.style.setProperty('--zone-color', power > 0 ? z.color : 'var(--line)');
         $tile.dataset.zone = power > 0 ? z.key : '';
         $zone.textContent = power > 0 ? `${z.short} ${z.name}` : 'No power';
         $wkg.textContent = power > 0 && session.weight > 0 ?
@@ -189,7 +190,7 @@ class LiveChart extends HTMLElement {
 
         this.innerHTML = `
             <div class="lc--bar">
-                <h3 class="dash--title">Ride</h3>
+                <h3 class="panel__title">Ride</h3>
                 <div class="lc--legend" role="group" aria-label="Series">
                     ${SERIES.map(s => `
                         <button type="button" class="lc--chip lc--chip-${s.key}" data-series="${s.key}"
@@ -309,6 +310,7 @@ class LiveChart extends HTMLElement {
 
         const n = session.count;
         this.$empty.hidden = n > 0;
+        this.dataset.samples = String(n);
 
         const ink   = cssVar(this, '--dash-ink', '#E8EDF3');
         const muted = cssVar(this, '--dash-muted', '#8A96A6');
@@ -323,7 +325,8 @@ class LiveChart extends HTMLElement {
         const padL = 44, padR = 40, padT = 10, padB = 24;
         const pw = W - padL - padR, ph = H - padT - padB;
 
-        const range = RANGES.find(r => r.key === this.range) ?? RANGES[1];
+        const rangeKey = chartRangeFor(currentLayout(), this.range);
+        const range = RANGES.find(r => r.key === rangeKey) ?? RANGES[1];
         const windowSec = Number.isFinite(range.seconds) ? range.seconds : Math.max(n, 300);
         const start = Math.max(0, n - windowSec);
         const data = this.buckets(start, n, Math.max(1, Math.floor(pw)));
@@ -474,8 +477,8 @@ customElements.define('live-chart', LiveChart);
 class TrainingStats extends HTMLElement {
     connectedCallback() {
         this.innerHTML = `
-            <section class="ts--section ts--interval">
-                <h3 class="dash--title">This interval <span class="ts--sub" data-k="iv-time"></span></h3>
+            <section class="panel ts--section ts--interval">
+                <h3 class="panel__title">This interval <span class="ts--sub" data-k="iv-time"></span></h3>
                 <div class="ts--interval-main">
                     <div class="ts--big"><span data-k="iv-power">--</span><small>W avg</small></div>
                     <div class="ts--vs">target <span data-k="iv-target">--</span> W</div>
@@ -487,8 +490,8 @@ class TrainingStats extends HTMLElement {
                 <ul class="ts--cues" data-k="cues"></ul>
             </section>
 
-            <section class="ts--section ts--wbal">
-                <h3 class="dash--title">Anaerobic reserve
+            <section class="panel ts--section ts--wbal">
+                <h3 class="panel__title">Anaerobic reserve
                     <label class="ts--wprime" title="W′: the work you can do above FTP/CP before you are empty. GoldenCheetah default is 20 kJ.">
                         W′ <input type="number" min="5" max="60" step="0.5" data-k="wprime-input"> kJ
                     </label>
@@ -508,8 +511,8 @@ class TrainingStats extends HTMLElement {
                 </dl>
             </section>
 
-            <section class="ts--section">
-                <h3 class="dash--title">Training load</h3>
+            <section class="panel ts--section">
+                <h3 class="panel__title">Training load</h3>
                 <dl class="ts--grid ts--grid-3">
                     <div class="ts--kpi ts--kpi-lead"><dt>TSS</dt><dd data-k="tss">--</dd></div>
                     <div class="ts--kpi" title="Skiba's BikeScore, as in GoldenCheetah"><dt>BikeScore</dt><dd data-k="bikescore">--</dd></div>
@@ -524,8 +527,8 @@ class TrainingStats extends HTMLElement {
                 </div>
             </section>
 
-            <section class="ts--section">
-                <h3 class="dash--title">Power</h3>
+            <section class="panel ts--section">
+                <h3 class="panel__title">Power</h3>
                 <dl class="ts--grid">
                     <div class="ts--kpi"><dt>Average</dt><dd><span data-k="avg">--</span><small>W</small></dd></div>
                     <div class="ts--kpi"><dt>Max</dt><dd><span data-k="max">--</span><small>W</small></dd></div>
@@ -534,8 +537,8 @@ class TrainingStats extends HTMLElement {
                 </dl>
             </section>
 
-            <section class="ts--section">
-                <h3 class="dash--title">Heart</h3>
+            <section class="panel ts--section">
+                <h3 class="panel__title">Heart</h3>
                 <dl class="ts--grid">
                     <div class="ts--kpi"><dt>Average</dt><dd><span data-k="hr-avg">--</span><small>bpm</small></dd></div>
                     <div class="ts--kpi"><dt>Max</dt><dd><span data-k="hr-max">--</span><small>bpm</small></dd></div>
@@ -544,8 +547,8 @@ class TrainingStats extends HTMLElement {
                 </dl>
             </section>
 
-            <section class="ts--section">
-                <h3 class="dash--title">Time in zone</h3>
+            <section class="panel ts--section">
+                <h3 class="panel__title">Time in zone</h3>
                 <ol class="ts--zones" data-k="zones">
                     ${ZONES.map(z => `
                         <li class="ts--zone" style="--zc: ${z.color}">
@@ -556,8 +559,8 @@ class TrainingStats extends HTMLElement {
                 </ol>
             </section>
 
-            <section class="ts--section">
-                <h3 class="dash--title">Best efforts</h3>
+            <section class="panel ts--section">
+                <h3 class="panel__title">Best efforts</h3>
                 <table class="ts--best">
                     <tbody data-k="best"></tbody>
                 </table>

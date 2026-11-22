@@ -106,8 +106,13 @@ body {
     --text-2xl: 32px;
     --text-3xl: 48px;
     /* live numbers scale with the screen */
-    --num-hero: clamp(64px, 11vw, 168px);
-    --num-tile: clamp(28px, 3.2vw, 56px);
+    /* (cqi: share of the tile's own width, so a value always fits its tile) */
+    --num-hero: clamp(48px, min(40cqi, 12dvh), 180px);
+    --num-tile: clamp(22px, 28cqi, 60px);
+    --num-tile-long: clamp(18px, 19cqi, 48px);
+    /* landscape phone: the screen's height is what's short */
+    --num-short: clamp(18px, 8dvh, 40px);
+    --num-hero-short: clamp(40px, 22dvh, 96px);
     --num-kpi:  clamp(20px, 1.8vw, 30px);
 
     --font-text: 'Barlow', 'Roboto', system-ui, sans-serif;
@@ -156,4 +161,29 @@ body {
     --dash-good:    var(--good);
     --dash-warn:    var(--warn);
     --dash-low:     var(--danger);
+}
+
+/* TV / 1440p across the room: everything a step larger */
+@media (min-width: 2200px) and (min-height: 1100px) {
+    :root,
+    body {
+        --space-1: 6px;
+        --space-2: 10px;
+        --space-3: 16px;
+        --space-4: 20px;
+        --space-5: 30px;
+        --space-6: 40px;
+        --space-7: 60px;
+
+        --text-xs:  15px;
+        --text-s:   18px;
+        --text-m:   20px;
+        --text-l:   25px;
+        --text-xl:  30px;
+        --text-2xl: 40px;
+        --text-3xl: 60px;
+
+        --tap: 56px;
+        --app-bar-h: 84px;
+    }
 }

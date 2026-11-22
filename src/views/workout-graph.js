@@ -251,8 +251,12 @@ class WorkoutGraph extends HTMLElement {
         }
 
         const index                 = args.index ?? 0;
-        const lapTime               = args.lapTime ?? this.workout.intervals[index].duration;
         const $dom                  = args.dom;
+        // a hidden graph (display: none) renders no interval bars
+        if(!$dom?.intervals?.[index] || !this.workout?.intervals?.[index]) {
+            return;
+        }
+        const lapTime               = args.lapTime ?? this.workout.intervals[index].duration;
         const $parent               = args.parent;
         const rect                  = $dom.intervals[index].getBoundingClientRect();
         const left                  = rect.left - $parent.getBoundingClientRect().left;

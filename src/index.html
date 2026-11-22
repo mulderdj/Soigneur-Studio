@@ -49,357 +49,352 @@
             <page-group prop="page">
                 <compatibility-check></compatibility-check>
                 <div id="home-page" class="page active" page="home">
-                    <div id="home-page-wrapper">
+                    <div id="home-page-wrapper" class="ride">
 
-                        <header class="connections-header page-header">
-                            <rider-menu id="rider-menu"></rider-menu>
-                            <connection-switch for="ble:controllable" id="switch-controllable" class="connection-switch">
-                                <div class="connection-switch--indicator off"></div>
-                                <div class="connection-switch--label">Controllable</div>
-                            </connection-switch>
+                    <header class="ride__header connections-header">
+                        <rider-menu id="rider-menu"></rider-menu>
+                        <connection-switch for="ble:controllable" id="switch-controllable" class="connection-switch pill">
+                            <span class="connection-switch--indicator dot off"></span>
+                            <span class="connection-switch--label">Trainer</span>
+                        </connection-switch>
+                        <connection-switch for="ble:heartRateMonitor" id="switch-hrm" class="connection-switch pill">
+                            <span class="connection-switch--indicator dot off"></span>
+                            <span class="connection-switch--label">HR</span>
+                        </connection-switch>
+                    </header>
 
-                            <connection-switch for="ble:heartRateMonitor" id="switch-hrm" class="connection-switch">
-                                <div class="connection-switch--indicator off"></div>
-                                <div class="connection-switch--label">HRM</div>
-                            </connection-switch>
-                        </header>
+                    <section class="ride__hero" aria-label="Power">
+                        <div class="tile tile--hero" id="data-tile--power">
+                            <z-stack data-key="powerZStack">
+                                <z-stack-item class="active">
+                                    <h2 class="tile__label">Power</h2>
+                                    <div class="tile__value-cont">
+                                        <power-value id=power-value"
+                                                     class="tile__value"
+                                                     prop="db:power1s">--</power-value>
+                                    </div>
+                                </z-stack-item>
+                                <z-stack-item>
+                                    <h2 class="tile__label">Power 3s</h2>
+                                    <div class="tile__value-cont">
+                                        <power-value id=power-value-3s"
+                                                     class="tile__value"
+                                                     prop="db:power3s">--</power-value>
+                                    </div>
+                                </z-stack-item>
+                            </z-stack>
+                        </div>
+                        <div class="tile tile--target" id="data-tile--target">
+                            <z-stack data-key="powerTargetZStack">
+                                <z-stack-item class="active">
+                                    <h2 class="tile__label">Target</h2>
+                                    <div class="tile__value-cont">
+                                        <power-target
+                                            class="companion-main tile__value">
+                                            --
+                                        </power-target>
+                                    </div>
+                                </z-stack-item>
+                                <z-stack-item>
+                                    <h2 class="tile__label">Target</h2>
+                                    <div class="tile__value-cont complex">
+                                        <power-target
+                                            class="tile__value active">
+                                            --
+                                        </power-target>
+                                        <power-target-ftp
+                                            id="power-target-ftp"
+                                            class="tile__target active">
+                                            --
+                                        </power-ftp-value>
+                                    </div>
+                                </z-stack-item>
+                            </z-stack>
+                        </div>
+                    </section>
 
-                        <div class="data-tiles">
-                            <div class="data-tile--small wide" id="data-tile--power-avg">
-                                <z-stack data-key="kcalZStack">
-                                    <z-stack-item class="active">
-                                        <h2 class="data-tile-small--heading">Power Lap</h2>
-                                        <div class="data-tile-small--value-cont">
-                                            <power-lap id="power-lap-value"
-                                                       class="data-tile-small--value">--</power-lap>
-                                        </div>
-                                    </z-stack-item>
-                                    <z-stack-item>
-                                        <h2 class="data-tile-small--heading">Power Avg</h2>
-                                        <div class="data-tile-small--value-cont">
-                                            <power-avg id="power-avg-value"
-                                                       class="data-tile-small--value">--</power-avg>
-                                        </div>
-                                    </z-stack-item>
-                                    <z-stack-item>
-                                        <h2 class="data-tile-small--heading">Kcal</h2>
-                                        <div class="data-tile-small--value-cont">
-                                            <kcal-avg id="kcal-avg-value"
-                                                      class="data-tile-small--value">--</kcal-avg>
-                                        </div>
-                                    </z-stack-item>
-                                    <z-stack-item>
-                                        <h2 class="data-tile-small--heading">GEAR</h2>
-                                        <div class="data-tile-small--value-cont">
-                                            <virtual-gear id="virtual-gear-value"
-                                                          class="data-tile-small--value">--</virtual-gear>
-                                        </div>
-                                    </z-stack-item>
-                                </z-stack>
+                    <section class="ride__metrics data-tiles" aria-label="Ride metrics">
+                        <div class="tile" id="data-tile--interval-time">
+                            <h2 class="tile__label">Interval Time</h2>
+                            <div class="tile__value-cont">
+                                <interval-time id="interval-time"
+                                               class="tile__value">--:--</interval-time>
                             </div>
-
-                            <div class="data-tile" id="data-tile--power">
-                                <z-stack data-key="powerZStack">
-                                    <z-stack-item class="active">
-                                        <h2 class="data-tile--heading">Power</h2>
-                                        <div class="data-tile--value-cont">
-                                            <power-value id=power-value"
-                                                         class="data-tile--value"
-                                                         prop="db:power1s">--</power-value>
-                                        </div>
-                                    </z-stack-item>
-                                    <z-stack-item>
-                                        <h2 class="data-tile--heading">Power 3s</h2>
-                                        <div class="data-tile--value-cont">
-                                            <power-value id=power-value-3s"
-                                                         class="data-tile--value"
-                                                         prop="db:power3s">--</power-value>
-                                        </div>
-                                    </z-stack-item>
-                                </z-stack>
+                        </div>
+                        <div class="tile" id="data-tile--elapsed-time">
+                            <h2 class="tile__label">Elapsed Time</h2>
+                            <div class="tile__value-cont">
+                                <timer-time id="elapsed-time"
+                                            class="tile__value">--:--:--</timer-time>
                             </div>
-
-                            <div class="data-tile" id="data-tile--interval-time">
-                                <h2 class="data-tile--heading">Interval Time</h2>
-                                <div class="data-tile--value-cont">
-                                    <interval-time id="interval-time"
-                                                   class="data-tile--value">--:--</interval-time>
-                                </div>
-                            </div>
-                            <div class="data-tile" id="data-tile--heart-rate">
-                                <z-stack data-key="heartRateZStack">
-                                    <z-stack-item class="active">
-                                        <h2 class="data-tile--heading">Heart Rate</h2>
-                                        <div class="data-tile--value-cont">
-                                            <heart-rate-value id="heart-rate-value"
-                                                            class="data-tile--value">--</heart-rate-value>
-                                        </div>
-                                    </z-stack-item>
-                                    <z-stack-item>
-                                        <h2 class="data-tile--heading">Heart Rate Lap</h2>
-                                        <div class="data-tile--value-cont">
-                                            <heart-rate-lap-value id="heart-rate-lap-value"
-                                                              class="data-tile--value">--</heart-rate-lap-value>
-                                        </div>
-                                    </z-stack-item>
-                                    <z-stack-item>
-                                        <h2 class="data-tile--heading">Heart Rate Avg</h2>
-                                        <div class="data-tile--value-cont">
-                                            <heart-rate-avg-value id="heart-rate-avg-value"
-                                                                  class="data-tile--value">--</heart-rate-avg-value>
-                                        </div>
-                                    </z-stack-item>
-                                    <z-stack-item>
-                                        <h2 class="data-tile--heading">Heart Rate Max</h2>
-                                        <div class="data-tile--value-cont">
-                                            <heart-rate-max-value id="heart-rate-max-value"
-                                                              class="data-tile--value">--</heart-rate-max-value>
-                                        </div>
-                                    </z-stack-item>
-                                </z-stack>
-                            </div>
-
-                            <div class="data-tile--small wide" id="data-tile--speed">
-                                <h2 class="data-tile-small--heading">Speed</h2>
-                                    <speed-switch id="distance-value"
-                                                  class="data-tile-small--value">--</speed-switch>
-                            </div>
-                            <div class="data-tile--small wide" id="data-tile--slope">
-                                <h2 class="data-tile-small--heading">Slope</h2>
-                                <div class="data-tile-small--value-cont">
-                                    <slope-target id=slope-target-value"
-                                                  class="data-tile-small--value">--</slope-target>
-                                </div>
-                            </div>
-
-                            <div class="data-tile" id="data-tile--target">
-                                <z-stack data-key="powerTargetZStack">
-                                    <z-stack-item class="active">
-                                        <h2 class="data-tile--heading">Target</h2>
-                                        <div class="data-tile--value-cont">
-                                            <power-target
-                                                class="companion-main data-tile--value">
-                                                --
-                                            </power-target>
-                                        </div>
-                                    </z-stack-item>
-                                    <z-stack-item>
-                                        <h2 class="data-tile--heading">Target</h2>
-                                        <div class="data-tile--value-cont complex">
-                                            <power-target
-                                                class="data-tile--value active">
-                                                --
-                                            </power-target>
-                                            <power-target-ftp
-                                                id="power-target-ftp"
-                                                class="data-tile-target--value active">
-                                                --
-                                            </power-ftp-value>
-                                        </div>
-                                    </z-stack-item>
-                                </z-stack>
-                            </div>
-                            <div class="data-tile" id="data-tile--elapsed-time">
-                                <h2 class="data-tile--heading">Elapsed Time</h2>
-                                <div class="data-tile--value-cont">
-                                    <timer-time id="elapsed-time"
-                                                class="data-tile--value">--:--:--</timer-time>
-                                </div>
-                            </div>
-                            <div class="data-tile" id="data-tile--cadence">
-                                <z-stack data-key="cadenceZStack">
-                                    <z-stack-item class="active">
-                                        <h2 class="data-tile--heading">Cadence</h2>
+                        </div>
+                        <div class="tile" id="data-tile--heart-rate">
+                            <z-stack data-key="heartRateZStack">
+                                <z-stack-item class="active">
+                                    <h2 class="tile__label">Heart Rate</h2>
+                                    <div class="tile__value-cont">
+                                        <heart-rate-value id="heart-rate-value"
+                                                        class="tile__value">--</heart-rate-value>
+                                    </div>
+                                </z-stack-item>
+                                <z-stack-item>
+                                    <h2 class="tile__label">Heart Rate Lap</h2>
+                                    <div class="tile__value-cont">
+                                        <heart-rate-lap-value id="heart-rate-lap-value"
+                                                          class="tile__value">--</heart-rate-lap-value>
+                                    </div>
+                                </z-stack-item>
+                                <z-stack-item>
+                                    <h2 class="tile__label">Heart Rate Avg</h2>
+                                    <div class="tile__value-cont">
+                                        <heart-rate-avg-value id="heart-rate-avg-value"
+                                                              class="tile__value">--</heart-rate-avg-value>
+                                    </div>
+                                </z-stack-item>
+                                <z-stack-item>
+                                    <h2 class="tile__label">Heart Rate Max</h2>
+                                    <div class="tile__value-cont">
+                                        <heart-rate-max-value id="heart-rate-max-value"
+                                                          class="tile__value">--</heart-rate-max-value>
+                                    </div>
+                                </z-stack-item>
+                            </z-stack>
+                        </div>
+                        <div class="tile" id="data-tile--cadence">
+                            <z-stack data-key="cadenceZStack">
+                                <z-stack-item class="active">
+                                    <h2 class="tile__label">Cadence</h2>
+                                    <cadence-value id=cadence-value"
+                                                   class="tile__value">--</cadence-value>
+                                </z-stack-item>
+                                <z-stack-item>
+                                    <h2 class="tile__label">Cadence Lap</h2>
+                                    <cadence-lap-value id=cadence-lap-value"
+                                                       class="tile__value">--</cadence-lap-value>
+                                </z-stack-item>
+                                <z-stack-item>
+                                    <h2 class="tile__label">Cadence Avg</h2>
+                                    <cadence-avg-value id=cadence-avg-value"
+                                                       class="tile__value">--</cadence-avg-value>
+                                </z-stack-item>
+                                <z-stack-item>
+                                    <h2 class="tile__label">Cadence Target</h2>
+                                    <cadence-group class="tile__value-cont complex">
                                         <cadence-value id=cadence-value"
-                                                       class="data-tile--value">--</cadence-value>
-                                    </z-stack-item>
-                                    <z-stack-item>
-                                        <h2 class="data-tile--heading">Cadence Lap</h2>
-                                        <cadence-lap-value id=cadence-lap-value"
-                                                           class="data-tile--value">--</cadence-lap-value>
-                                    </z-stack-item>
-                                    <z-stack-item>
-                                        <h2 class="data-tile--heading">Cadence Avg</h2>
-                                        <cadence-avg-value id=cadence-avg-value"
-                                                           class="data-tile--value">--</cadence-avg-value>
-                                    </z-stack-item>
-                                    <z-stack-item>
-                                        <h2 class="data-tile--heading">Cadence Target</h2>
-                                        <cadence-group class="data-tile--value-cont complex">
-                                            <cadence-value id=cadence-value"
-                                                           class="data-tile--value">--</cadence-value>
-                                            <cadence-target id=cadence-target-value"
-                                                            class="data-tile-target--value active"></cadence-target>
-                                        </cadence-group>
-                                    </z-stack-item>
-                                </z-stack>
+                                                       class="tile__value">--</cadence-value>
+                                        <cadence-target id=cadence-target-value"
+                                                        class="tile__target active"></cadence-target>
+                                    </cadence-group>
+                                </z-stack-item>
+                            </z-stack>
+                        </div>
+                        <div class="tile" id="data-tile--speed">
+                            <h2 class="tile__label">Speed</h2>
+                                <speed-switch id="distance-value"
+                                              class="tile__value">--</speed-switch>
+                        </div>
+                        <div class="tile" id="data-tile--distance">
+                            <h2 class="tile__label">Distance</h2>
+                            <div class="tile__value-cont">
+                                <distance-value id="distance-value"
+                                                class="tile__value">--</distance-value>
+
                             </div>
-
-                            <div class="data-tile--small wide" id="data-tile--distance">
-                                <h2 class="data-tile-small--heading">Distance</h2>
-                                <div class="data-tile-small--value-cont">
-                                    <distance-value id="distance-value"
-                                                    class="data-tile-small--value">--</distance-value>
-
-                                </div>
+                        </div>
+                        <div class="tile" id="data-tile--slope">
+                            <h2 class="tile__label">Slope</h2>
+                            <div class="tile__value-cont">
+                                <slope-target id=slope-target-value"
+                                              class="tile__value">--</slope-target>
                             </div>
-
-                            <div class="data-tile--small" id="data-tile--smo2">
-                                <h2 class="data-tile-small--heading">SmO2</h2>
-                                <div class="data-tile-small--value-cont">
-                                    <smo2-value id="smo2-value"
-                                                class="data-tile-small--value">--</smo2-value>
-                                </div>
+                        </div>
+                        <div class="tile" id="data-tile--power-avg">
+                            <z-stack data-key="kcalZStack">
+                                <z-stack-item class="active">
+                                    <h2 class="tile__label">Power Lap</h2>
+                                    <div class="tile__value-cont">
+                                        <power-lap id="power-lap-value"
+                                                   class="tile__value">--</power-lap>
+                                    </div>
+                                </z-stack-item>
+                                <z-stack-item>
+                                    <h2 class="tile__label">Power Avg</h2>
+                                    <div class="tile__value-cont">
+                                        <power-avg id="power-avg-value"
+                                                   class="tile__value">--</power-avg>
+                                    </div>
+                                </z-stack-item>
+                                <z-stack-item>
+                                    <h2 class="tile__label">Kcal</h2>
+                                    <div class="tile__value-cont">
+                                        <kcal-avg id="kcal-avg-value"
+                                                  class="tile__value">--</kcal-avg>
+                                    </div>
+                                </z-stack-item>
+                                <z-stack-item>
+                                    <h2 class="tile__label">GEAR</h2>
+                                    <div class="tile__value-cont">
+                                        <virtual-gear id="virtual-gear-value"
+                                                      class="tile__value">--</virtual-gear>
+                                    </div>
+                                </z-stack-item>
+                            </z-stack>
+                        </div>
+                        <div class="tile" id="data-tile--smo2">
+                            <h2 class="tile__label">SmO2</h2>
+                            <div class="tile__value-cont">
+                                <smo2-value id="smo2-value"
+                                            class="tile__value">--</smo2-value>
                             </div>
-
-                            <div class="data-tile--small" id="data-tile--thb">
-                                <h2 class="data-tile-small--heading">Thb</h2>
-                                <div class="data-tile-small--value-cont">
-                                    <thb-value id="thb-value"
-                                               class="data-tile-small--value">--</thb-value>
-                                </div>
+                        </div>
+                        <div class="tile" id="data-tile--thb">
+                            <h2 class="tile__label">Thb</h2>
+                            <div class="tile__value-cont">
+                                <thb-value id="thb-value"
+                                           class="tile__value">--</thb-value>
                             </div>
-
-                            <div class="data-tile--small" id="data-tile--core-body-temperature">
-                                <h2 class="data-tile-small--heading">Core</h2>
-                                <div class="data-tile-small--value-cont">
-                                    <core-body-temperature-value
-                                        id="core-body-temperature-value"
-                                        class="data-tile-small--value">
-                                        --
-                                    </core-body-temperature-value>
-                                </div>
+                        </div>
+                        <div class="tile" id="data-tile--core-body-temperature">
+                            <h2 class="tile__label">Core</h2>
+                            <div class="tile__value-cont">
+                                <core-body-temperature-value
+                                    id="core-body-temperature-value"
+                                    class="tile__value">
+                                    --
+                                </core-body-temperature-value>
                             </div>
-
-                            <div class="data-tile--small" id="data-tile--skin-temperature">
-                                <h2 class="data-tile-small--heading">Skin</h2>
-                                <div class="data-tile-small--value-cont">
-                                    <skin-temperature-value
-                                        id="skin-temperature-value"
-                                        class="data-tile-small--value">
-                                        --
-                                    </skin-temperature-value>
-                                </div>
+                        </div>
+                        <div class="tile" id="data-tile--skin-temperature">
+                            <h2 class="tile__label">Skin</h2>
+                            <div class="tile__value-cont">
+                                <skin-temperature-value
+                                    id="skin-temperature-value"
+                                    class="tile__value">
+                                    --
+                                </skin-temperature-value>
                             </div>
+                        </div>
+                        <data-tile-switch-group class="data-tile--switch--group">
+                            <div class="data-tile--switch switch-item switch-0 active" index="0">
+                                <div class="data-tile--switch--icon"></div>
+                            </div>
+                            <div class="data-tile--switch switch-item switch-1" index="1">
+                                <div class="data-tile--switch--icon"></div>
+                            </div>
+                        </data-tile-switch-group>
+                    </section>
 
-                            <data-tile-switch-group class="data-tile--switch--group">
-                                <div class="data-tile--switch switch-item switch-0 active" index="0">
-                                    <div class="data-tile--switch--icon"></div>
-                                </div>
-                                <div class="data-tile--switch switch-item switch-1" index="1">
-                                    <div class="data-tile--switch--icon"></div>
-                                </div>
-                            </data-tile-switch-group>
-                        </div> <!-- end data-tiles -->
+                    <live-chart id="dash-chart" class="ride__chart"></live-chart>
 
-                        <live-chart id="dash-chart" class="dash-only"></live-chart>
-                        <training-stats id="dash-stats" class="dash-only"></training-stats>
+                    <div id="graph-workout" class="graph ride__workout">
+                        <workout-name id="current-workout-name" class="graph--heading"></workout-name>
+                        <workout-graph class="workout--graph-cont" prop="workout" metric="ftp"></workout-graph>
+                    </div>
 
-                        <div id="graph-power" class="graph">
-                            <auto-start-counter class="">3</auto-start-counter>
-                            <workout-text-event id="workout-text-event"></workout-text-event>
-                            <!-- <z-stack data-key="graphZStack">
-                                 <z-stack-item class="active"> -->
-                                    <h4 class="graph--heading">Graph</h4>
-                                    <moxy-graph class="graph--cont">
-                                        <svg id="moxy-svg">
-                                            <polyline id="moxy-path-smo2" class="moxy--path" points=""/>
-                                            <polyline id="moxy-path-thb" class="moxy--path" points=""/>
-                                            <polyline id="moxy-path-hr" class="moxy--path" points=""/>
-                                            <polyline id="moxy-path-power" class="moxy--path" points=""/>
+                    <div id="targets" class="ride__modes">
+                        <div class="targets--cont">
+                            <div class="tab-btn-group">
+                                <div id="mode-selector" class="mode-selector segmented">
+                                    <tab-btn id="erg-mode-btn"
+                                            class="mode segmented__opt active"
+                                            prop="mode"
+                                            effect="mode-set"
+                                            param="erg">ERG</tab-btn>
+                                    <tab-btn id="resistance-mode-btn"
+                                            class="mode segmented__opt"
+                                            prop="mode"
+                                            effect="mode-set"
+                                            param="resistance">Resistance</tab-btn>
+                                    <tab-btn id="slope-mode-btn"
+                                            class="mode segmented__opt"
+                                            prop="mode"
+                                            effect="mode-set"
+                                             param="sim">Slope</tab-btn>
+                                    <mode-lock-toggle>
+                                        <svg class="mode-lock--toggle--icon" width="24" height="24">
+                                            <use href="#icon--lock--open"/>
                                         </svg>
-                                    </moxy-graph>
-                                    <!-- </z-stack-item>
-                                         <z-stack-item>
-                                         <h4 class="graph--heading">Power</h4>
-                                         <instant-power-graph class="graph--cont">
-                                         </instant-power-graph>
-                                         </z-stack-item>
-                                         </z-stack> -->
-                        </div>
+                                    </mode-lock-toggle>
+                                </div> <!-- end mode selector -->
+                            </div> <!-- tab-btn-group -->
 
-                        <div id="graph-workout" class="graph">
-                            <workout-name id="current-workout-name" class="graph--heading"></workout-name>
-                            <workout-graph class="workout--graph-cont" prop="workout" metric="ftp"></workout-graph>
-                        </div>
+                            <tab-group prop="mode">
+                                <div id="erg-mode-controls" class="tab active mode-controls" tab="erg">
+                                    <power-target-control id="power-control-btn" class="number-btn">
+                                        <div class="number-input">
+                                            <button id="power-target-dec"
+                                                    class="number-input--dec number-input--btn btn">-</button>
+                                            <input id="power-target-input"
+                                                   class="number-input--value"
+                                                   type="number"
+                                                   value="0"
+                                                   autocomplete="off"/>
+                                            <button id="power-target-inc"
+                                                    class="number-input--inc number-input--btn btn">+</button>
+                                        </div>
+                                    </power-target-control>
+                                </div> <!-- end erg mode -->
+                                <div id="resistance-mode-controls" class="tab mode-controls" tab="resistance">
+                                    <resistance-target-control id="resistance-control-btn" class="number-btn">
+                                        <div class="number-input">
+                                            <button id="resistance-target-dec"
+                                                    class="number-input--dec number-input--btn btn">-</button>
+                                            <input id="resistance-target-input"
+                                                   class="number-input--value input"
+                                                   type="number"
+                                                   value="0"
+                                                   autocomplete="off" />
+                                            <button id="resistance-target-inc"
+                                                    class="number-input--inc number-input--btn btn">+</button>
+                                        </div>
+                                    </resistance-target-control>
+                                </div> <!-- end resistance mode -->
+                                <div id="slope-mode-controls" class="tab mode-controls" tab="sim">
+                                    <slope-target-control id="slope-control-btn" class="number-btn">
+                                        <div class="number-input">
+                                            <button id="slope-target-dec"
+                                                    class="number-input--dec number-input--btn btn">-</button>
+                                            <input id="slope-target-input"
+                                                   class="number-input--value input"
+                                                   type="number"
+                                                   value="0"
+                                                   autocomplete="off" />
+                                            <button id="slope-target-inc"
+                                                    class="number-input--inc number-input--btn btn">+</button>
+                                        </div>
+                                    </slope-target-control>
+                                </div> <!-- end slope mode -->
+                            </tab-group>
+                        </div> <!-- end targets--cont -->
+                    </div>
 
-                        <div id="targets">
-                            <div class="targets--cont">
-                                <div class="tab-btn-group">
-                                    <div id="mode-selector" class="mode-selector">
-                                        <tab-btn id="erg-mode-btn"
-                                                class="mode active"
-                                                prop="mode"
-                                                effect="mode-set"
-                                                param="erg">ERG</tab-btn>
-                                        <tab-btn id="resistance-mode-btn"
-                                                class="mode"
-                                                prop="mode"
-                                                effect="mode-set"
-                                                param="resistance">Resistance</tab-btn>
-                                        <tab-btn id="slope-mode-btn"
-                                                class="mode"
-                                                prop="mode"
-                                                effect="mode-set"
-                                                 param="sim">Slope</tab-btn>
-                                        <mode-lock-toggle>
-                                            <svg class="mode-lock--toggle--icon" width="24" height="24">
-                                                <use href="#icon--lock--open"/>
-                                            </svg>
-                                        </mode-lock-toggle>
-                                    </div> <!-- end mode selector -->
-                                </div> <!-- tab-btn-group -->
+                    <div id="graph-power" class="graph ride__moxy">
+                        <auto-start-counter class="">3</auto-start-counter>
+                        <workout-text-event id="workout-text-event"></workout-text-event>
+                        <!-- <z-stack data-key="graphZStack">
+                             <z-stack-item class="active"> -->
+                                <h4 class="graph--heading">Graph</h4>
+                                <moxy-graph class="graph--cont">
+                                    <svg id="moxy-svg">
+                                        <polyline id="moxy-path-smo2" class="moxy--path" points=""/>
+                                        <polyline id="moxy-path-thb" class="moxy--path" points=""/>
+                                        <polyline id="moxy-path-hr" class="moxy--path" points=""/>
+                                        <polyline id="moxy-path-power" class="moxy--path" points=""/>
+                                    </svg>
+                                </moxy-graph>
+                                <!-- </z-stack-item>
+                                     <z-stack-item>
+                                     <h4 class="graph--heading">Power</h4>
+                                     <instant-power-graph class="graph--cont">
+                                     </instant-power-graph>
+                                     </z-stack-item>
+                                     </z-stack> -->
+                    </div>
 
-                                <tab-group prop="mode">
-                                    <div id="erg-mode-controls" class="tab active mode-controls" tab="erg">
-                                        <power-target-control id="power-control-btn" class="number-btn">
-                                            <div class="number-input">
-                                                <button id="power-target-dec"
-                                                        class="number-input--dec number-input--btn btn">-</button>
-                                                <input id="power-target-input"
-                                                       class="number-input--value"
-                                                       type="number"
-                                                       value="0"
-                                                       autocomplete="off"/>
-                                                <button id="power-target-inc"
-                                                        class="number-input--inc number-input--btn btn">+</button>
-                                            </div>
-                                        </power-target-control>
-                                    </div> <!-- end erg mode -->
-                                    <div id="resistance-mode-controls" class="tab mode-controls" tab="resistance">
-                                        <resistance-target-control id="resistance-control-btn" class="number-btn">
-                                            <div class="number-input">
-                                                <button id="resistance-target-dec"
-                                                        class="number-input--dec number-input--btn btn">-</button>
-                                                <input id="resistance-target-input"
-                                                       class="number-input--value input"
-                                                       type="number"
-                                                       value="0"
-                                                       autocomplete="off" />
-                                                <button id="resistance-target-inc"
-                                                        class="number-input--inc number-input--btn btn">+</button>
-                                            </div>
-                                        </resistance-target-control>
-                                    </div> <!-- end resistance mode -->
-                                    <div id="slope-mode-controls" class="tab mode-controls" tab="sim">
-                                        <slope-target-control id="slope-control-btn" class="number-btn">
-                                            <div class="number-input">
-                                                <button id="slope-target-dec"
-                                                        class="number-input--dec number-input--btn btn">-</button>
-                                                <input id="slope-target-input"
-                                                       class="number-input--value input"
-                                                       type="number"
-                                                       value="0"
-                                                       autocomplete="off" />
-                                                <button id="slope-target-inc"
-                                                        class="number-input--inc number-input--btn btn">+</button>
-                                            </div>
-                                        </slope-target-control>
-                                    </div> <!-- end slope mode -->
-                                </tab-group>
-                            </div> <!-- end targets--cont -->
-                        </div> <!-- end targets -->
-                </div> <!-- end home-page-wrapper -->
+                    <training-stats id="dash-stats" class="ride__stats"></training-stats>
+                    <panel-pager for="dash-stats" class="ride__pager"></panel-pager>
+
+                    </div> <!-- end home-page-wrapper -->
             </div> <!-- end page-home -->
 
             <div id="workouts-page" class="page" page="workouts">
