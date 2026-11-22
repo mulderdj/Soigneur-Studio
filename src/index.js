@@ -38,6 +38,14 @@ function stop() {
 
 start();
 
+// Development only: ?simulate feeds a simulated rider into the app
+// (src/dev/simulator.js). module.hot only exists on the Parcel dev server
+// (npm start), so production builds and Docker never run it.
+if(typeof module !== 'undefined' && module.hot &&
+   new URLSearchParams(location.search).has('simulate')) {
+    import('./dev/simulator.js').then(simulator => simulator.start({xf}));
+}
+
 export {
     start,
     stop,

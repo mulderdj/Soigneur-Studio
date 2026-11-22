@@ -30,6 +30,8 @@ New files: `src/analytics.js` (the statistics, tested in `test/analytics.test.js
 
 Run it locally with `npm install` then `npm start`, and open the printed address in Chrome or Edge. Web Bluetooth needs `localhost` or HTTPS. For accounts in development, run `npm run server` in a second terminal; the Parcel dev server forwards `/api` to it (`.proxyrc.json`). Server tests: `npm run test:server`.
 
+No trainer at hand? Open the dev server with `?simulate` (e.g. `http://localhost:1234/?simulate`) and a simulated rider feeds power, cadence, speed and heart rate into the app. It follows the ERG target, a badge shows it is on, and it only exists on `npm start`, never in production builds or Docker. Don't upload rides recorded this way to Strava or intervals.icu.
+
 **Riders, accounts and saved sensors.** The rider pill at the top left of the home screen opens a panel with:
 * *Riders*: several riders on one device, each with their own FTP, weight, W′, workouts, rides and saved sensors. Switching reloads the app with that rider's data.
 * *Account*: sign in to the self-hosted account server (part of the Docker setup) to sync FTP, weight, W′, imported workouts and every saved ride across devices, without the 7-ride limit. The first account becomes the admin.
