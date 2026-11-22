@@ -3,6 +3,7 @@ import { models } from './models/models.js';
 import { Sound } from './sound.js';
 import { idb } from './storage/idb.js';
 import { riders } from './riders.js';
+import { cleanupLegacyPrefs } from './legacy-prefs.js';
 import { ControlMode, } from './ble/enums.js';
 import { TimerStatus, } from './activity/enums.js';
 
@@ -64,7 +65,6 @@ let db = {
     ftp: models.ftp.default,
     weight: models.weight.default,
     theme: models.theme.default,
-    dockMode: models.dockMode.default,
     measurement: models.measurement.default,
     volume: models.volume.default,
 
@@ -172,11 +172,6 @@ xf.reg(models.sources.prop, (sources, db) => {
     db.sources = models.sources.set(db.sources, sources);
     models.sources.backup(db.sources);
     console.log(db.sources);
-});
-
-xf.reg(models.dockMode.prop, (value, db) => {
-    db.dockMode = models.dockMode.set(value);
-    models.dockMode.backup(db.dockMode);
 });
 
 xf.reg('power1s', (power, db) => {
@@ -301,10 +296,6 @@ xf.reg('ui:theme-switch', (_, db) => {
     models.theme.backup(db.theme);
 });
 
-xf.reg('ui:dock-mode-switch', (_, db) => {
-    db.theme = models.dockMode.switch(db.dockMode);
-    models.dockMode.backup(db.dockMode);
-});
 xf.reg('ui:measurement-switch', (_, db) => {
     db.measurement = models.measurement.switch(db.measurement);
     models.measurement.backup(db.measurement);
@@ -329,9 +320,6 @@ xf.reg('workout', (workout, db) => {
 });
 xf.reg('ui:workout:select', (id, db) => {
     db.workout = models.workouts.get(db.workouts, id);
-});
-xf.reg('ui:planned:select', (id, db) => {
-    db.workout = models.planned.get(id);
 });
 xf.reg('ui:workout:remove', (id, db) => {
     db.workouts = models.workouts.remove(db.workouts, id);
@@ -422,16 +410,12 @@ xf.reg('auth', (x, db) => {
 xf.reg('services', (x, db) => {
     db.services = Object.assign(db.services, x);
 });
-xf.reg('account', (x, db) => {
-    db.account = {identifier: x?.identifier ?? ''};
-});
-
 
 //
 xf.reg('app:start', async function(_, db) {
 
-    db.dockMode = models.dockMode.set(models.dockMode.restore());
-    models.dockMode.apply(db.dockMode);
+    // stored values of removed features (dock mode, planned list, ride report)
+    try { cleanupLegacyPrefs(localStorage, riders.key); } catch(e) {}
 
     db.ftp = models.ftp.set(models.ftp.restore());
     db.weight = models.weight.set(models.weight.restore());
@@ -447,7 +431,6 @@ xf.reg('app:start', async function(_, db) {
     db.workouts = await models.workouts.restore();
     db.activity = await models.activity.restore();
     db.workout = models.workout.restore(db);
-    models.planned.restore();
 
     await models.session.restore(db);
     xf.dispatch('workout:restore');
@@ -464,7 +447,6 @@ xf.reg('app:start', async function(_, db) {
     const sound = Sound({volume: db.volume});
     sound.start();
 
-    models.api.start();
     // TODO: remove
     // xf.dispatch(`ui:page-set`, 'workouts');
 

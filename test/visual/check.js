@@ -18,6 +18,7 @@ const { chromium } = require('playwright-core');
 
 const PAGES = {
     ride:     '#home-tab-btn',
+    riders:   '#home-tab-btn', // the rider menu dialog, opened from the Ride page
     training: '#training-tab-btn',
     workouts: '#workouts-tab-btn',
     settings: '#settings-tab-btn',
@@ -176,10 +177,21 @@ async function main() {
                 const where = `${name} @ ${sizeName} ${theme}`;
                 if(!PAGES[name]) { failures.push(`${where}: unknown page`); continue; }
                 if(!(await openTab(page, PAGES[name], size.phone))) { missing.add(name); continue; }
+                if(name === 'riders') {
+                    // while riding, very short screens hide the header (and the pill)
+                    const pill = page.locator('.rm--pill').first();
+                    if(!(await pill.isVisible())) { missing.add(`riders @ ${sizeName} (pill hidden while riding)`); continue; }
+                    await pill.click();
+                    await page.waitForTimeout(400);
+                }
                 const problems = await page.evaluate(inspect, !!size.phone);
                 if(name === 'ride' && size.phone && sizeName === 'phone') problems.push(...await rotateCheck(page));
                 await page.screenshot({path: path.join(outDir, `${name}-${sizeName}-${theme}.png`)});
                 for(const p of problems) failures.push(`${where}: ${p}`);
+                if(name === 'riders') {
+                    await page.keyboard.press('Escape');
+                    await page.waitForTimeout(200);
+                }
             }
             for(const e of new Set(errors)) failures.push(`${sizeName} ${theme}: console: ${e}`);
             await context.close();

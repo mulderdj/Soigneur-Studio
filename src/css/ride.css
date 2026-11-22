@@ -955,14 +955,19 @@ body.white-theme .ride .tile--hero .tile__value {
 @media (max-height: 599px) and (orientation: landscape) and (max-width: 1199px) {
     .ride {
         grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.4fr);
-        grid-template-rows: minmax(0, 1.5fr) minmax(64px, 1fr) auto;
+        grid-template-rows: auto minmax(0, 1.5fr) minmax(64px, 1fr) auto;
         grid-template-areas:
+            "header  header"
             "hero    metrics"
             "chart   chart"
             "modes   modes";
     }
 
-    .ride__header,
+    /* while riding, the header (rider pill, connections) steps aside */
+    body:has(app-bar[data-mode="riding"]) .ride__header {
+        display: none;
+    }
+
     .ride__workout,
     .ride__stats,
     .ride__pager {

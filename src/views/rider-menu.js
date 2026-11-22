@@ -66,17 +66,17 @@ class RiderMenu extends HTMLElement {
         this.flash = '';
 
         this.innerHTML = `
-            <button type="button" class="rm--pill" aria-haspopup="dialog">
+            <button type="button" class="rm--pill pill" aria-haspopup="dialog">
                 <span class="rm--avatar"></span>
                 <span class="rm--name"></span>
                 <span class="rm--dot" aria-hidden="true"></span>
             </button>
             <dialog class="rm--dialog" aria-label="Riders and account">
                 <div class="rm--head">
-                    <nav class="rm--tabs" role="tablist"></nav>
+                    <nav class="rm--tabs tabs" role="tablist"></nav>
                     <button type="button" class="rm--close" aria-label="Close">×</button>
                 </div>
-                <div class="rm--flash" role="status" hidden></div>
+                <div class="rm--flash flash" role="status" hidden></div>
                 <div class="rm--body"></div>
             </dialog>`;
 
@@ -167,7 +167,7 @@ class RiderMenu extends HTMLElement {
 
     render() {
         this.$tabs.innerHTML = this.tabs().map(([k, label]) =>
-            `<button type="button" role="tab" data-tab="${k}" aria-selected="${k === this.tab}">${label}</button>`).join('');
+            `<button type="button" class="tabs__tab" role="tab" data-tab="${k}" aria-selected="${k === this.tab}">${label}</button>`).join('');
         this.$flash.hidden = !this.flash;
         this[`render_${this.tab}`]();
     }
@@ -178,24 +178,24 @@ class RiderMenu extends HTMLElement {
             <p class="rm--lead">Each rider has their own FTP, weight, W′, workouts, rides and saved sensors on this device.</p>
             <ul class="rm--list">
                 ${list.map(r => `
-                <li class="rm--row${r.current ? ' is-current' : ''}">
+                <li class="rm--row list-row${r.current ? ' is-current' : ''}">
                     <span class="rm--avatar">${initial(r.name)}</span>
                     <span class="rm--who">
                         <b>${esc(r.name)}</b>
                         <small>${r.account ? `Account @${esc(r.account.username)}${r.account.token ? '' : ', signed out'}` : 'This device only'}</small>
                     </span>
                     <span class="rm--actions">
-                        ${r.current ? '<span class="rm--tag">Riding now</span>' :
-                          `<button type="button" class="rm--btn" data-act="switch" data-id="${esc(r.id)}">Switch</button>`}
-                        <button type="button" class="rm--btn rm--quiet" data-act="rename" data-id="${esc(r.id)}">Rename</button>
+                        ${r.current ? '<span class="rm--tag badge">Riding now</span>' :
+                          `<button type="button" class="btn rm--btn" data-act="switch" data-id="${esc(r.id)}">Switch</button>`}
+                        <button type="button" class="btn rm--btn rm--quiet btn--quiet" data-act="rename" data-id="${esc(r.id)}">Rename</button>
                         ${!r.current && r.id !== riders.DEFAULT_ID ?
-                          `<button type="button" class="rm--btn rm--quiet rm--danger" data-act="remove" data-id="${esc(r.id)}">Remove</button>` : ''}
+                          `<button type="button" class="btn rm--btn rm--quiet rm--danger btn--quiet btn--danger" data-act="remove" data-id="${esc(r.id)}">Remove</button>` : ''}
                     </span>
                 </li>`).join('')}
             </ul>
             <form class="rm--form rm--inline" data-form="add-rider">
-                <label>New rider <input name="name" maxlength="40" placeholder="Name" required></label>
-                <button type="submit" class="rm--btn rm--primary">Add rider</button>
+                <label class="field">New rider <input class="input" name="name" maxlength="40" placeholder="Name" required></label>
+                <button type="submit" class="btn rm--btn rm--primary btn--primary">Add rider</button>
             </form>
             <p class="rm--note">Switching reloads the app with that rider's data. Removing a rider deletes their data from this device only.</p>`;
     }
@@ -218,21 +218,21 @@ class RiderMenu extends HTMLElement {
                 </div>
                 <p class="rm--note">FTP, weight, W′, imported workouts and every saved ride sync to your account.</p>
                 <div class="rm--buttons">
-                    <button type="button" class="rm--btn rm--primary" data-act="sync">Sync now</button>
-                    <button type="button" class="rm--btn" data-act="signout">Sign out</button>
+                    <button type="button" class="btn rm--btn rm--primary btn--primary" data-act="sync">Sync now</button>
+                    <button type="button" class="btn rm--btn" data-act="signout">Sign out</button>
                 </div>
                 <h3 class="rm--h">Connected services</h3>
                 <div class="rm--connections" data-k="connections"><p class="rm--empty">Loading…</p></div>
                 <h3 class="rm--h">Display name</h3>
                 <form class="rm--form rm--inline" data-form="display-name">
-                    <input name="displayName" maxlength="64" value="${esc(r.name)}" aria-label="Display name" required>
-                    <button type="submit" class="rm--btn">Save</button>
+                    <input class="input" name="displayName" maxlength="64" value="${esc(r.name)}" aria-label="Display name" required>
+                    <button type="submit" class="btn rm--btn">Save</button>
                 </form>
                 <h3 class="rm--h">Change password</h3>
                 <form class="rm--form" data-form="password">
-                    <label>Current password <input name="currentPassword" type="password" autocomplete="current-password" required></label>
-                    <label>New password <input name="newPassword" type="password" autocomplete="new-password" minlength="8" required></label>
-                    <button type="submit" class="rm--btn">Change password</button>
+                    <label class="field">Current password <input class="input" name="currentPassword" type="password" autocomplete="current-password" required></label>
+                    <label class="field">New password <input class="input" name="newPassword" type="password" autocomplete="new-password" minlength="8" required></label>
+                    <button type="submit" class="btn rm--btn">Change password</button>
                 </form>`;
             this.renderConnections();
             return;
@@ -242,25 +242,25 @@ class RiderMenu extends HTMLElement {
             ${this.server.needsSetup ? `
                 <p class="rm--lead">This server has no accounts yet. The first account becomes the admin, who then creates accounts for the other riders.</p>
                 <form class="rm--form" data-form="register">
-                    <label>Username <input name="username" autocomplete="username" required pattern="[A-Za-z0-9][A-Za-z0-9._\\-]{1,31}"></label>
-                    <label>Display name <input name="displayName" maxlength="64" value="${esc(r.name)}"></label>
-                    <label>Password <input name="password" type="password" autocomplete="new-password" minlength="8" required></label>
-                    <button type="submit" class="rm--btn rm--primary">Create admin account</button>
+                    <label class="field">Username <input class="input" name="username" autocomplete="username" required pattern="[A-Za-z0-9][A-Za-z0-9._\\-]{1,31}"></label>
+                    <label class="field">Display name <input class="input" name="displayName" maxlength="64" value="${esc(r.name)}"></label>
+                    <label class="field">Password <input class="input" name="password" type="password" autocomplete="new-password" minlength="8" required></label>
+                    <button type="submit" class="btn rm--btn rm--primary btn--primary">Create admin account</button>
                 </form>` : `
                 <p class="rm--lead">${relink ? `Sign in again as @${esc(r.account.username)} to resume syncing.` :
                     `Sign in to sync <b>${esc(r.name)}</b> across your devices.`}</p>
                 <form class="rm--form" data-form="login">
-                    <label>Username <input name="username" autocomplete="username" required value="${relink ? esc(r.account.username) : ''}"></label>
-                    <label>Password <input name="password" type="password" autocomplete="current-password" required></label>
-                    <button type="submit" class="rm--btn rm--primary">Sign in</button>
+                    <label class="field">Username <input class="input" name="username" autocomplete="username" required value="${relink ? esc(r.account.username) : ''}"></label>
+                    <label class="field">Password <input class="input" name="password" type="password" autocomplete="current-password" required></label>
+                    <button type="submit" class="btn rm--btn rm--primary btn--primary">Sign in</button>
                 </form>
                 ${this.server.signup ? `
                 <h3 class="rm--h">New here?</h3>
                 <form class="rm--form" data-form="register">
-                    <label>Username <input name="username" autocomplete="username" required pattern="[A-Za-z0-9][A-Za-z0-9._\\-]{1,31}"></label>
-                    <label>Display name <input name="displayName" maxlength="64" value="${esc(r.name)}"></label>
-                    <label>Password <input name="password" type="password" autocomplete="new-password" minlength="8" required></label>
-                    <button type="submit" class="rm--btn">Create account</button>
+                    <label class="field">Username <input class="input" name="username" autocomplete="username" required pattern="[A-Za-z0-9][A-Za-z0-9._\\-]{1,31}"></label>
+                    <label class="field">Display name <input class="input" name="displayName" maxlength="64" value="${esc(r.name)}"></label>
+                    <label class="field">Password <input class="input" name="password" type="password" autocomplete="new-password" minlength="8" required></label>
+                    <button type="submit" class="btn rm--btn">Create account</button>
                 </form>` : '<p class="rm--note">No account yet? Ask the admin of this server to create one.</p>'}`}
             <p class="rm--note">Signing in links the account to the rider you are on now (<b>${esc(r.name)}</b>). Their local data is kept and merged.</p>`;
     }
@@ -289,8 +289,8 @@ class RiderMenu extends HTMLElement {
                 </div>
                 <div class="rm--svc-actions">
                     ${c.strava.available ? (c.strava.connected ?
-                        '<button type="button" class="rm--btn rm--quiet" data-act="disconnect" data-id="strava">Disconnect</button>' :
-                        '<button type="button" class="rm--btn rm--strava" data-act="connect-strava">Connect with Strava</button>') : ''}
+                        '<button type="button" class="btn rm--btn rm--quiet btn--quiet" data-act="disconnect" data-id="strava">Disconnect</button>' :
+                        '<button type="button" class="btn rm--btn rm--strava" data-act="connect-strava">Connect with Strava</button>') : ''}
                 </div>
             </div>
             <div class="rm--service">
@@ -300,12 +300,12 @@ class RiderMenu extends HTMLElement {
                     ${c.intervals.connected ? `<small>Connected${c.intervals.athlete ? ` as ${esc(c.intervals.athlete)}` : ''}${c.intervals.athleteId ? ` (${esc(c.intervals.athleteId)})` : ''}.</small>${auto('intervals', c.intervals.autoUpload)}` : `
                     <small>Paste your personal API key: intervals.icu, Settings, Developer Settings near the bottom of the page.</small>
                     <form class="rm--inline" data-form="intervals-key">
-                        <input name="apiKey" autocomplete="off" spellcheck="false" placeholder="API key" aria-label="intervals.icu API key" required>
-                        <button type="submit" class="rm--btn">Connect</button>
+                        <input class="input" name="apiKey" autocomplete="off" spellcheck="false" placeholder="API key" aria-label="intervals.icu API key" required>
+                        <button type="submit" class="btn rm--btn">Connect</button>
                     </form>`}
                 </div>
                 <div class="rm--svc-actions">
-                    ${c.intervals.connected ? '<button type="button" class="rm--btn rm--quiet" data-act="disconnect" data-id="intervals">Disconnect</button>' : ''}
+                    ${c.intervals.connected ? '<button type="button" class="btn rm--btn rm--quiet btn--quiet" data-act="disconnect" data-id="intervals">Disconnect</button>' : ''}
                 </div>
             </div>
             <div class="rm--service">
@@ -326,15 +326,15 @@ class RiderMenu extends HTMLElement {
             ${list.length === 0 ? '<p class="rm--empty">No saved sensors yet. Connect your trainer or heart-rate strap once and it appears here.</p>' : `
             <ul class="rm--list">
                 ${list.map(d => `
-                <li class="rm--row">
+                <li class="rm--row list-row">
                     <span class="rm--who"><b>${esc(d.role)}</b><small>${esc(d.name)}, saved ${fmtDate(d.savedAt)}</small></span>
-                    <span class="rm--actions"><button type="button" class="rm--btn rm--quiet" data-act="forget-sensor" data-id="${esc(d.identifier)}">Forget</button></span>
+                    <span class="rm--actions"><button type="button" class="btn rm--btn rm--quiet btn--quiet" data-act="forget-sensor" data-id="${esc(d.identifier)}">Forget</button></span>
                 </li>`).join('')}
             </ul>`}
             <label class="rm--check"><input type="checkbox" data-change="auto" ${sensors.isAuto() ? 'checked' : ''}> Reconnect saved sensors when the app opens</label>
             <div class="rm--buttons">
-                <button type="button" class="rm--btn rm--primary" data-act="reconnect" ${list.length && can ? '' : 'disabled'}>Reconnect now</button>
-                ${list.length ? '<button type="button" class="rm--btn rm--quiet" data-act="forget-all">Forget all</button>' : ''}
+                <button type="button" class="btn rm--btn rm--primary btn--primary" data-act="reconnect" ${list.length && can ? '' : 'disabled'}>Reconnect now</button>
+                ${list.length ? '<button type="button" class="btn rm--btn rm--quiet btn--quiet" data-act="forget-all">Forget all</button>' : ''}
             </div>
             ${can ? '' : `
             <div class="rm--hint">
@@ -363,7 +363,7 @@ class RiderMenu extends HTMLElement {
                 }
                 if(u && u.status !== 'failed') return `<span class="rm--up" data-status="${esc(u.status)}" title="${esc(u.error ?? '')}">${label}: ${UPLOAD_LABEL[u.status] ?? u.status}</span>`;
                 if(!linked[service]) return '';
-                return `<button type="button" class="rm--btn rm--quiet${u ? ' rm--danger' : ''}" data-act="send" data-service="${service}" data-id="${esc(a.id)}" title="${esc(u?.error ?? '')}">${u ? `${label}: retry` : `Send to ${label}`}</button>`;
+                return `<button type="button" class="btn rm--btn rm--quiet${u ? ' rm--danger' : ''}" data-act="send" data-service="${service}" data-id="${esc(a.id)}" title="${esc(u?.error ?? '')}">${u ? `${label}: retry` : `Send to ${label}`}</button>`;
             };
             const pending = activities.some(a => Object.values(a.uploads ?? {}).some(u => !['done', 'failed'].includes(u.status)));
             this.$body.innerHTML = activities.length === 0 ?
@@ -380,11 +380,11 @@ class RiderMenu extends HTMLElement {
                             <td class="rm--sends">
                                 ${cell(a, 'strava', 'Strava')}
                                 ${cell(a, 'intervals', 'intervals.icu')}
-                                <button type="button" class="rm--btn rm--quiet" data-act="garmin" data-id="${esc(a.id)}" title="Downloads the .fit and opens Garmin Connect's import page">Send to Garmin</button>
+                                <button type="button" class="btn rm--btn rm--quiet btn--quiet" data-act="garmin" data-id="${esc(a.id)}" title="Downloads the .fit and opens Garmin Connect's import page">Send to Garmin</button>
                             </td>
                             <td class="rm--right">
-                                <button type="button" class="rm--btn rm--quiet" data-act="download" data-id="${esc(a.id)}">.fit</button>
-                                <button type="button" class="rm--btn rm--quiet rm--danger" data-act="delete-ride" data-id="${esc(a.id)}">Delete</button>
+                                <button type="button" class="btn rm--btn rm--quiet btn--quiet" data-act="download" data-id="${esc(a.id)}">.fit</button>
+                                <button type="button" class="btn rm--btn rm--quiet rm--danger btn--quiet btn--danger" data-act="delete-ride" data-id="${esc(a.id)}">Delete</button>
                             </td>
                         </tr>`).join('')}</tbody>
                 </table></div>
@@ -422,25 +422,25 @@ class RiderMenu extends HTMLElement {
                     <tbody>${users.map(u => `
                         <tr data-user="${esc(u.id)}">
                             <td><b>${esc(u.displayName)}</b><br><small>@${esc(u.username)}${u.id === me ? ' (you)' : ''}</small></td>
-                            <td><select data-change="role" data-id="${esc(u.id)}" aria-label="Role of ${esc(u.username)}">
+                            <td><select class="input" data-change="role" data-id="${esc(u.id)}" aria-label="Role of ${esc(u.username)}">
                                 <option value="rider" ${u.role === 'rider' ? 'selected' : ''}>Rider</option>
                                 <option value="admin" ${u.role === 'admin' ? 'selected' : ''}>Admin</option>
                             </select></td>
-                            <td>${u.disabled ? '<span class="rm--tag rm--off">Disabled</span>' : '<span class="rm--tag">Active</span>'}</td>
+                            <td>${u.disabled ? '<span class="rm--tag badge rm--off">Disabled</span>' : '<span class="rm--tag badge">Active</span>'}</td>
                             <td class="rm--right">
-                                <button type="button" class="rm--btn rm--quiet" data-act="reset" data-id="${esc(u.id)}">Reset password</button>
-                                <button type="button" class="rm--btn rm--quiet" data-act="${u.disabled ? 'enable' : 'disable'}" data-id="${esc(u.id)}">${u.disabled ? 'Enable' : 'Disable'}</button>
-                                ${u.id === me ? '' : `<button type="button" class="rm--btn rm--quiet rm--danger" data-act="delete-user" data-id="${esc(u.id)}">Delete</button>`}
+                                <button type="button" class="btn rm--btn rm--quiet btn--quiet" data-act="reset" data-id="${esc(u.id)}">Reset password</button>
+                                <button type="button" class="btn rm--btn rm--quiet btn--quiet" data-act="${u.disabled ? 'enable' : 'disable'}" data-id="${esc(u.id)}">${u.disabled ? 'Enable' : 'Disable'}</button>
+                                ${u.id === me ? '' : `<button type="button" class="btn rm--btn rm--quiet rm--danger btn--quiet btn--danger" data-act="delete-user" data-id="${esc(u.id)}">Delete</button>`}
                             </td>
                         </tr>`).join('')}</tbody>
                 </table></div>
                 <h3 class="rm--h">Add a rider account</h3>
                 <form class="rm--form rm--grid" data-form="add-user">
-                    <label>Username <input name="username" required pattern="[A-Za-z0-9][A-Za-z0-9._\\-]{1,31}"></label>
-                    <label>Display name <input name="displayName" maxlength="64"></label>
-                    <label>Temporary password <input name="password" type="text" minlength="8" required autocomplete="off"></label>
-                    <label>Role <select name="role"><option value="rider">Rider</option><option value="admin">Admin</option></select></label>
-                    <button type="submit" class="rm--btn rm--primary">Create account</button>
+                    <label class="field">Username <input class="input" name="username" required pattern="[A-Za-z0-9][A-Za-z0-9._\\-]{1,31}"></label>
+                    <label class="field">Display name <input class="input" name="displayName" maxlength="64"></label>
+                    <label class="field">Temporary password <input class="input" name="password" type="text" minlength="8" required autocomplete="off"></label>
+                    <label class="field">Role <select class="input" name="role"><option value="rider">Rider</option><option value="admin">Admin</option></select></label>
+                    <button type="submit" class="btn rm--btn rm--primary btn--primary">Create account</button>
                 </form>
                 <p class="rm--note">Give the rider their username and temporary password; they can change it under Account.</p>`;
         } catch(e) {
@@ -473,7 +473,7 @@ class RiderMenu extends HTMLElement {
                 const row = b.closest('.rm--row');
                 const r = riders.find(id);
                 row.querySelector('.rm--who').innerHTML =
-                    `<form class="rm--inline" data-form="rename" data-id="${esc(id)}"><input name="name" maxlength="40" value="${esc(r.name)}" aria-label="Rider name" required><button type="submit" class="rm--btn">Save</button></form>`;
+                    `<form class="rm--inline" data-form="rename" data-id="${esc(id)}"><input class="input" name="name" maxlength="40" value="${esc(r.name)}" aria-label="Rider name" required><button type="submit" class="btn rm--btn">Save</button></form>`;
                 row.querySelector('input').focus();
                 break;
             }
@@ -538,7 +538,7 @@ class RiderMenu extends HTMLElement {
                 break;
             case 'reset': {
                 const cell = b.closest('td');
-                cell.innerHTML = `<form class="rm--inline" data-form="reset" data-id="${esc(id)}"><input name="password" minlength="8" required placeholder="New password" autocomplete="off" aria-label="New password"><button type="submit" class="rm--btn">Set</button></form>`;
+                cell.innerHTML = `<form class="rm--inline" data-form="reset" data-id="${esc(id)}"><input class="input" name="password" minlength="8" required placeholder="New password" autocomplete="off" aria-label="New password"><button type="submit" class="btn rm--btn">Set</button></form>`;
                 cell.querySelector('input').focus();
                 break;
             }

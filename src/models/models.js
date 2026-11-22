@@ -8,7 +8,6 @@ import { LocalStorageItem } from '../storage/local-storage.js';
 import { idb } from '../storage/idb.js';
 import { uuid } from '../storage/uuid.js';
 
-import API from './api.js';
 import { workouts as workoutsFile }  from '../workouts/workouts.js';
 import { zwo } from '../workouts/zwo.js';
 import { toZwo } from '../workouts/formats.js';
@@ -466,49 +465,6 @@ class Theme extends Model {
     }
 }
 
-class DockMode extends Model {
-    postInit(args = {}) {
-        const self = this;
-        const storageModel = {
-            key: self.prop,
-            fallback: self.defaultValue(),
-            parse: (x) => x === 'true',
-        };
-        self.storage = new args.storage(storageModel);
-        self.values = [true, false];
-    }
-    defaultValue() { return false; }
-    switch(state) {
-        return !state;
-    }
-    apply(state) {
-        const self = this;
-        if(state && window.innerHeight > 200) {
-            self.resize();
-        }
-    }
-    calcSize() {
-        const width = window.screen.availWidth;
-        const height = 150;
-        const top = window.screen.availHeight - height;
-        return {width: width, height: height, top: top};
-    }
-    resize() {
-        const self = this;
-        let {width, height, top} = self.calcSize();
-        window.resizeTo(width, height);
-        window.moveTo(0, top);
-    }
-    open() {
-        const href = document.location.href;
-        let self = this;
-        let { width, height, top } = self.calcSize();
-
-        window.open(`${href}`, '', `width=${width},height=${height},left=0,top=${top}`);
-        window.close();
-    }
-}
-
 class Measurement extends Model {
     postInit(args = {}) {
         const self = this;
@@ -565,7 +521,6 @@ class Activity extends Model {
 
     name = 'activity';
     postInit(args) {
-        this.api = args.api;
         this.capacity = 7;
     }
     defaultValue() { return []; }
@@ -601,22 +556,6 @@ class Activity extends Model {
     }
     remove(id) {
         idb.remove('activity', id);
-    }
-    async upload(service, id) {
-        let record = await idb.get('activity', id);
-
-        if(service === 'strava' ||
-           service === 'intervals' ||
-           service === 'trainingPeaks') {
-
-            const res = await this.api[service].uploadWorkout(record);
-            record = await idb.get('activity', id);
-            record.summary.status[service] = res.substring(1);
-            await idb.put('activity', record);
-
-            xf.dispatch(`action:activity:${id}`, `:${service}:upload${res}`);
-        }
-        return;
     }
     async download(id) {
         const self = this;
@@ -668,10 +607,6 @@ class Activity extends Model {
 // - Activity is about the current active recording, session, and the list of actities
 //   which are just recorded data or .fit format, Workout is about .zwo format
 class Workout extends Model {
-    postInit(args = {}) {
-        const self = this;
-        self.api = args.api;
-    }
     // state init
     defaultValue() { return this.parse((first(workoutsFile))); }
     defaultIsValid(value) {
@@ -750,18 +685,6 @@ class Workout extends Model {
     download(db) {
         fileHandler.download()(this.encode(db), this.fileName(), fileHandler.Type.OctetStream);
     }
-    send(db) {
-        // TODO: remove the whole method
-        const name = this.fileName();
-        const blob = fileHandler.toBlob(this.encode(db));
-
-        this.api.strava.uploadWorkout(blob);
-
-        return {
-            name,
-            blob,
-        };
-    }
 }
 
 // TODO:
@@ -827,130 +750,8 @@ class Workouts extends Model {
     }
 }
 
-function yesterdayOrOlder(timestamp) {
-    return new Date().getDate() - new Date(timestamp).getDate() > 0;
-}
-
 // TODO:
 // - standardize the methods
-class Planned {
-    name = 'planned';
-    constructor(args = {}) {
-        const self = this;
-        this.data = this.defaultValue();
-        this.workoutModel = args.workoutModel;
-        this.athlete = {};
-        this.storage = LocalStorageItem({
-            key: 'planned',
-            encode: JSON.stringify,
-            parse: JSON.parse,
-            fallback: this.defaultValue(),
-        });
-    }
-    defaultValue() {
-        return {workouts: [], modified: {}};
-    }
-    get(id) {
-        for(let workout of this.data.workouts) {
-            if(workout.id === id) {
-                return workout;
-            }
-        }
-        console.error(`tring to get a missing planned workout: ${id}`);
-        return first(this.data.workouts);
-    }
-    setWorkouts(workouts) {
-        this.data.workouts = workouts;
-    }
-    list() {
-        return this.data.workouts;
-    }
-    setModified(service = 'intervals') {
-        this.data.modified[service] = Date.now();
-    }
-    isEmpty() {
-        return this.data.workouts.length === 0;
-    }
-    restore() {
-        console.log(':planned :restore');
-
-        this.data = this.storage.restore();
-
-        if(yesterdayOrOlder(this.data.modified.intervals)) {
-            console.log(`:planned :outdated :calling :wod 'intervals'`);
-            this.getAthlete('intervals');
-            this.wod('intervals');
-            return;
-        }
-
-        console.log(`:planned :up-to-date`);
-        xf.dispatch(`action:planned`, ':data');
-    }
-    backup() {
-        this.storage.set(this.data);
-        xf.dispatch(`action:planned`, ':data');
-    }
-    // force refresh the wod data
-    async wod(service) {
-        const self = this;
-        if(service === 'intervals') {
-            const { startOfWeek, endOfWeek } = getStartEndOfWeek(new Date(), true);
-            const response = await api.intervals.wod(startOfWeek, endOfWeek);
-            const workouts = self.workoutModel.fromIntervalsResponse(response);
-
-            this.setWorkouts(workouts);
-            this.setModified(service);
-            this.backup();
-
-            if(!this.isEmpty()) {
-                for(let workout of this.data.workouts) {
-                    if(isToday(workout.meta.startDateLocal)) {
-                        const id = workout.id;
-                        xf.dispatch(`action:li:${id}`, ':select');
-                        break;
-                    }
-                }
-            }
-        }
-        if(service === 'trainingPeaks') {
-            // TrainingPeaks reads the calendar from the athlete's local today forward.
-            const today = isoDate();
-            const { startOfWeek, endOfWeek } = getStartEndOfWeek(new Date(), true);
-            const oldest = today > startOfWeek ? today : startOfWeek;
-            const newest = oldest > endOfWeek ? oldest : endOfWeek;
-            const response = await api.trainingPeaks.wod(oldest, newest);
-            const workouts = self.workoutModel.fromTrainingPeaksResponse(response);
-
-            this.setWorkouts(workouts);
-            this.setModified(service);
-            this.backup();
-
-            if(!this.isEmpty()) {
-                for(let workout of this.data.workouts) {
-                    if(isToday(workout.meta.startDateLocal)) {
-                        const id = workout.id;
-                        xf.dispatch(`action:li:${id}`, ':select');
-                        break;
-                    }
-                }
-            }
-        }
-    }
-    async getAthlete(service) {
-        const self = this;
-        if(service === 'intervals') {
-            const response = await api.intervals.getAthlete();
-            console.log(response);
-            if(response.weight > 0) {
-                xf.dispatch('ui:weight-set', response.weight);
-            }
-            if(response.ftp > 0) {
-                xf.dispatch('ui:ftp-set', response.ftp);
-            }
-        }
-    }
-}
-
 function Session(args = {}) {
     let name = 'session';
 
@@ -1652,7 +1453,6 @@ class TSS {
 }
 
 
-const api = API();
 
 const power = new Power({prop: 'power'});
 const cadence = new Cadence({prop: 'cadence'});
@@ -1675,7 +1475,6 @@ const page = new Page({prop: 'page'});
 const ftp = new FTP({prop: 'ftp', storage: LocalStorageItem});
 const weight = new Weight({prop: 'weight', storage: LocalStorageItem});
 const theme = new Theme({prop: 'theme', storage: LocalStorageItem});
-const dockMode = new DockMode({prop: 'dockMode', storage: LocalStorageItem});
 const volume = new Volume({prop: 'volume', storage: LocalStorageItem});
 const measurement = new Measurement({prop: 'measurement', storage: LocalStorageItem});
 const dataTileSwitch = new DataTileSwitch({prop: 'dataTileSwitch', storage: LocalStorageItem});
@@ -1686,10 +1485,9 @@ const power1s = new PropInterval({prop: 'db:power', effect: 'power1s', interval:
 const power3s = new PropInterval({prop: 'db:power', effect: 'power3s', interval: 3000});
 const powerInZone = new PowerInZone({ftpModel: ftp});
 
-const activity = new Activity({prop: 'activity', api: api});
-const workout = new Workout({prop: 'workout', api: api});
+const activity = new Activity({prop: 'activity'});
+const workout = new Workout({prop: 'workout'});
 const workouts = new Workouts({prop: 'workouts', workoutModel: workout});
-const planned = new Planned({prop: 'planned', workoutModel: workout, api: api});
 
 const session = Session();
 
@@ -1727,7 +1525,6 @@ let models = {
     page,
     ftp,
     weight,
-    dockMode,
     volume,
     theme,
     measurement,
@@ -1736,12 +1533,10 @@ let models = {
     activity,
     workout,
     workouts,
-    planned,
     session,
 
     PropInterval,
 
-    api,
 };
 
 export { models };

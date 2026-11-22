@@ -23,6 +23,12 @@ body.dark-theme {
     --danger:    #FF663A;
     --overlay:   rgba(5, 9, 14, 0.72);
 
+    /* services' own brand colours */
+    --brand-strava:    #FC4C02;
+    --brand-intervals: #3A7BD5;
+    --brand-garmin:    #4A4A4A;
+    --on-brand:        #FFFFFF;
+
     /* series */
     --hr:      #FF5C7A;
     --cadence: #B38CFF;

@@ -939,151 +939,6 @@ class VirtualGearValue extends DataView {
 
 customElements.define('virtual-gear', VirtualGearValue);
 
-class PowerInZone extends HTMLElement {
-    constructor() {
-        super();
-        this.state = [[0,0],[0,0],[0,0],[0,0], [0,0],[0,0],[0,0]];
-        this.selectors = {
-            values: '.power--zone-value',
-            bars: '.power--zone-bar',
-            btn: '.power--unit',
-        };
-        this.format = 'percentage';
-        this.prop = 'db:powerInZone';
-    }
-    connectedCallback() {
-        const self = this;
-        this.abortController = new AbortController();
-        this.signal = { signal: self.abortController.signal };
-
-        this.$values = this.querySelectorAll(this.selectors.values);
-        this.$bars = this.querySelectorAll(this.selectors.bars);
-        this.$btn = this.querySelector(this.selectors.btn);
-
-        this.$btn.addEventListener('pointerup', this.onSwitch.bind(this), this.signal);
-
-        xf.sub(`${this.prop}`, this.onUpdate.bind(this), this.signal);
-    }
-    disconnectedCallback() {
-        this.abortController.abort();
-    }
-    onUpdate(propValue) {
-        this.state = propValue;
-        this.render();
-    }
-    onSwitch() {
-        if(equals(this.format, 'time')) {
-            this.format = 'percentage';
-            this.$btn.textContent = '%';
-            this.render();
-        } else {
-            this.format = 'time';
-            this.$btn.textContent = 'min';
-            this.render();
-        }
-    }
-    render() {
-        for(let i=0; i < this.state.length; i++) {
-            let text;
-            if(equals(this.format, 'percentage')) {
-                 text = Math.round(this.state[i][0]*100);
-            } else {
-                 text = formatTime({value:Math.round(this.state[i][1]), format: 'mm:ss'});
-            }
-            const height = `${this.state[i][0]*100}%`;
-
-            this.$values[i].textContent = text;
-            this.$bars[i].style.height = height;
-        }
-    }
-}
-
-customElements.define('power-in-zone', PowerInZone);
-
-
-class LapsList extends DataView {
-    postInit() {
-        this.isEmpty = true;
-    }
-    getDefaults() {
-        return { prop: 'db:lap', };
-    }
-    config() {
-        this.$lapsCont = this.querySelector('.laps--cont');
-    }
-    subs() {
-        xf.reg(`${this.prop}`, this.onUpdate.bind(this), this.signal);
-    }
-    toLap(lap, index) {
-        const duration = lap.totalElapsedTime;
-        const powerLap = validate(
-            [exists, isNumber],
-            toFixed(lap.avgPower, 0),
-            0,
-        );
-        const cadenceLap = validate(
-            [exists, isNumber],
-            toFixed(lap.avgCadence, 0),
-            0,
-        );
-        const heartRateLap = validate(
-            [exists, isNumber],
-            toFixed(lap.avgHeartRate, 0),
-            0,
-        );
-        const zone = models.ftp.powerToZone(powerLap).name;
-
-        const smo2Lap = validate([exists, isNumber], lap.saturated_hemoglobin_percent, 0);
-        const thbLap  = validate([exists, isNumber], lap.total_hemoglobin_conc, 0);
-        const coreTemperatureLap = validate(
-            [exists, isNumber],
-            lap.core_temperature,
-            0,
-        );
-        const skinTemperatureLap = validate(
-            [exists, isNumber],
-            lap.skin_temperature,
-            0,
-        );
-
-        return `<div class="lap--item">
-                    <div class="lap--item--inner">
-                        <div class="lap--value lap--index">${index}</div>
-                        <div class="lap--value lap--duration">${formatTime({value: duration, format: 'mm:ss'})}</div>
-                        <div class="lap--value lap--power zone-${zone}-color">${powerLap} W</div>
-                        <div class="lap--value lap--cadence">${cadenceLap}</div>
-                        <div class="lap--value lap--heart-rate">${heartRateLap}</div>
-                        <div class="lap--value lap--smo2">${smo2Lap.toFixed(2)}</div>
-                        <div class="lap--value lap--thb">${thbLap.toFixed(2)}</div>
-                        <div class="lap--value lap--core-temperature">${coreTemperatureLap.toFixed(2)}</div>
-                        <div class="lap--value lap--skin-temperature">${skinTemperatureLap.toFixed(2)}</div>
-                    </div>
-                </div>`;
-    }
-    restore(laps) {
-        this.state = laps;
-        laps.forEach((lap, index) => this.render(lap, index+1));
-    }
-    onUpdate(propValue, db) {
-        if(empty(db.laps)) {
-            return;
-        } else if(this.isEmpty) {
-            this.restore(db.laps);
-            this.isEmpty = false;
-        } else {
-            this.updateState(db.laps);
-            this.render(last(db.laps), this.state.length);
-        }
-
-    }
-    render(lap, i) {
-        this.$lapsCont.insertAdjacentHTML('afterbegin', this.toLap(lap, i));
-    }
-}
-
-customElements.define('laps-list', LapsList);
-
-
 function scale(value, max = 100) {
     return 100 * (value/max);
 }
@@ -1298,10 +1153,6 @@ class NavigationStack extends HTMLElement {
                         $view: document.querySelector(`#view--settings-settings`),
                         $link: document.querySelector(`#link--settings-settings`),
                     },
-                    profile: {
-                        $view: document.querySelector(`#view--settings-profile`),
-                        $link: document.querySelector(`#link--settings-profile`),
-                    }
                 }
             },
             home: {
@@ -1320,10 +1171,6 @@ class NavigationStack extends HTMLElement {
                     editor: {
                         $view: document.querySelector(`#view--workouts-editor`),
                         $link: document.querySelector(`#link--workouts-editor`),
-                    },
-                    report: {
-                        $view: document.querySelector(`#view--workouts-report`),
-                        $link: document.querySelector(`#link--workouts-report`),
                     }
                 }
             },
@@ -1353,11 +1200,6 @@ class NavigationStack extends HTMLElement {
             this.switch('settings', this.tabs.settings.children);
             return;
         }
-        if(action === 'settings:profile') {
-            this.switch('profile', this.tabs.settings.children);
-            models.api.auth.loadTurnstile();
-            return;
-        }
 
         if(action === 'workouts:workouts') {
             this.switch('workouts', this.tabs.workouts.children);
@@ -1365,10 +1207,6 @@ class NavigationStack extends HTMLElement {
         }
         if(action === 'workouts:editor') {
             this.switch('editor', this.tabs.workouts.children);
-            return;
-        }
-        if(action === 'workouts:report') {
-            this.switch('report', this.tabs.workouts.children);
             return;
         }
     }
@@ -1492,67 +1330,6 @@ class NavigationAction extends ViewAction {
 }
 
 customElements.define('navigation-action', NavigationAction);
-
-
-class OAuth extends HTMLElement {
-    constructor() {
-        super();
-    }
-    connectedCallback() {
-        const self = this;
-        this.abortController = new AbortController();
-        this.signal = { signal: self.abortController.signal };
-        this.services = {strava: false, intervals: false, trainingPeaks: false};
-
-        this.$stravaButton = self.querySelector('#strava--connect--button');
-        this.$intervalsButton = self.querySelector('#intervals--connect--button');
-        this.$tpButton = self.querySelector('#tp--connect--button');
-
-        xf.sub('action:oauth', self.onAction.bind(this), this.signal);
-        xf.sub('db:services', self.onServices.bind(this), this.signal);
-    }
-    disconnectedCallback() {
-        this.abortController.abort();
-    }
-    onServices(value) {
-        this.services = value;
-        this.render(this.services);
-    }
-    onAction(action) {
-        const self = this;
-        console.log(action);
-
-        let service = action.split(':')[1];
-
-        if(service === 'strava' ||
-           service === 'intervals' ||
-           service === 'trainingPeaks') {
-
-            console.log(this.services[service]);
-            if(this.services[service]) {
-                models.api[service].disconnect();
-            } else {
-                models.api[service].connect();
-            }
-            return;
-        }
-    }
-    render(services) {
-        if(exists(this.$stravaButton)) {
-            this.$stravaButton.textContent = services.strava ? 'Disconnect' : 'Connect';
-        }
-        if(exists(this.$intervalsButton)) {
-            this.$intervalsButton.textContent = services.intervals ? 'Disconnect' : 'Connect';
-        }
-        if(exists(this.$tpButton)) {
-            this.$tpButton.textContent = services.trainingPeaks ? 'Disconnect' : 'Connect';
-        }
-    }
-}
-
-customElements.define('o-auth', OAuth);
-
-
 
 
 class ModalError extends HTMLElement {
@@ -1757,51 +1534,6 @@ class Theme extends DataView {
 
 customElements.define('theme-layout', Theme);
 
-class DockModeDefault extends DataView {
-    postInit() {
-        this.effect  = 'dockMode';
-        this.state   = false;
-    }
-    getDefaults() {
-        return {
-            prop: 'db:dockMode',
-            effect: 'dockMode'
-        };
-    }
-    subs() {
-        xf.sub(`${this.prop}`, this.onUpdate.bind(this), this.signal);
-        this.addEventListener('pointerup', this.onEffect.bind(this), this.signal);
-    }
-    onUpdate(value) {
-        this.state = value;
-        this.render();
-    }
-    onEffect() {
-        if(equals(this.state, true)) {
-            xf.dispatch(`${this.effect}`, false);
-        } else {
-            xf.dispatch(`${this.effect}`, true);
-        }
-    }
-    render() {
-        this.textContent = equals(this.state, true) ? 'ON' : 'OFF';
-    }
-}
-
-customElements.define('dock-mode-default', DockModeDefault);
-
-class DockModeBtn extends DataView {
-    subs() {
-        this.addEventListener('pointerup', this.onSwitch.bind(this), this.signal);
-    }
-    onSwitch() {
-        models.dockMode.open();
-    }
-}
-
-customElements.define('dock-mode-btn', DockModeBtn);
-
-
 class SoundControl extends DataView {
     postInit() {
         this.volume = 100;
@@ -1883,37 +1615,6 @@ class CompatibilityCheck extends HTMLElement {
 
 customElements.define('compatibility-check', CompatibilityCheck);
 
-class AccountBadge extends HTMLElement {
-    constructor() {
-        super();
-    }
-    connectedCallback() {
-        this.abortController = new AbortController();
-        this.signal = { signal: this.abortController.signal };
-
-        this.$image = this.querySelector('#account--badge');
-        this.$identifier = this.querySelector('#account--identifier');
-
-        xf.sub('db:account', this.onAccount.bind(this), this.signal);
-    }
-    disconnectedCallback() {
-        this.abortController.abort();
-    }
-    onAccount(account) {
-        const identifier = account?.identifier ?? '';
-        this.render(identifier);
-    }
-    render(identifier) {
-        const text = String(identifier).trim();
-        const letter = equals(text, '') ? '' : text.slice(0, 1);
-
-        this.$identifier.textContent = text;
-        this.$image.textContent = letter;
-    }
-}
-
-customElements.define('account-badge', AccountBadge);
-
 export {
     DataView,
 
@@ -1947,11 +1648,9 @@ export {
     SwitchGroup,
     DataTileSwitchGroup,
 
-    DockModeBtn,
 
     NavigationStack,
     ViewAction,
     BatteryLevel,
 
-    AccountBadge,
 }
