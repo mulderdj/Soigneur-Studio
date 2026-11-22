@@ -17,9 +17,19 @@
         <link rel="preconnect" href="https://fonts.gstatic.com">
         <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
         <link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600&family=Barlow+Condensed:wght@500;600;700&display=swap" rel="stylesheet">
+        <!-- old styles, removed page by page while the new ones take over -->
         <link href="css/flux.css" rel="stylesheet"/>
         <link href="css/desktop.css" rel="stylesheet"/>
         <link href="css/riders.css" rel="stylesheet"/>
+        <!-- style system: tokens, base, components, then one file per page -->
+        <link href="css/tokens.css" rel="stylesheet"/>
+        <link href="css/base.css" rel="stylesheet"/>
+        <link href="css/components.css" rel="stylesheet"/>
+        <link href="css/ride.css" rel="stylesheet"/>
+        <link href="css/training.css" rel="stylesheet"/>
+        <link href="css/workouts.css" rel="stylesheet"/>
+        <link href="css/settings.css" rel="stylesheet"/>
+        <link href="css/rider-menu.css" rel="stylesheet"/>
         <link rel="manifest" href="./manifest.webmanifest">
     </head>
 
@@ -1593,13 +1603,21 @@
                 </div> <!-- end settings--sub-tab -->
             </div> <!-- end settings page -->
 
+            <div id="training-page" class="page" page="training">
+                <div class="page-content">
+                    <div class="empty">
+                        <h2 class="empty__title">Training</h2>
+                        <p>Your calendar, progress and form are coming here.</p>
+                    </div>
+                </div>
+            </div> <!-- end training page -->
+
             </page-group>
             </navigation-stack>
 
-            <div class="fixed-bottom">
-                <!-- <div class="fixed-bottom--cont"> -->
-                <workout-name id="workout-name">Free ride</workout-name>
-                <watch-control id="watch" class="watch">
+            <app-bar class="app-bar">
+                <workout-name id="workout-name" class="app-bar__name">Free ride</workout-name>
+                <watch-control id="watch" class="watch app-bar__controls">
                     <div id="watch-start" class="control--btn">
                         <svg class="control--btn--icon" width="24" height="24">
                             <use href="#icon--play-btn" />
@@ -1635,51 +1653,53 @@
                             <use href="#icon--file"></use>
                         </svg>
                     </div>
-                </watch-control> <!-- end controls -->
-                    <!-- </div>  -->
-
-                <div id="menu" class="menu">
-                    <div class="page-btn-group menu--row">
-                        <!-- <navigation-action
-                             id="link--workouts-report"
-                             class="library--switch--heading"
-                             action="workouts:report"
-                             topic=":nav"
-                             >Ride report
-                             </navigation-action> -->
-                        <page-btn id="settings-tab-btn"
-                                  class="menu--btn"
-                                  prop="page"
-                                  effect="page-set"
-                                  param="settings">
-                            <svg class="menu--btn--icon" width="24" height="24">
-                                <use href="#icon--settings"></use>
-                            </svg>
-                            <div class="menu--btn--label">Settings</div>
-                        </page-btn>
-                        <page-btn id="home-tab-btn"
-                                  class="menu--btn active"
-                                  prop="page"
-                                  effect="page-set"
-                                  param="home">
-                            <svg class="menu--btn--icon" width="24" height="24">
-                                <use href="#icon--home"></use>
-                            </svg>
-                            <div class="menu--btn--label">Home</div>
-                        </page-btn>
-                        <page-btn id="workouts-tab-btn"
-                                  class="menu--btn"
-                                  prop="page"
-                                  effect="page-set"
-                                  param="workouts">
-                            <svg class="menu--btn--icon" width="24" height="24">
-                                <use href="#icon--list"></use>
-                            </svg>
-                            <div class="menu--btn--label">Workouts</div>
-                        </page-btn>
-                    </div> <!-- end page-btn-group -->
-                </div> <!-- end menu -->
-            </div> <!-- end fixed-bottom -->
+                </watch-control>
+                <button type="button" class="app-bar__menu btn btn--icon" aria-label="Pages" aria-expanded="false">
+                    <svg width="24" height="24"><use href="#icon--menu"></use></svg>
+                </button>
+                <nav id="menu" class="app-bar__tabs" aria-label="Pages">
+                    <page-btn id="home-tab-btn"
+                              class="app-bar__tab active"
+                              prop="page"
+                              effect="page-set"
+                              param="home">
+                        <svg class="app-bar__tab-icon" width="24" height="24">
+                            <use href="#icon--home"></use>
+                        </svg>
+                        <span class="app-bar__tab-label">Ride</span>
+                    </page-btn>
+                    <page-btn id="training-tab-btn"
+                              class="app-bar__tab"
+                              prop="page"
+                              effect="page-set"
+                              param="training">
+                        <svg class="app-bar__tab-icon" width="24" height="24">
+                            <use href="#icon--calendar"></use>
+                        </svg>
+                        <span class="app-bar__tab-label">Training</span>
+                    </page-btn>
+                    <page-btn id="workouts-tab-btn"
+                              class="app-bar__tab"
+                              prop="page"
+                              effect="page-set"
+                              param="workouts">
+                        <svg class="app-bar__tab-icon" width="24" height="24">
+                            <use href="#icon--list"></use>
+                        </svg>
+                        <span class="app-bar__tab-label">Workouts</span>
+                    </page-btn>
+                    <page-btn id="settings-tab-btn"
+                              class="app-bar__tab"
+                              prop="page"
+                              effect="page-set"
+                              param="settings">
+                        <svg class="app-bar__tab-icon" width="24" height="24">
+                            <use href="#icon--settings"></use>
+                        </svg>
+                        <span class="app-bar__tab-label">Settings</span>
+                    </page-btn>
+                </nav>
+            </app-bar>
         </div> <!-- end wrapper -->
         <svg xmlns="http://www.w3.org/2000/svg" style="display: none;">
 
@@ -1698,6 +1718,14 @@
             <symbol id="icon--home" viewBox="0 0 24 24">
                 <path d="M0 0h24v24H0V0z" fill="none" />
                 <path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8h5z" />
+            </symbol>
+            <symbol id="icon--calendar" viewBox="0 0 24 24">
+                <path d="M0 0h24v24H0V0z" fill="none"/>
+                <path d="M19 4h-1V2h-2v2H8V2H6v2H5c-1.11 0-2 .9-2 2v14c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 16H5V10h14v10zm0-12H5V6h14v2zM7 12h5v5H7z"/>
+            </symbol>
+            <symbol id="icon--menu" viewBox="0 0 24 24">
+                <path d="M0 0h24v24H0V0z" fill="none"/>
+                <path d="M3 18h18v-2H3v2zm0-5h18v-2H3v2zm0-7v2h18V6H3z"/>
             </symbol>
             <symbol id="icon--list" viewBox="0 0 24 24">
                 <path d="M0 0h24v24H0V0z" fill="none"/>

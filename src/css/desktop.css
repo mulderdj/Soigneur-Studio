@@ -230,20 +230,20 @@ body.white-theme {
     }
 
     /* placement: power is the hero, two rows tall */
-    #home-page #data-tile--power             { grid-area: 1 / 1 / 3 / 2; }
-    #home-page #data-tile--interval-time     { grid-area: 1 / 2 / 2 / 3; }
-    #home-page #data-tile--target            { grid-area: 1 / 3 / 2 / 4; }
-    #home-page #data-tile--heart-rate        { grid-area: 1 / 4 / 2 / 5; }
+    #home-page #data-tile--power { grid-area: 1 / 1 / 3 / 2; }
+    #home-page #data-tile--interval-time { grid-area: 1 / 2 / 2 / 3; }
+    #home-page #data-tile--target { grid-area: 1 / 3 / 2 / 4; }
+    #home-page #data-tile--heart-rate { grid-area: 1 / 4 / 2 / 5; }
     #home-page #data-tile--speed,
-    #home-page #data-tile--smo2              { grid-area: 1 / 5 / 2 / 6; }
+    #home-page #data-tile--smo2 { grid-area: 1 / 5 / 2 / 6; }
     #home-page #data-tile--power-avg,
     #home-page #data-tile--core-body-temperature { grid-area: 1 / 6 / 2 / 7; }
-    #home-page #data-tile--elapsed-time      { grid-area: 2 / 2 / 3 / 3; }
-    #home-page #data-tile--cadence           { grid-area: 2 / 3 / 3 / 4; }
+    #home-page #data-tile--elapsed-time { grid-area: 2 / 2 / 3 / 3; }
+    #home-page #data-tile--cadence { grid-area: 2 / 3 / 3 / 4; }
     #home-page #data-tile--distance,
-    #home-page #data-tile--thb               { grid-area: 2 / 4 / 3 / 5; }
+    #home-page #data-tile--thb { grid-area: 2 / 4 / 3 / 5; }
     #home-page #data-tile--slope,
-    #home-page #data-tile--skin-temperature  { grid-area: 2 / 5 / 3 / 6; }
+    #home-page #data-tile--skin-temperature { grid-area: 2 / 5 / 3 / 6; }
 
     #home-page .data-tile--switch--group {
         grid-area: 2 / 6 / 3 / 7;
@@ -412,9 +412,9 @@ body.white-theme {
     .lc--chip-target .lc--swatch {
         background: repeating-linear-gradient(90deg, var(--dash-ink) 0 4px, transparent 4px 6px);
     }
-    .lc--chip-hr .lc--swatch      { background: var(--dash-hr); }
+    .lc--chip-hr .lc--swatch { background: var(--dash-hr); }
     .lc--chip-cadence .lc--swatch { background: var(--dash-cadence); }
-    .lc--chip-wbal .lc--swatch    { background: var(--dash-wbal); }
+    .lc--chip-wbal .lc--swatch { background: var(--dash-wbal); }
 
     .lc--range {
         margin-left: auto;
@@ -680,8 +680,8 @@ body.white-theme {
     }
 
     .ts--meter-fill[data-level="good"] { background-color: var(--dash-good); }
-    .ts--meter-fill[data-level="ok"]   { background-color: var(--dash-warn); }
-    .ts--meter-fill[data-level="low"]  { background-color: var(--dash-low); }
+    .ts--meter-fill[data-level="ok"] { background-color: var(--dash-warn); }
+    .ts--meter-fill[data-level="low"] { background-color: var(--dash-low); }
 
     .ts--meter-label {
         margin-top: 6px;
@@ -764,9 +764,9 @@ body.white-theme {
         outline-offset: 1px;
     }
 
-    .ts--meter-wbal .ts--meter-fill                     { background-color: var(--dash-wbal); }
-    .ts--meter-wbal .ts--meter-fill[data-level="ok"]    { background-color: var(--dash-warn); }
-    .ts--meter-wbal .ts--meter-fill[data-level="low"]   { background-color: var(--dash-low); }
+    .ts--meter-wbal .ts--meter-fill { background-color: var(--dash-wbal); }
+    .ts--meter-wbal .ts--meter-fill[data-level="ok"] { background-color: var(--dash-warn); }
+    .ts--meter-wbal .ts--meter-fill[data-level="low"] { background-color: var(--dash-low); }
     .ts--meter-wbal .ts--meter-fill[data-level="empty"] { background-color: var(--zone-red); }
 
     /* aerobic / anaerobic split (Skiba TISS) */
@@ -918,92 +918,31 @@ body.white-theme {
 
     /* ---------- bottom bar ---------- */
 
-    .fixed-bottom {
-        font-size: var(--r);
-        --size--icon--global: 1.8em;
-        --size--icon--menu--btn: 1.5em;
-        height: var(--dash-bottom);
-        grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
-        grid-template-rows: 1fr;
-        padding: 0 var(--dash-gap);
-        box-sizing: border-box;
-        border-top: 1px solid var(--dash-line);
-        background-color: var(--dash-panel);
-    }
+    
 
-    #workout-name {
-        grid-area: 1 / 1 / 2 / 2;
-        margin: 0 0.4em;
-        font-family: var(--dash-text);
-        font-size: calc(1.1 * var(--r));
-        font-weight: 600;
-        letter-spacing: 0;
-        text-transform: none;
-    }
+    
 
-    .fixed-bottom .watch {
-        grid-area: 1 / 2 / 2 / 3;
-        justify-self: center;
-        display: flex;
-        align-items: center;
-        gap: 6px;
-    }
+    
 
-    .fixed-bottom .control--btn {
-        margin: 0;
-        width: 46px;
-        height: 46px;
-        border-radius: 50%;
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        cursor: pointer;
-    }
+    
 
-    .fixed-bottom .control--btn:hover {
-        background-color: var(--dash-panel-2);
-    }
+    
 
-    .fixed-bottom #watch-start {
-        background-color: var(--dash-ink);
-    }
+    
 
-    .fixed-bottom #watch-start .control--btn--icon {
-        fill: var(--dash-bg);
-    }
+    
 
-    .fixed-bottom .menu {
-        grid-area: 1 / 3 / 2 / 4;
-        height: 100%;
-        justify-self: end;
-    }
+    
 
-    .fixed-bottom .menu--row {
-        gap: 4px;
-    }
+    
 
-    .fixed-bottom .menu--btn {
-        flex-direction: row;
-        flex-grow: 0;
-        gap: 0.5em;
-        height: 42px;
-        padding: 0 1em;
-        border-radius: 999px;
-    }
+    
 
-    .fixed-bottom .menu--btn.active {
-        background-color: var(--dash-panel-2);
-    }
+    
 
-    .fixed-bottom .menu--btn--label {
-        letter-spacing: 0;
-        font-weight: 500;
-    }
+    
 
-    .fixed-bottom .menu--btn--icon {
-        height: var(--size--icon--menu--btn);
-        width: var(--size--icon--menu--btn);
-    }
+    
 
     /* the other pages: keep content at a readable width */
     #workouts-page,

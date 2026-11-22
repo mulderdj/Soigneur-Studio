@@ -1,0 +1,5 @@
+/* Training page layout: arranges components, uses tokens only. */
+
+#training-page .empty {
+    min-height: 50dvh;
+}

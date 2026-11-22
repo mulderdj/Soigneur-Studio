@@ -261,49 +261,6 @@ body {
 /* END Variables */
 
 /* Color */
-.zone-one {
-    background-color: var(--zone-gray);
-}
-.zone-two {
-    background-color: var(--zone-blue);
-}
-.zone-three {
-    background-color: var(--zone-teal);
-}
-.zone-four {
-    background-color: var(--zone-green);
-}
-.zone-five {
-    background-color: var(--zone-yellow);
-}
-.zone-six {
-    background-color: var(--zone-orange);
-}
-.zone-seven {
-    background-color: var(--zone-red);
-}
-
-.zone-one-color {
-    color: var(--zone-gray);
-}
-.zone-two-color {
-    color: var(--zone-blue);
-}
-.zone-three-color {
-    color: var(--zone-teal);
-}
-.zone-four-color {
-    color: var(--zone-green);
-}
-.zone-five-color {
-    color: var(--zone-yellow);
-}
-.zone-six-color {
-    color: var(--zone-orange);
-}
-.zone-seven-color {
-    color: var(--zone-red);
-}
 
 .black {
     color: var(--black);
@@ -342,7 +299,6 @@ body {
 .green-bg {
     background-color: var(--green);
 }
-
 
 .gray-zone {
     background-color: var(--zone-gray);
@@ -736,7 +692,6 @@ svg {
     grid-area: 3 / 10 / 3 / 13;
     display: none;
 }
-
 
 #data-tile--power-avg.active {
     display: block;
@@ -1242,29 +1197,6 @@ auto-start-counter {
 /* END Home Page */
 
 /* Fixed Bottom */
-.fixed-bottom {
-    border-top: 1px solid var(--border-color);
-    font-size: 1rem;
-
-    --controls-height: 5em;
-    --menu-height: 5em;
-    --fb-total-height: 10em;
-    --size--icon--global: 2.4em;
-    --size--icon--menu--btn: 2em;
-
-    position: fixed;
-    bottom: 0px;
-    width: 100%;
-    height: var(--fb-total-height);
-
-    display: grid;
-    grid-template-rows: 1fr 1fr;
-    grid-template-columns: repeat(6, 1fr);
-    align-items: center;
-
-    background-color: var(--background-color);
-    z-index: 3;
-}
 
 /* .fixed-bottom--cont { */
 /*     height: var(--controls-height); */
@@ -1273,38 +1205,7 @@ auto-start-counter {
 /*     z-index: 1; */
 /* } */
 
-#workout-name {
-    display: block;
-    font-size: 1.2em;
-    font-family: var(--ssb-font-family);
-    font-weight: bold;
-    letter-spacing: 1px;
-    text-transform: uppercase;
-    overflow: hidden;
-    white-space: nowrap;
-    text-overflow: ellipsis;
-
-    display: block;
-    margin: 0 0.8em;
-    text-align: left;
-
-    grid-area: 1 / 1 / 2 / 4;
-}
-
 /* Watch */
-.watch {
-    grid-area: 1 / 4 / 2 / 7;
-    justify-self: right;
-}
-
-.watch .btn {
-    margin: 0px 2px;
-}
-
-.control--btn {
-    display: inline-block;
-    margin: 0px 1.2em;
-}
 
 .control--btn--icon {
     width: var(--size--icon--global);
@@ -1313,10 +1214,6 @@ auto-start-counter {
     cursor: pointer;
 }
 
-#watch-pause, #watch-lap, #watch-stop, #activity-save {
-    display: none;
-
-}
 /* END Watch */
 
 /* Menu */
@@ -1326,53 +1223,6 @@ auto-start-counter {
 
 .tab {
     display: none;
-}
-
-.menu {
-    height: var(--menu-height);
-    grid-area: 2 / 1 / 2 / 7;
-}
-
-.menu--row {
-    display: flex;
-    flex-direction: row;
-    justify-content: center;
-    align-items: center;
-    align-content: stretch;
-    wrap: wrap;
-    height: 100%;
-    z-index: 1;
-}
-
-.menu--btn {
-    display: flex;
-    flex-grow: 1;
-    flex-direction: column;
-    justify-content: center;
-    align-items: center;
-    height: 100%;
-    cursor: pointer;
-
-    &.active svg {
-        fill: var(--foreground-color);
-    }
-    &.active .menu--btn--label {
-        color: var(--foreground-color);
-    }
-}
-
-.menu--btn--icon {
-    display: block;
-    width: var(--size--icon--menu--btn);
-    height: var(--size--icon--menu-btn);
-    fill: var(--foreground-color-inactive);
-}
-
-.menu--btn--label {
-    font-size: 1em;
-    line-height: 1.4em;
-    letter-spacing: 1px;
-    color: var(--foreground-color-inactive);
 }
 
 /* .menu--btn--icon--fill { */
@@ -1394,7 +1244,6 @@ auto-start-counter {
 /*     margin: 20px auto 20px; */
 /*     width: 105px; */
 /* } */
-
 
 /* Workout Page */
 #workouts-page {
@@ -1441,7 +1290,6 @@ auto-start-counter {
     /* border: 1px solid #fff; */
     border-radius: 7px;
 }
-
 
 /* The new classes */
 .active-list-item {
@@ -2280,8 +2128,6 @@ battery-level {
     }
 }
 
-
-
 /* ANT Device Request */
 #ant-device-request {
     display: none;
@@ -2676,7 +2522,6 @@ workout-graph-svg {
     color: var(--gray);
 }
 
-
 .option {
     display: grid;
     grid-template-columns: 2fr 4fr;
@@ -2710,7 +2555,6 @@ workout-graph-svg {
 
 activity-item {
     position: relative;
-
 
     .activity--cont {
         width: 100%;
@@ -2949,7 +2793,6 @@ dialog {
 }
 /* END Settings Page */
 
-
 /* Media Queries */
 /* IPHONE 5/SE */
 @media all
@@ -2968,11 +2811,7 @@ and (max-height: 620px) {
         margin: 1em auto;
     }
 
-    .fixed-bottom {
-        --controls-height: 4em;
-        --menu-height: 4em;
-        --fb-total-height: 8em;
-    }
+    
 
 }
 
@@ -3192,7 +3031,6 @@ and (min-height: 1366px) {
     }
 }
 
-
 /* IPad Pro, Landscape */
 @media only screen
 and (min-width: 1360px)
@@ -3205,16 +3043,7 @@ and (orientation: landscape) {
     }
 }
 
-
-
-
-
-
 /* Macbook Air, regular */
-@media only screen
-and (min-width: 1280px)
-and (min-height: 650px) {
-}
 
 /* Macbook Air, fullscreen */
 @media only screen
@@ -3249,7 +3078,6 @@ and (min-height: 800px) {
     }
 }
 
-
 @media only screen
 and (min-width: 1800px)
 and (min-height: 850px) {
@@ -3279,7 +3107,6 @@ and (min-height: 850px) {
         height: 0.5em;
     }
 
-
     .graph--info--cont {
         font-size: 2.0em;
     }
@@ -3295,17 +3122,13 @@ and (min-height: 850px) {
         --number-input-value-font-size: 2.4em;
     }
 
-    .watch {
-        padding: 1em;
-    }
+    
 
     #settings-page {
         font-size: 1.2rem;
     }
 
-    .fixed-bottom {
-        font-size: 1.4rem;
-    }
+    
 }
 
 @media only screen
@@ -3333,9 +3156,7 @@ and (min-height: 900px) {
         font-size: 1.6rem;
     }
 
-    .fixed-bottom {
-        font-size: 1.6rem;
-    }
+    
 
     .graph--heading {
         font-size: 2em;
@@ -3389,13 +3210,9 @@ and (min-height: 1200px) {
         --number-input-value-font-size: 2em;
     }
 
-    .fixed-bottom {
-        font-size: 1.6rem;
-    }
+    
 
-    #workout-name {
-        line-height: 2em;
-    }
+    
 
     #settings-page {
         font-size: 1.6rem;
@@ -3441,9 +3258,7 @@ and (min-height: 1600px) {
         font-size: 3.0rem;
     }
 
-    .fixed-bottom {
-        font-size: 2.4rem;
-    }
+    
 }
 
 /* IPhone Pro 12, landscape */
@@ -3579,18 +3394,7 @@ and (orientation: landscape) {
         padding: 0 1em 0 0em;
     }
 
-    .fixed-bottom {
-        --controls-height: 100vh;
-        --menu-height: 100vh;
-        --fb-total-height: 100vh;
-
-        grid-area: 1 / 4 / 3 / 5;
-
-        display: flex;
-        top: 0;
-        right: 0;
-        width: 100px;
-    }
+    
 
     .controls {
         width: 40%;
@@ -3601,33 +3405,13 @@ and (orientation: landscape) {
         background-color: var(--background-color-2);
     }
 
-    .menu {
-        width: 60%;
-        background-color: var(--background-color-2);
-    }
+    
 
-    .watch {
-        display: flex;
-        flex-direction: column;
-        justify-content: space-around;
-        align-items: center;
-        align-content: center;
-        height: 100vh;
-        padding: 0;
-        background-color: var(--background-color-2);
-    }
+    
 
-    .menu--row {
-        flex-direction: column;
-        justify-content: space-between;
-        align-items: center;
-        align-content: center;
-        height: 100vh;
-    }
+    
 
-    #workout-name {
-        display: none;
-    }
+    
 }
 
 /* DOCK MOCK (wide and very short) */
@@ -3727,16 +3511,7 @@ and (min-width: 1024px) {
         left: -2em;
     }
 
-    .fixed-bottom {
-        --controls-height: 100vh;
-        --menu-height: 100vh;
-        --fb-total-height: 100vh;
-
-        display: flex;
-        top: 0;
-        right: 0;
-        width: 12em;
-   }
+    
 
     .controls {
         /* width: 50%; */
@@ -3746,32 +3521,13 @@ and (min-width: 1024px) {
         background-color: var(--background-color-2);
     }
 
-    .menu {
-        /* width: 50%; */
-        background-color: var(--background-color-2);
-    }
+    
 
-    .watch {
-        display: flex;
-        flex-direction: column;
-        justify-content: space-around;
-        align-items: center;
-        align-content: center;
-        height: var(--controls-height);
-        padding: 0;
-    }
+    
 
-    .menu--row {
-        flex-direction: column;
-        justify-content: space-between;
-        align-items: center;
-        align-content: center;
-        height: var(--menu-height);
-    }
+    
 
-    #workout-name {
-        display: none;
-    }
+    
 
     .workout-list--graph-cont {
         float: left;
@@ -3804,7 +3560,6 @@ and (min-width: 1600px) {
         --data-tile--heading-margin: 0 auto 0em;
     }
 }
-
 
 @media only screen
 and (max-height: 300px)

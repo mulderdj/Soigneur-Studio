@@ -69,6 +69,8 @@ function inspect(isPhone) {
         const tappable = 'button, a[href], [role=button], [role=tab], input:not([type=hidden]), select, .control--btn, .btn';
         for(const el of document.querySelectorAll(tappable)) {
             if(!visible(el) || el.closest('[data-check-ignore]')) continue;
+            // links inside running text are exempt (WCAG 2.5.8 inline exception)
+            if(el.localName === 'a' && getComputedStyle(el).display === 'inline') continue;
             const r = el.getBoundingClientRect();
             if(r.bottom < 0 || r.top > window.innerHeight) continue; // only what's on screen
             if(r.width < 44 - 0.5 || r.height < 44 - 0.5) {
@@ -133,7 +135,6 @@ async function main() {
     for(const [sizeName, size] of Object.entries(SIZES)) {
         for(const theme of THEMES) {
             const context = await browser.newContext({viewport: {width: size.width, height: size.height}, hasTouch: !!size.phone});
-            await context.addInitScript(t => { try { localStorage.setItem('theme', t); } catch(e) {} }, theme);
             const page = await context.newPage();
             const errors = [];
             page.on('pageerror', e => errors.push(e.message));
@@ -141,6 +142,11 @@ async function main() {
 
             await page.goto(`${url}/?simulate`, {waitUntil: 'networkidle'});
             await page.waitForTimeout(800);
+            if(theme === 'light') {
+                // the theme switch in Settings cycles DARK → WHITE → AUTO
+                await page.evaluate(() => document.querySelector('theme-layout')?.dispatchEvent(new PointerEvent('pointerup')));
+                await page.waitForTimeout(200);
+            }
             const start = page.locator('#watch-start');
             if(await start.count() && await start.first().isVisible()) await start.first().click();
             await page.waitForTimeout(6000);
