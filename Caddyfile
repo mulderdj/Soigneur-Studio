@@ -5,6 +5,9 @@
 	# no Let's Encrypt; certificates come from Caddy's own local CA
 	local_certs
 	skip_install_trust
+	# plain http://localhost:8080 must serve the app; without this Caddy
+	# redirects it to https://localhost/ (port 443, i.e. some other server)
+	auto_https disable_redirects
 }
 
 (auuki) {
