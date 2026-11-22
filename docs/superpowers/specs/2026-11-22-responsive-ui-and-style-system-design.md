@@ -45,7 +45,7 @@ only so this design leaves room for it.
 |---|---|
 | **Ride** (was Home) | Live metrics, chart, interval and stats panels, workout graph, ride controls |
 | **Training** (new) | Calendar, progress, form, ride analysis. Built in subproject 3; here only a placeholder page and its tab. |
-| **Workouts** | Library and workout editor |
+| **Workouts** | Library and workout editor; your saved rides (download only) until the Training page takes them over, so riders without an account keep access to them |
 | **Settings** | Sensors and connections to devices, profile (FTP, weight, W′), preferences, about |
 
 Navigation:
@@ -72,6 +72,7 @@ loud element and takes the colour of the current power zone.
    switchable tiles do today).
 4. Compact chart: last 5 min of power against target, with HR.
 5. Workout strip: interval profile with progress marker.
+   Below it a compact mode row: ERG / resistance / slope and the target stepper.
 6. Swipeable panel row: This interval → W′ balance → Load → Zones →
    Best efforts, one card at a time, with dots.
 7. Bottom bar with ride controls.
