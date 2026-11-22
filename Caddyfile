@@ -1,0 +1,41 @@
+{
+	# keep Caddy off the standard ports inside the container
+	http_port 8080
+	https_port 8443
+	# no Let's Encrypt; certificates come from Caddy's own local CA
+	local_certs
+	skip_install_trust
+}
+
+(auuki) {
+	# account server (docker compose service "api"); without it the app
+	# simply works without accounts
+	handle /api/* {
+		reverse_proxy api:3000
+	}
+	# everything else is the app (separate handle, so try_files never
+	# rewrites /api requests)
+	handle {
+		root * /srv
+		encode gzip
+		try_files {path} /index.html
+		file_server
+		@manifest path *.webmanifest
+		header @manifest Content-Type "application/manifest+json"
+	}
+}
+
+# Plain HTTP: fine on the same machine (http://localhost:8080 is a secure
+# context, so Bluetooth and ANT+ work there).
+:8080 {
+	import auuki
+}
+
+# HTTPS for other devices on your network. Set AUUKI_HOST to the name or IP
+# address the other devices use, e.g. AUUKI_HOST=192.168.1.20 or
+# AUUKI_HOST=auuki.local. Trust Caddy's root certificate on those devices
+# (see README) so the browser treats the page as secure.
+{$AUUKI_HOST:localhost}:8443 {
+	tls internal
+	import auuki
+}

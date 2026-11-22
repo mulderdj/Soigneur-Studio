@@ -1,0 +1,40 @@
+services:
+  auuki:
+    build: .
+    image: auuki-desktop
+    container_name: auuki
+    restart: unless-stopped
+    depends_on:
+      - api
+    environment:
+      # the hostname or IP other devices use to reach this machine
+      AUUKI_HOST: ${AUUKI_HOST:-localhost}
+    ports:
+      - "8080:8080"   # http://localhost:8080 on this machine
+      - "8443:8443"   # https://<AUUKI_HOST>:8443 from other devices
+    volumes:
+      - caddy-data:/data   # keeps the local certificate authority across restarts
+
+  # accounts, user management and sync; reached by the app at /api through Caddy
+  api:
+    build: ./server
+    image: auuki-desktop-api
+    container_name: auuki-api
+    restart: unless-stopped
+    environment:
+      # "true" lets anyone who can open the app create a rider account.
+      # Default: only the first account (the admin) signs up; the admin
+      # creates everyone else under Riders menu > Users.
+      ALLOW_SIGNUP: ${ALLOW_SIGNUP:-false}
+      # "Connect with Strava" for every rider: create one Strava API app at
+      # https://www.strava.com/settings/api with Authorization Callback Domain
+      # set to the host part of PUBLIC_URL. Leave empty to hide Strava.
+      PUBLIC_URL: ${PUBLIC_URL:-}
+      STRAVA_CLIENT_ID: ${STRAVA_CLIENT_ID:-}
+      STRAVA_CLIENT_SECRET: ${STRAVA_CLIENT_SECRET:-}
+    volumes:
+      - api-data:/data     # SQLite database: accounts, profiles, workouts, rides
+
+volumes:
+  caddy-data:
+  api-data:

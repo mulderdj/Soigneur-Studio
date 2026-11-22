@@ -1,0 +1,605 @@
+/*
+ * Rider menu: header pill + dialog (riders, account, sensors, rides, users).
+ * Works on every screen size; uses the dashboard tokens from desktop.css.
+ */
+
+rider-menu {
+    display: flex;
+    align-items: center;
+    font-family: var(--dash-text);
+    font-size: 15px;
+    text-align: left;
+}
+
+.rm--pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    height: 36px;
+    max-width: 220px;
+    padding: 0 12px 0 4px;
+    border: 1px solid var(--dash-line);
+    border-radius: 999px;
+    background: var(--dash-panel);
+    color: var(--dash-ink);
+    font: 500 15px var(--dash-text);
+    cursor: pointer;
+}
+
+.rm--pill:hover {
+    border-color: var(--dash-muted);
+}
+
+.rm--pill:focus-visible,
+.rm--btn:focus-visible,
+.rm--tabs button:focus-visible,
+.rm--close:focus-visible {
+    outline: 2px solid var(--dash-ink);
+    outline-offset: 2px;
+}
+
+.rm--name {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.rm--avatar {
+    flex: 0 0 auto;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    background: var(--dash-panel-2);
+    color: var(--dash-ink);
+    font: 600 14px var(--dash-text);
+}
+
+.rm--avatar.rm--big {
+    width: 44px;
+    height: 44px;
+    font-size: 20px;
+}
+
+/* sync state: grey = this device only, green = synced, yellow = busy/offline, red = problem */
+.rm--dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--dash-muted);
+}
+
+.rm--pill[data-sync="ok"] .rm--dot      { background: var(--dash-good); }
+.rm--pill[data-sync="syncing"] .rm--dot,
+.rm--pill[data-sync="offline"] .rm--dot { background: var(--dash-warn); }
+.rm--pill[data-sync="error"] .rm--dot   { background: var(--zone-red); }
+
+/* dialog */
+
+.rm--dialog {
+    width: min(720px, calc(100vw - 24px));
+    max-height: min(86vh, 900px);
+    padding: 0;
+    border: 1px solid var(--dash-line);
+    border-radius: 14px;
+    background: var(--dash-panel);
+    color: var(--dash-ink);
+    font: 400 15px/1.45 var(--dash-text);
+    text-align: left;
+    overflow: hidden;
+}
+
+.rm--dialog[open] {
+    display: flex;
+    flex-direction: column;
+}
+
+.rm--dialog::backdrop {
+    background: rgba(8, 12, 18, 0.6);
+}
+
+.rm--head {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 10px 0 14px;
+    border-bottom: 1px solid var(--dash-line);
+}
+
+.rm--tabs {
+    display: flex;
+    gap: 2px;
+    overflow-x: auto;
+    flex: 1 1 auto;
+}
+
+.rm--tabs button {
+    padding: 10px 12px;
+    border: none;
+    border-bottom: 2px solid transparent;
+    background: transparent;
+    color: var(--dash-muted);
+    font: 500 15px var(--dash-text);
+    white-space: nowrap;
+    cursor: pointer;
+}
+
+.rm--tabs button[aria-selected="true"] {
+    color: var(--dash-ink);
+    border-bottom-color: var(--dash-ink);
+}
+
+.rm--close {
+    width: 36px;
+    height: 36px;
+    border: none;
+    border-radius: 50%;
+    background: transparent;
+    color: var(--dash-muted);
+    font-size: 24px;
+    line-height: 1;
+    cursor: pointer;
+}
+
+.rm--close:hover {
+    background: var(--dash-panel-2);
+    color: var(--dash-ink);
+}
+
+.rm--flash {
+    margin: 12px 18px 0;
+    padding: 8px 12px;
+    border-left: 3px solid var(--dash-good);
+    border-radius: 0 6px 6px 0;
+    background: var(--dash-panel-2);
+    font-size: 14px;
+}
+
+.rm--flash[data-level="warn"] {
+    border-left-color: var(--dash-warn);
+}
+
+.rm--flash[hidden] {
+    display: none;
+}
+
+.rm--body {
+    padding: 14px 18px 18px;
+    overflow-y: auto;
+}
+
+.rm--lead {
+    margin: 0 0 12px;
+}
+
+.rm--note,
+.rm--empty {
+    margin: 12px 0 0;
+    color: var(--dash-muted);
+    font-size: 14px;
+}
+
+.rm--h {
+    margin: 20px 0 8px;
+    font: 600 15px var(--dash-text);
+}
+
+.rm--list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+.rm--row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 0;
+    border-top: 1px solid var(--dash-line);
+}
+
+.rm--row:first-child {
+    border-top: none;
+}
+
+.rm--who {
+    display: flex;
+    flex-direction: column;
+    flex: 1 1 auto;
+    min-width: 0;
+}
+
+.rm--who small,
+.rm--table small {
+    color: var(--dash-muted);
+    font-size: 13px;
+}
+
+.rm--actions {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: 6px;
+}
+
+.rm--tag {
+    display: inline-block;
+    padding: 3px 10px;
+    border-radius: 999px;
+    background: var(--dash-panel-2);
+    color: var(--dash-ink);
+    font-size: 13px;
+    font-weight: 500;
+    white-space: nowrap;
+}
+
+.rm--tag.rm--off {
+    color: var(--dash-muted);
+}
+
+.rm--card {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 12px 14px;
+    border-radius: 10px;
+    background: var(--dash-panel-2);
+}
+
+.rm--sync {
+    margin-left: auto;
+    font-size: 14px;
+    color: var(--dash-muted);
+    text-align: right;
+}
+
+.rm--sync[data-sync="ok"]    { color: var(--dash-good); }
+.rm--sync[data-sync="error"] { color: var(--zone-red); }
+
+/* buttons and forms */
+
+.rm--btn {
+    height: 34px;
+    padding: 0 14px;
+    border: 1px solid var(--dash-line);
+    border-radius: 8px;
+    background: var(--dash-panel-2);
+    color: var(--dash-ink);
+    font: 500 14px var(--dash-text);
+    white-space: nowrap;
+    cursor: pointer;
+}
+
+.rm--btn:hover:not(:disabled) {
+    border-color: var(--dash-muted);
+}
+
+.rm--btn:disabled {
+    opacity: 0.5;
+    cursor: default;
+}
+
+.rm--btn.rm--primary {
+    border-color: var(--dash-ink);
+    background: var(--dash-ink);
+    color: var(--dash-bg);
+}
+
+.rm--btn.rm--quiet {
+    background: transparent;
+}
+
+.rm--btn.rm--danger {
+    color: var(--zone-red);
+}
+
+.rm--btn[data-armed="1"] {
+    border-color: var(--zone-red);
+    background: var(--zone-red);
+    color: #fff;
+}
+
+.rm--buttons {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 14px;
+}
+
+.rm--form {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    max-width: 420px;
+}
+
+.rm--form.rm--inline,
+.rm--inline {
+    flex-direction: row;
+    align-items: flex-end;
+    flex-wrap: wrap;
+    gap: 8px;
+    max-width: none;
+    margin-top: 14px;
+}
+
+.rm--row .rm--inline,
+.rm--table .rm--inline {
+    margin-top: 0;
+}
+
+.rm--form.rm--grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    align-items: end;
+    max-width: none;
+}
+
+.rm--form label {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    font-size: 13px;
+    color: var(--dash-muted);
+}
+
+.rm--form input,
+.rm--form select,
+.rm--inline input,
+.rm--table select {
+    height: 36px;
+    padding: 0 10px;
+    border: 1px solid var(--dash-line);
+    border-radius: 8px;
+    background: var(--dash-bg);
+    color: var(--dash-ink);
+    font: 400 15px var(--dash-text);
+}
+
+.rm--form input:focus-visible,
+.rm--form select:focus-visible,
+.rm--inline input:focus-visible,
+.rm--table select:focus-visible {
+    outline: 2px solid var(--dash-ink);
+    outline-offset: 0;
+}
+
+.rm--check {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 14px;
+    cursor: pointer;
+}
+
+.rm--check input {
+    width: 18px;
+    height: 18px;
+}
+
+.rm--hint {
+    margin-top: 16px;
+    padding: 12px 14px;
+    border-left: 3px solid var(--dash-warn);
+    border-radius: 0 8px 8px 0;
+    background: var(--dash-panel-2);
+    font-size: 14px;
+}
+
+.rm--hint p,
+.rm--hint ol {
+    margin: 0 0 8px;
+}
+
+.rm--hint ol {
+    padding-left: 20px;
+}
+
+.rm--hint code {
+    font-size: 13px;
+    word-break: break-all;
+    user-select: all;
+}
+
+/* tables */
+
+.rm--scroll {
+    overflow-x: auto;
+}
+
+.rm--table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 14px;
+}
+
+.rm--table th {
+    padding: 6px 8px;
+    color: var(--dash-muted);
+    font-weight: 500;
+    text-align: left;
+    white-space: nowrap;
+}
+
+.rm--table td {
+    padding: 8px;
+    border-top: 1px solid var(--dash-line);
+    vertical-align: middle;
+}
+
+.rm--table td.rm--right {
+    text-align: right;
+    white-space: nowrap;
+}
+
+/* phones */
+@media (max-width: 560px) {
+    .rm--pill {
+        max-width: 150px;
+    }
+
+    .rm--row {
+        flex-wrap: wrap;
+    }
+
+    .rm--actions {
+        width: 100%;
+        justify-content: flex-start;
+    }
+
+    .rm--form.rm--grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* desktop header: pill sits first, before the connection pills */
+@media screen and (min-width: 1200px) and (min-height: 680px) {
+    #home-page .connections-header rider-menu {
+        margin-right: 6px;
+    }
+
+    .rm--pill {
+        height: 38px;
+        font-size: 15px;
+    }
+}
+
+/* connected services (Account tab) */
+
+.rm--connections {
+    display: flex;
+    flex-direction: column;
+}
+
+.rm--service {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 12px 0;
+    border-top: 1px solid var(--dash-line);
+}
+
+.rm--service:first-child {
+    border-top: none;
+}
+
+.rm--svc {
+    flex: 0 0 auto;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    color: #fff;
+    font: 700 16px var(--dash-text);
+}
+
+.rm--svc-strava    { background: #FC4C02; }
+.rm--svc-intervals { background: #3A7BD5; }
+.rm--svc-garmin    { background: #4A4A4A; }
+
+.rm--svc-body {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    flex: 1 1 auto;
+    min-width: 0;
+}
+
+.rm--svc-body small {
+    color: var(--dash-muted);
+    font-size: 13px;
+}
+
+.rm--svc-body .rm--inline {
+    margin-top: 8px;
+}
+
+.rm--svc-body .rm--inline input {
+    flex: 1 1 220px;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 14px;
+}
+
+.rm--svc-actions {
+    flex: 0 0 auto;
+}
+
+.rm--check.rm--small {
+    margin-top: 6px;
+    font-size: 14px;
+}
+
+.rm--check.rm--small input {
+    width: 16px;
+    height: 16px;
+}
+
+/* Strava's brand orange for its connect button */
+.rm--btn.rm--strava {
+    border-color: #FC4C02;
+    background: #FC4C02;
+    color: #fff;
+    font-weight: 600;
+}
+
+/* upload status in Ride history */
+
+.rm--sends {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px;
+}
+
+.rm--sent {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 3px 10px;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--dash-good) 18%, transparent);
+    color: var(--dash-ink);
+    font-size: 13px;
+    font-weight: 500;
+    text-decoration: none;
+    white-space: nowrap;
+}
+
+.rm--sent::before {
+    content: "";
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--dash-good);
+}
+
+a.rm--sent:hover {
+    text-decoration: underline;
+}
+
+.rm--up {
+    padding: 3px 10px;
+    border-radius: 999px;
+    background: var(--dash-panel-2);
+    color: var(--dash-muted);
+    font-size: 13px;
+    white-space: nowrap;
+}
+
+.rm--up[data-status="retrying"] {
+    color: var(--dash-warn);
+}
+
+@media (max-width: 560px) {
+    .rm--service {
+        flex-wrap: wrap;
+    }
+}
+
+.rm--rides td:nth-child(-n+4) {
+    white-space: nowrap;
+}

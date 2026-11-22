@@ -1,0 +1,1068 @@
+/*
+ * Auuki desktop dashboard
+ *
+ * Wide-screen layout for PC / laptop / TV displays. Everything that changes
+ * the layout lives inside the desktop media query below, so phones, tablets
+ * and the dock mode keep the original Auuki layout.
+ *
+ * The one loud thing on screen is the power tile: it takes the colour of the
+ * power zone you are riding in. Everything else stays quiet.
+ */
+
+/* ---------- tokens ---------- */
+
+body,
+body.dark-theme {
+    --dash-bg:      #151B23;
+    --dash-panel:   #1C242F;
+    --dash-panel-2: #232D3A;
+    --dash-line:    #2D3847;
+    --dash-ink:     #E9EEF4;
+    --dash-muted:   #8C98A8;
+    --dash-hr:      #FF5C7A;
+    --dash-cadence: #B38CFF;
+    --dash-wbal:    #39D0E8;
+    --dash-good:    #57C057;
+    --dash-warn:    #F8C73A;
+    --dash-low:     #FF663A;
+
+    --dash-num: 'Barlow Condensed', 'Roboto Condensed', 'Arial Narrow', system-ui, sans-serif;
+    --dash-text: 'Barlow', 'Roboto', system-ui, sans-serif;
+    --dash-radius: 12px;
+    --dash-gap: 12px;
+    --dash-bottom: 68px;
+    --r: 16px; /* the app's root font size is 10px; dashboard sizes use a 16px unit */
+}
+
+body.white-theme {
+    --dash-bg:      #ECEFF3;
+    --dash-panel:   #FFFFFF;
+    --dash-panel-2: #F3F5F8;
+    --dash-line:    #D6DCE4;
+    --dash-ink:     #18212C;
+    --dash-muted:   #5D6A7A;
+    --dash-hr:      #E0244A;
+    --dash-cadence: #7A4DE0;
+    --dash-wbal:    #0E8FA6;
+}
+
+@media (prefers-color-scheme: light) {
+    body:not(.dark-theme) {
+        --dash-bg:      #ECEFF3;
+        --dash-panel:   #FFFFFF;
+        --dash-panel-2: #F3F5F8;
+        --dash-line:    #D6DCE4;
+        --dash-ink:     #18212C;
+        --dash-muted:   #5D6A7A;
+        --dash-hr:      #E0244A;
+        --dash-cadence: #7A4DE0;
+        --dash-wbal:    #0E8FA6;
+    }
+}
+
+/* supported workout formats on the Workouts page */
+.workout-loader--formats {
+    margin: 0.4em 0 0.8em;
+    padding: 0;
+    list-style: none;
+    line-height: 1.6em;
+}
+
+.workout-loader--formats code {
+    font-size: 0.95em;
+    opacity: 0.85;
+}
+
+/* the dashboard panels only exist on wide screens */
+.dash-only {
+    display: none;
+}
+
+.hero-meta {
+    display: none;
+}
+
+/* ---------- desktop ---------- */
+
+@media screen and (min-width: 1200px) and (min-height: 680px) {
+
+    body {
+        background-color: var(--dash-bg);
+        color: var(--dash-ink);
+    }
+
+    .wrapper {
+        font-family: var(--dash-text);
+    }
+
+    live-chart,
+    training-stats {
+        text-align: left;
+    }
+
+    .dash-only {
+        display: flex;
+    }
+
+    /* page frame */
+    #home-page-wrapper {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) clamp(340px, 24vw, 420px);
+        grid-template-rows: auto auto minmax(0, 1fr) 128px auto;
+        grid-template-areas:
+            "header  header"
+            "tiles   stats"
+            "chart   stats"
+            "workout stats"
+            "targets stats";
+        gap: var(--dash-gap);
+        height: calc(100vh - var(--dash-bottom));
+        padding: var(--dash-gap) var(--dash-gap) var(--dash-gap);
+        box-sizing: border-box;
+    }
+
+    /* header: device connections */
+    #home-page .connections-header {
+        grid-area: header;
+        justify-content: flex-start;
+        gap: 6px;
+        padding: 0;
+        background: transparent;
+        font-size: calc(0.95 * var(--r));
+    }
+
+    #home-page .connection-switch {
+        height: 2.4em;
+        padding: 0 1em 0 0.8em;
+        border-radius: 999px;
+        background-color: var(--dash-panel);
+        border: 1px solid var(--dash-line);
+    }
+
+    #home-page .connection-switch:hover {
+        border-color: var(--dash-muted);
+    }
+
+    #home-page .connection-switch--indicator {
+        width: 0.7em;
+        height: 0.7em;
+        margin-right: 0.6em;
+    }
+
+    #home-page .connection-switch--label {
+        text-transform: none;
+        letter-spacing: 0;
+        font-weight: 500;
+    }
+
+    /* ---------- data tiles ---------- */
+
+    #home-page .data-tiles {
+        grid-area: tiles;
+        grid-row: auto;
+        display: grid;
+        grid-template-columns: minmax(0, 1.8fr) repeat(5, minmax(0, 1fr));
+        grid-template-rows: repeat(2, minmax(96px, auto));
+        gap: var(--dash-gap);
+        justify-items: stretch;
+        align-items: stretch;
+        font-size: calc(1 * var(--r));
+        --data-tile--heading-margin: 0 0 0.25em;
+    }
+
+    #home-page .data-tile,
+    #home-page .data-tile--small {
+        position: relative;
+        box-sizing: border-box;
+        padding: 12px 16px 10px;
+        border-radius: var(--dash-radius);
+        background-color: var(--dash-panel);
+        text-align: left;
+        overflow: hidden;
+        min-width: 0;
+        container-type: inline-size;
+    }
+
+    #home-page .data-tile:hover,
+    #home-page .data-tile--small:hover {
+        background-color: var(--dash-panel-2);
+    }
+
+    #home-page .data-tile--heading,
+    #home-page .data-tile-small--heading {
+        font-family: var(--dash-text);
+        font-size: calc(0.95 * var(--r));
+        font-weight: 500;
+        letter-spacing: 0;
+        text-transform: none;
+        color: var(--dash-muted);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    #home-page .data-tile--value,
+    #home-page .data-tile-small--value {
+        font-family: var(--dash-num);
+        font-weight: 600;
+        font-size: clamp(calc(1.6 * var(--r)), 30cqi, calc(3.6 * var(--r)));
+        line-height: 1.05;
+        font-variant-numeric: tabular-nums;
+        letter-spacing: -0.01em;
+        color: var(--dash-ink);
+        white-space: nowrap;
+    }
+
+    #home-page .data-tile--value-cont.complex {
+        justify-content: flex-start;
+        height: auto;
+        gap: 0.3em;
+    }
+
+    #home-page .data-tile--value-cont.complex .data-tile--value.active {
+        width: auto;
+        font-size: clamp(calc(1.6 * var(--r)), 26cqi, calc(3.4 * var(--r)));
+    }
+
+    /* hh:mm:ss is the longest value on screen; size it so it never clips */
+    #home-page #data-tile--elapsed-time .data-tile--value {
+        font-size: clamp(calc(1.5 * var(--r)), 24cqi, calc(3.4 * var(--r)));
+    }
+
+    /* placement: power is the hero, two rows tall */
+    #home-page #data-tile--power             { grid-area: 1 / 1 / 3 / 2; }
+    #home-page #data-tile--interval-time     { grid-area: 1 / 2 / 2 / 3; }
+    #home-page #data-tile--target            { grid-area: 1 / 3 / 2 / 4; }
+    #home-page #data-tile--heart-rate        { grid-area: 1 / 4 / 2 / 5; }
+    #home-page #data-tile--speed,
+    #home-page #data-tile--smo2              { grid-area: 1 / 5 / 2 / 6; }
+    #home-page #data-tile--power-avg,
+    #home-page #data-tile--core-body-temperature { grid-area: 1 / 6 / 2 / 7; }
+    #home-page #data-tile--elapsed-time      { grid-area: 2 / 2 / 3 / 3; }
+    #home-page #data-tile--cadence           { grid-area: 2 / 3 / 3 / 4; }
+    #home-page #data-tile--distance,
+    #home-page #data-tile--thb               { grid-area: 2 / 4 / 3 / 5; }
+    #home-page #data-tile--slope,
+    #home-page #data-tile--skin-temperature  { grid-area: 2 / 5 / 3 / 6; }
+
+    #home-page .data-tile--switch--group {
+        grid-area: 2 / 6 / 3 / 7;
+        height: auto;
+        border-radius: var(--dash-radius);
+        border: 1px dashed var(--dash-line);
+        gap: 6px;
+    }
+
+    #home-page .data-tile--switch {
+        width: calc(2.4 * var(--r));
+        height: calc(2.4 * var(--r));
+        cursor: pointer;
+    }
+
+    #home-page .data-tile--switch .data-tile--switch--icon {
+        width: calc(0.7 * var(--r));
+        height: calc(0.7 * var(--r));
+        border-color: var(--dash-muted);
+    }
+
+    #home-page .data-tile--switch.active .data-tile--switch--icon {
+        background-color: var(--dash-ink);
+        border-color: var(--dash-ink);
+    }
+
+    /* hero power tile */
+    #home-page #data-tile--power {
+        --zone-color: var(--dash-line);
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        padding: 16px 20px 16px 26px;
+        background:
+            linear-gradient(90deg, var(--zone-color) 0 8px, transparent 8px),
+            color-mix(in srgb, var(--zone-color) 16%, var(--dash-panel));
+        transition: background-color 400ms ease;
+    }
+
+    #home-page #data-tile--power .data-tile--heading {
+        font-size: calc(1.05 * var(--r));
+    }
+
+    #home-page #data-tile--power .data-tile--value {
+        font-size: clamp(calc(4 * var(--r)), 42cqi, calc(10 * var(--r)));
+        font-weight: 700;
+        line-height: 0.9;
+        letter-spacing: -0.02em;
+    }
+
+    #home-page #data-tile--power .hero-meta {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: space-between;
+        align-items: baseline;
+        gap: 0.2em 1em;
+        line-height: 1.2;
+        white-space: nowrap;
+        font-size: calc(1.05 * var(--r));
+        font-weight: 600;
+        color: var(--dash-ink);
+    }
+
+    #home-page .hero-meta--zone {
+        color: var(--zone-color);
+        filter: brightness(1.15);
+    }
+
+    #home-page #data-tile--power:not([data-zone]) .hero-meta--zone,
+    #home-page #data-tile--power[data-zone=""] .hero-meta--zone {
+        color: var(--dash-muted);
+        filter: none;
+    }
+
+    #home-page .hero-meta--wkg {
+        font-family: var(--dash-num);
+        font-size: calc(1.35 * var(--r));
+        font-variant-numeric: tabular-nums;
+        color: var(--dash-muted);
+    }
+
+    /* on the light theme a yellow number on a pale tile is hard to read:
+       the tile and bar carry the zone colour, the number stays ink */
+    body.white-theme #home-page #data-tile--power .data-tile--value {
+        color: var(--dash-ink);
+    }
+
+    /* ---------- live chart ---------- */
+
+    #dash-chart {
+        grid-area: chart;
+        flex-direction: column;
+        min-height: 0;
+        padding: 12px 14px 8px;
+        border-radius: var(--dash-radius);
+        background-color: var(--dash-panel);
+    }
+
+    .lc--bar {
+        display: flex;
+        align-items: center;
+        gap: 18px;
+        margin-bottom: 6px;
+    }
+
+    .dash--title {
+        margin: 0;
+        font-family: var(--dash-text);
+        font-size: calc(1.05 * var(--r));
+        font-weight: 600;
+        color: var(--dash-ink);
+    }
+
+    .lc--legend {
+        display: flex;
+        gap: 4px;
+        flex-wrap: wrap;
+    }
+
+    .lc--chip,
+    .lc--seg {
+        font: 500 calc(0.9 * var(--r))/1 var(--dash-text);
+        color: var(--dash-muted);
+        background: transparent;
+        border: 1px solid transparent;
+        border-radius: 999px;
+        padding: 0.45em 0.8em;
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5em;
+    }
+
+    .lc--chip:hover,
+    .lc--seg:hover {
+        color: var(--dash-ink);
+    }
+
+    .lc--chip[aria-pressed="true"] {
+        color: var(--dash-ink);
+        border-color: var(--dash-line);
+    }
+
+    .lc--chip:focus-visible,
+    .lc--seg:focus-visible {
+        outline: 2px solid var(--dash-ink);
+        outline-offset: 1px;
+    }
+
+    .lc--swatch {
+        width: 14px;
+        height: 4px;
+        border-radius: 2px;
+        background: var(--dash-muted);
+        opacity: 0.4;
+    }
+
+    .lc--chip[aria-pressed="true"] .lc--swatch { opacity: 1; }
+
+    .lc--chip-power .lc--swatch {
+        height: 10px;
+        background: linear-gradient(90deg,
+            var(--zone-blue) 0 25%, var(--zone-green) 25% 50%,
+            var(--zone-yellow) 50% 75%, var(--zone-red) 75%);
+    }
+    .lc--chip-target .lc--swatch {
+        background: repeating-linear-gradient(90deg, var(--dash-ink) 0 4px, transparent 4px 6px);
+    }
+    .lc--chip-hr .lc--swatch      { background: var(--dash-hr); }
+    .lc--chip-cadence .lc--swatch { background: var(--dash-cadence); }
+    .lc--chip-wbal .lc--swatch    { background: var(--dash-wbal); }
+
+    .lc--range {
+        margin-left: auto;
+        display: flex;
+        padding: 3px;
+        border-radius: 999px;
+        background-color: var(--dash-bg);
+    }
+
+    .lc--seg[aria-pressed="true"] {
+        color: var(--dash-ink);
+        background-color: var(--dash-panel-2);
+    }
+
+    .lc--plot {
+        position: relative;
+        flex: 1 1 auto;
+        min-height: 0;
+    }
+
+    .lc--canvas {
+        position: absolute;
+        inset: 0;
+        display: block;
+        cursor: crosshair;
+    }
+
+    .lc--empty {
+        position: absolute;
+        inset: 0 0 24px 44px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: var(--dash-muted);
+        font-size: calc(1 * var(--r));
+        pointer-events: none;
+    }
+
+    .lc--empty[hidden] { display: none; }
+
+    .lc--tip {
+        position: absolute;
+        min-width: 150px;
+        padding: 8px 10px;
+        border-radius: 8px;
+        background-color: var(--dash-ink);
+        color: var(--dash-bg);
+        font-size: calc(0.85 * var(--r));
+        line-height: 1.45;
+        font-variant-numeric: tabular-nums;
+        pointer-events: none;
+        z-index: 2;
+    }
+
+    .lc--tip[hidden] { display: none; }
+
+    /* the original moxy/overlay graph shares the chart cell so the countdown
+       and workout text events still appear on top of the live chart */
+    #home-page #graph-power {
+        grid-area: chart;
+        border: none;
+        border-radius: var(--dash-radius);
+        pointer-events: none;
+        background: transparent;
+        z-index: 1;
+    }
+
+    #home-page #graph-power > .graph--heading,
+    #home-page #graph-power moxy-graph {
+        display: none;
+    }
+
+    #home-page #graph-power auto-start-counter,
+    #home-page #graph-power #workout-text-event {
+        pointer-events: auto;
+        border-radius: var(--dash-radius);
+    }
+
+    /* ---------- workout profile ---------- */
+
+    #home-page #graph-workout {
+        grid-area: workout;
+        border: none;
+        border-radius: var(--dash-radius);
+        background-color: var(--dash-panel);
+        padding: 8px 14px 0;
+        box-sizing: border-box;
+        overflow: hidden;
+        grid-template-rows: auto minmax(0, 1fr);
+    }
+
+    #home-page #graph-workout .graph--heading {
+        font-family: var(--dash-text);
+        font-size: calc(1.05 * var(--r));
+        font-weight: 600;
+        text-align: left;
+        color: var(--dash-ink);
+    }
+
+    #home-page .workout--graph-cont {
+        max-width: 100%;
+    }
+
+    /* ---------- control modes ---------- */
+
+    #home-page #targets {
+        grid-area: targets;
+        font-size: var(--r);
+        padding: 6px 10px;
+        border-radius: var(--dash-radius);
+        background-color: var(--dash-panel);
+        --mode-selector-margin: 0;
+        --mode-selector-height: calc(2.6 * var(--r));
+        --number-input-height: calc(2.6 * var(--r));
+    }
+
+    #home-page .targets--cont {
+        display: flex;
+        align-items: center;
+        gap: 24px;
+        max-width: none;
+    }
+
+    #home-page .tab-btn-group {
+        flex: 0 0 auto;
+    }
+
+    #home-page .mode-selector {
+        gap: 4px;
+        text-transform: none;
+    }
+
+    #home-page .mode {
+        width: auto;
+        padding: 0 1.1em;
+        border-radius: 999px;
+        line-height: var(--mode-selector-height);
+        font-weight: 500;
+        color: var(--dash-muted);
+    }
+
+    #home-page .mode.active {
+        color: var(--dash-ink);
+        background-color: var(--dash-panel-2);
+        font-weight: 600;
+    }
+
+    #home-page mode-lock-toggle {
+        position: relative;
+        width: calc(2.6 * var(--r));
+        height: calc(2.6 * var(--r));
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    #home-page .mode-lock--toggle--icon {
+        position: static;
+        fill: var(--dash-muted);
+    }
+
+    #home-page tab-group {
+        flex: 0 1 340px;
+        width: auto;
+    }
+
+    #home-page .number-input--value {
+        font-family: var(--dash-num);
+        font-size: calc(1.5 * var(--r));
+        font-weight: 600;
+        border-radius: 0;
+    }
+
+    /* ---------- statistics sidebar ---------- */
+
+    #dash-stats {
+        grid-area: stats;
+        flex-direction: column;
+        gap: 4px;
+        min-height: 0;
+        overflow-y: auto;
+        padding: 14px 18px;
+        border-radius: var(--dash-radius);
+        background-color: var(--dash-panel);
+        scrollbar-width: thin;
+        scrollbar-color: var(--dash-line) transparent;
+    }
+
+    .ts--section {
+        padding: 8px 0 10px;
+        border-bottom: 1px solid var(--dash-line);
+    }
+
+    .ts--section:last-child {
+        border-bottom: none;
+    }
+
+    .ts--section .dash--title {
+        display: flex;
+        justify-content: space-between;
+        align-items: baseline;
+        margin-bottom: 8px;
+    }
+
+    .ts--sub {
+        font-family: var(--dash-num);
+        font-size: calc(1.1 * var(--r));
+        font-weight: 500;
+        color: var(--dash-muted);
+        font-variant-numeric: tabular-nums;
+    }
+
+    .ts--interval-main {
+        display: flex;
+        align-items: baseline;
+        justify-content: space-between;
+        gap: 12px;
+    }
+
+    .ts--big {
+        font-family: var(--dash-num);
+        font-size: calc(3.4 * var(--r));
+        font-weight: 700;
+        line-height: 1;
+        font-variant-numeric: tabular-nums;
+    }
+
+    .ts--big small,
+    .ts--kpi small,
+    .ts--best small {
+        margin-left: 0.25em;
+        font-family: var(--dash-text);
+        font-size: calc(0.8 * var(--r));
+        font-weight: 500;
+        color: var(--dash-muted);
+    }
+
+    .ts--vs {
+        color: var(--dash-muted);
+        font-size: calc(1 * var(--r));
+    }
+
+    .ts--vs span {
+        font-family: var(--dash-num);
+        font-size: calc(1.5 * var(--r));
+        font-weight: 600;
+        color: var(--dash-ink);
+    }
+
+    .ts--meter {
+        height: 8px;
+        margin-top: 10px;
+        border-radius: 4px;
+        background-color: var(--dash-panel-2);
+        overflow: hidden;
+    }
+
+    .ts--meter-fill {
+        height: 100%;
+        width: 0;
+        background-color: var(--dash-muted);
+        transition: width 600ms ease;
+    }
+
+    .ts--meter-fill[data-level="good"] { background-color: var(--dash-good); }
+    .ts--meter-fill[data-level="ok"]   { background-color: var(--dash-warn); }
+    .ts--meter-fill[data-level="low"]  { background-color: var(--dash-low); }
+
+    .ts--meter-label {
+        margin-top: 6px;
+        font-size: calc(0.85 * var(--r));
+        color: var(--dash-muted);
+    }
+
+    .ts--meter-label span {
+        color: var(--dash-ink);
+        font-weight: 600;
+    }
+
+    .ts--cues {
+        list-style: none;
+        margin: 10px 0 0;
+        padding: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+    }
+
+    .ts--cue {
+        padding: 8px 10px 8px 12px;
+        border-left: 3px solid var(--dash-muted);
+        background-color: var(--dash-panel-2);
+        border-radius: 0 6px 6px 0;
+        font-size: calc(0.95 * var(--r));
+        font-weight: 500;
+    }
+
+    .ts--cue[data-level="good"] { border-left-color: var(--dash-good); }
+    .ts--cue[data-level="warn"] { border-left-color: var(--dash-warn); }
+    .ts--cue[data-level="info"] { color: var(--dash-muted); }
+
+    .ts--grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 10px 16px;
+        margin: 0;
+    }
+
+    .ts--grid-3 {
+        grid-template-columns: repeat(3, 1fr);
+        gap: 8px 12px;
+        margin-top: 10px;
+    }
+
+    .ts--grid-3 .ts--kpi dd {
+        font-size: calc(1.5 * var(--r));
+    }
+
+    /* W' capacity, editable in place */
+    .ts--wprime {
+        font-size: calc(0.85 * var(--r));
+        font-weight: 500;
+        color: var(--dash-muted);
+        white-space: nowrap;
+    }
+
+    .ts--wprime input {
+        width: 3.4em;
+        padding: 2px 4px;
+        border: 1px solid var(--dash-line);
+        border-radius: 6px;
+        background: var(--dash-bg);
+        color: var(--dash-ink);
+        font: 600 calc(0.95 * var(--r)) var(--dash-num);
+        text-align: right;
+        -moz-appearance: textfield;
+    }
+
+    .ts--wprime input::-webkit-inner-spin-button,
+    .ts--wprime input::-webkit-outer-spin-button {
+        -webkit-appearance: none;
+        margin: 0;
+    }
+
+    .ts--wprime input:focus-visible {
+        outline: 2px solid var(--dash-wbal);
+        outline-offset: 1px;
+    }
+
+    .ts--meter-wbal .ts--meter-fill                     { background-color: var(--dash-wbal); }
+    .ts--meter-wbal .ts--meter-fill[data-level="ok"]    { background-color: var(--dash-warn); }
+    .ts--meter-wbal .ts--meter-fill[data-level="low"]   { background-color: var(--dash-low); }
+    .ts--meter-wbal .ts--meter-fill[data-level="empty"] { background-color: var(--zone-red); }
+
+    /* aerobic / anaerobic split (Skiba TISS) */
+    .ts--focus {
+        margin-top: 12px;
+    }
+
+    .ts--focus-label {
+        display: flex;
+        justify-content: space-between;
+        font-size: calc(0.85 * var(--r));
+        color: var(--dash-muted);
+    }
+
+    .ts--focus-label b {
+        color: var(--dash-ink);
+        font-weight: 600;
+    }
+
+    .ts--focus-bar {
+        height: 8px;
+        margin-top: 4px;
+        border-radius: 4px;
+        background-color: var(--zone-orange);
+        overflow: hidden;
+    }
+
+    .ts--focus-bar span {
+        display: block;
+        height: 100%;
+        width: 0;
+        background-color: var(--zone-blue);
+        transition: width 600ms ease;
+    }
+
+    .ts--kpi dt {
+        font-size: calc(0.85 * var(--r));
+        color: var(--dash-muted);
+    }
+
+    .ts--kpi dd {
+        margin: 0;
+        font-family: var(--dash-num);
+        font-size: calc(1.7 * var(--r));
+        font-weight: 600;
+        line-height: 1.05;
+        font-variant-numeric: tabular-nums;
+    }
+
+    .ts--kpi-lead dd {
+        color: var(--dash-ink);
+    }
+
+    .ts--kpi dd[data-level="muted"] {
+        font-family: var(--dash-text);
+        font-size: calc(0.95 * var(--r));
+        font-weight: 500;
+        line-height: 2.1;
+        color: var(--dash-muted);
+    }
+
+    .ts--kpi dd[data-level="warn"] { color: var(--dash-warn); }
+
+    .ts--zones {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+        display: grid;
+        gap: 5px;
+    }
+
+    .ts--zone {
+        display: grid;
+        grid-template-columns: 7.5em minmax(0, 1fr) 4em;
+        align-items: center;
+        gap: 10px;
+        font-size: calc(0.88 * var(--r));
+    }
+
+    .ts--zone-name {
+        color: var(--dash-muted);
+        white-space: nowrap;
+    }
+
+    .ts--zone-name b {
+        color: var(--dash-ink);
+        font-weight: 600;
+        margin-right: 0.2em;
+    }
+
+    .ts--zone-track {
+        height: 12px;
+        border-radius: 3px;
+        background-color: var(--dash-panel-2);
+        overflow: hidden;
+    }
+
+    .ts--zone-bar {
+        display: block;
+        height: 100%;
+        width: 0;
+        background-color: var(--zc);
+        border-radius: 3px;
+        transition: width 600ms ease;
+    }
+
+    .ts--zone-time {
+        text-align: right;
+        font-family: var(--dash-num);
+        font-size: calc(1.05 * var(--r));
+        font-weight: 500;
+        font-variant-numeric: tabular-nums;
+    }
+
+    .ts--best {
+        width: 100%;
+        border-collapse: collapse;
+    }
+
+    .ts--best th,
+    .ts--best td {
+        padding: 5px 0;
+        border-top: 1px solid var(--dash-line);
+    }
+
+    .ts--best tr:first-child th,
+    .ts--best tr:first-child td {
+        border-top: none;
+    }
+
+    .ts--best th {
+        text-align: left;
+        font-weight: 500;
+        color: var(--dash-muted);
+        font-size: calc(0.9 * var(--r));
+    }
+
+    .ts--best td {
+        text-align: right;
+        font-family: var(--dash-num);
+        font-size: calc(1.4 * var(--r));
+        font-weight: 600;
+        font-variant-numeric: tabular-nums;
+    }
+
+    .ts--best tr.is-pending td {
+        color: var(--dash-muted);
+    }
+
+    /* ---------- bottom bar ---------- */
+
+    .fixed-bottom {
+        font-size: var(--r);
+        --size--icon--global: 1.8em;
+        --size--icon--menu--btn: 1.5em;
+        height: var(--dash-bottom);
+        grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+        grid-template-rows: 1fr;
+        padding: 0 var(--dash-gap);
+        box-sizing: border-box;
+        border-top: 1px solid var(--dash-line);
+        background-color: var(--dash-panel);
+    }
+
+    #workout-name {
+        grid-area: 1 / 1 / 2 / 2;
+        margin: 0 0.4em;
+        font-family: var(--dash-text);
+        font-size: calc(1.1 * var(--r));
+        font-weight: 600;
+        letter-spacing: 0;
+        text-transform: none;
+    }
+
+    .fixed-bottom .watch {
+        grid-area: 1 / 2 / 2 / 3;
+        justify-self: center;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+    }
+
+    .fixed-bottom .control--btn {
+        margin: 0;
+        width: 46px;
+        height: 46px;
+        border-radius: 50%;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+    }
+
+    .fixed-bottom .control--btn:hover {
+        background-color: var(--dash-panel-2);
+    }
+
+    .fixed-bottom #watch-start {
+        background-color: var(--dash-ink);
+    }
+
+    .fixed-bottom #watch-start .control--btn--icon {
+        fill: var(--dash-bg);
+    }
+
+    .fixed-bottom .menu {
+        grid-area: 1 / 3 / 2 / 4;
+        height: 100%;
+        justify-self: end;
+    }
+
+    .fixed-bottom .menu--row {
+        gap: 4px;
+    }
+
+    .fixed-bottom .menu--btn {
+        flex-direction: row;
+        flex-grow: 0;
+        gap: 0.5em;
+        height: 42px;
+        padding: 0 1em;
+        border-radius: 999px;
+    }
+
+    .fixed-bottom .menu--btn.active {
+        background-color: var(--dash-panel-2);
+    }
+
+    .fixed-bottom .menu--btn--label {
+        letter-spacing: 0;
+        font-weight: 500;
+    }
+
+    .fixed-bottom .menu--btn--icon {
+        height: var(--size--icon--menu--btn);
+        width: var(--size--icon--menu--btn);
+    }
+
+    /* the other pages: keep content at a readable width */
+    #workouts-page,
+    #settings-page {
+        max-width: 1180px;
+        margin: 0 auto;
+        padding-bottom: calc(var(--dash-bottom) + calc(2 * var(--r)));
+    }
+}
+
+/* Short laptop screens: give the chart the height */
+@media screen and (min-width: 1200px) and (min-height: 680px) and (max-height: 880px) {
+    #home-page-wrapper {
+        grid-template-rows: auto auto minmax(0, 1fr) 84px auto;
+        --dash-gap: 10px;
+    }
+
+    #home-page .data-tiles {
+        grid-template-rows: repeat(2, minmax(78px, auto));
+    }
+
+    #home-page .data-tile,
+    #home-page .data-tile--small {
+        padding: 8px 12px 6px;
+    }
+
+    #home-page #data-tile--power {
+        padding: 10px 16px 10px 22px;
+    }
+
+    #home-page #data-tile--power .data-tile--value {
+        font-size: clamp(calc(3.4 * var(--r)), 38cqi, calc(7 * var(--r)));
+    }
+
+    #home-page #graph-workout .graph--heading {
+        font-size: calc(0.9 * var(--r));
+    }
+
+    #home-page #targets {
+        --mode-selector-height: calc(2.2 * var(--r));
+        --number-input-height: calc(2.2 * var(--r));
+        padding: 2px 10px;
+    }
+}
+
+/* Larger displays (1440p, TV across the room): scale the whole layout up */
+@media screen and (min-width: 2200px) and (min-height: 1100px) {
+    body {
+        --r: 20px;
+        --dash-bottom: 84px;
+        --dash-gap: 16px;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    #home-page #data-tile--power,
+    .ts--meter-fill,
+    .ts--zone-bar,
+    .ts--focus-bar span {
+        transition: none;
+    }
+}

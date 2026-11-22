@@ -1,0 +1,42 @@
+'use strict';
+
+// Start the Auuki Desktop account server.
+//
+//   PORT          default 3000
+//   DATA_DIR      default ./data (the SQLite file lives here)
+//   ALLOW_SIGNUP  "true" lets anyone with the address create a rider account;
+//                 otherwise only the first account (the admin) can sign up and
+//                 the admin creates everyone else.
+//   PUBLIC_URL, STRAVA_CLIENT_ID, STRAVA_CLIENT_SECRET
+//                 enable "Connect Strava" (see docs); intervals.icu needs no setup.
+
+const fs = require('node:fs');
+const path = require('node:path');
+const { createApp } = require('./app.js');
+
+const port = Number(process.env.PORT ?? 3000);
+const dataDir = process.env.DATA_DIR ?? path.join(__dirname, 'data');
+fs.mkdirSync(dataDir, {recursive: true});
+
+const { server, connections } = createApp({
+    dbPath: path.join(dataDir, 'auuki.db'),
+    allowSignup: String(process.env.ALLOW_SIGNUP ?? '').toLowerCase() === 'true',
+    connections: {
+        // the address riders open the app at, e.g. https://auuki.lan:8443;
+        // Strava sends riders back to PUBLIC_URL/api/connect/strava/callback
+        publicUrl: process.env.PUBLIC_URL ?? '',
+        strava: {
+            clientId: process.env.STRAVA_CLIENT_ID ?? '',
+            clientSecret: process.env.STRAVA_CLIENT_SECRET ?? '',
+        },
+    },
+});
+connections.resume();
+
+server.listen(port, () => {
+    console.log(`auuki account server on :${port}, data in ${dataDir}`);
+});
+
+for(const signal of ['SIGINT', 'SIGTERM']) {
+    process.on(signal, () => server.close(() => process.exit(0)));
+}
