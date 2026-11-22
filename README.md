@@ -1,11 +1,14 @@
 # Auuki Desktop (fork)
 
-A fork of [dvmarinoff/Auuki](https://github.com/dvmarinoff/Auuki) with a dashboard made for PC, laptop and TV screens. Phones, tablets and dock mode keep the original layout; the desktop layout switches on at 1200 × 680 px and up.
+A fork of [dvmarinoff/Auuki](https://github.com/dvmarinoff/Auuki) with one interface for every screen: phone (portrait or on the handlebars in landscape), tablet, laptop, PC and TV. Every page uses the same design system, in dark and light.
 
-**What's new on the home screen**
-* **Wide-screen layout**: power as a large tile that takes the colour of your current power zone (with zone name and live W/kg), the other metrics in a compact grid, connections in a slim header and one bottom bar for the clock and navigation.
+**What's new on the Ride page**
+* **One layout from phone to TV**: power as a large tile that takes the colour of your current power zone (with zone name and live W/kg), the other metrics in a compact grid, connections in a slim header and one bottom bar for the ride controls and the pages (Ride, Training, Workouts, Settings).
+  * *Phone, portrait*: everything on one screen while riding; the statistics panels below are swiped one at a time. While a ride runs, the bottom bar shows only the ride controls; the pages are behind the menu button.
+  * *Phone, landscape* (on the handlebars; replaces the old dock mode): power, target and six metrics, the chart and the ERG / resistance / slope controls.
+  * *Tablet*: scrolls; statistics in two columns. *Desktop and TV*: statistics in a sidebar, scaled up on large screens.
 * **Live ride chart**: power coloured by zone, target power, heart rate and cadence, with 5 min, 20 min or whole-ride views, a hover read-out and series toggles. Your choices are remembered.
-* **Live training statistics** (sidebar):
+* **Live training statistics**:
   * *This interval*: average power against target, the share of time within 5 % of target, and pacing cues ("Above target by 20 W — ease off", low cadence under load, heart-rate drift)
   * *Training load*: TSS, intensity factor, normalized power, work (kJ)
   * *Power*: average, max, average W/kg, variability index
@@ -26,7 +29,11 @@ A fork of [dvmarinoff/Auuki](https://github.com/dvmarinoff/Auuki) with a dashboa
 
 Extensions are case-insensitive. Files that can't be read are listed in an error message, and the other files still load.
 
-New files: `src/analytics.js` (the statistics, tested in `test/analytics.test.js`), `src/workouts/formats.js` (workout formats, tested in `test/workout-formats.test.js`), `src/views/training-dashboard.js` (chart and sidebar), `src/css/desktop.css` (layout and theme).
+New files: `src/analytics.js` (the statistics, tested in `test/analytics.test.js`), `src/workouts/formats.js` (workout formats, tested in `test/workout-formats.test.js`), `src/views/training-dashboard.js` (chart and statistics panels).
+
+**Design system** (`src/css/`): `tokens.css` (every colour, size and font, dark and light), `base.css` (page shell, bottom bar), `components.css` (buttons, cards, tiles, tabs, fields, dialogs, the workout graph) and one layout file per page: `ride.css`, `training.css`, `workouts.css`, `settings.css`, `rider-menu.css`. Page files only arrange components and use tokens. `npm run check:visual` (with `npm start` running; set `CHROME_PATH` if Playwright's own Chromium isn't installed) opens every page at phone, tablet and desktop sizes in both themes and fails on sideways scrolling, tap targets under 44 px on phones, text overflowing its tile and console errors; screenshots go to `test/visual/out/`.
+
+**Removed from upstream**: the original layout and its stylesheet, dock mode, the auuki.com account and its Settings connections (intervals.icu, Strava, TrainingPeaks through upstream's server), the intervals.icu planned list and the Ride Report tab. Accounts and connected services are in the rider menu, through your own server. Rides recorded on a device stay under *Workouts → Your rides* for download.
 
 Run it locally with `npm install` then `npm start`, and open the printed address in Chrome or Edge. Web Bluetooth needs `localhost` or HTTPS. For accounts in development, run `npm run server` in a second terminal; the Parcel dev server forwards `/api` to it (`.proxyrc.json`). Server tests: `npm run test:server`.
 

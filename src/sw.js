@@ -3,7 +3,6 @@ const resources = [
     './',
     'index.html',
     'privacy.html',
-    'css/flux.css',
 
     'images/connections/garmin-connect.png',
     'images/logo/logo-192px.png',
@@ -91,7 +90,6 @@ const resources = [
     'ble/userData.js',
     'ble/web-ble.js',
 
-    // 'css/flux.css',
 
     'fit/common.js',
     'fit/crc.js',
@@ -146,7 +144,6 @@ const resources = [
     'css/settings.css',
     'css/rider-menu.css',
     'analytics.js',
-    'css/desktop.css',
     'views/moxy-graph.js',
     'views/tabs.js',
     'views/views.js',

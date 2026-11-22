@@ -213,8 +213,8 @@
 
 .segmented {
     display: inline-flex;
-    padding: 2px;
-    gap: 2px;
+    padding: var(--space-half);
+    gap: var(--space-half);
     background-color: var(--surface-2);
     border-radius: var(--radius-s);
 }
@@ -304,12 +304,36 @@
     background-color: var(--overlay);
 }
 
+/* app-wide error message (modal-error) */
+.dialog.error {
+    border-left: var(--stripe-w) solid var(--danger);
+}
+
+.dialog--message {
+    margin-bottom: var(--space-4);
+    line-height: 1.5;
+}
+
+.dialog--dismiss--btn {
+    display: inline-flex;
+    align-items: center;
+    min-height: var(--tap);
+    padding: 0 var(--space-4);
+    border: var(--line-w) solid var(--line);
+    border-radius: var(--radius-s);
+    background-color: var(--surface-2);
+    color: var(--ink);
+    font-size: var(--text-s);
+    font-weight: var(--weight-bold);
+    text-transform: capitalize;
+}
+
 /* ---------- flash, pill, badge, empty ---------- */
 
 .flash {
     padding: var(--space-3) var(--space-4);
     border-radius: var(--radius-s);
-    border-left: 3px solid var(--good);
+    border-left: var(--stripe-w) solid var(--good);
     background-color: var(--surface-2);
     font-size: var(--text-s);
 }
@@ -348,7 +372,7 @@
 .badge {
     display: inline-flex;
     align-items: center;
-    padding: 2px var(--space-2);
+    padding: var(--space-half) var(--space-2);
     border-radius: var(--radius-pill);
     background-color: var(--surface-2);
     color: var(--muted);

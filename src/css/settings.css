@@ -251,7 +251,8 @@ battery-level.critical::before { background-color: var(--danger); }
     font-weight: var(--weight-medium);
 }
 
-.option--value.btn {
+.option--value.btn,
+.settings-switch-btn-cont {
     min-width: 96px;
     text-transform: uppercase;
 }
@@ -264,9 +265,9 @@ battery-level.critical::before { background-color: var(--danger); }
 
 .sound--row svg.sound--item {
     box-sizing: content-box;
-    width: 24px;
-    height: 24px;
-    padding: 10px;
+    width: var(--icon);
+    height: var(--icon);
+    padding: var(--icon-pad);
     border-radius: var(--radius-pill);
     fill: var(--ink);
     cursor: pointer;

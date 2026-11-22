@@ -117,7 +117,7 @@ workout-item.workout {
 
 .workout--type {
     grid-area: type;
-    padding: 2px var(--space-2);
+    padding: var(--space-half) var(--space-2);
     border-radius: var(--radius-pill);
     background-color: var(--surface-2);
     color: var(--muted);
@@ -358,9 +358,9 @@ input.editor--td:focus {
 
 .editor--icon {
     box-sizing: content-box;
-    width: 24px;
-    height: 24px;
-    padding: 10px;
+    width: var(--icon);
+    height: var(--icon);
+    padding: var(--icon-pad);
     border: var(--line-w) solid var(--line);
     border-radius: var(--radius-s);
     background-color: var(--surface-2);

@@ -42,6 +42,39 @@ textarea {
     color: inherit;
 }
 
+button {
+    cursor: pointer;
+}
+
+img,
+svg {
+    display: block;
+    max-width: 100%;
+}
+
+/* old-browser notice (no Web Bluetooth) above every page */
+#compatibility--cont {
+    padding: var(--space-4);
+    background-color: var(--danger);
+    color: var(--on-brand);
+    font-size: var(--text-s);
+    font-weight: var(--weight-medium);
+    text-align: center;
+}
+
+#compatibility--cont p {
+    display: inline;
+}
+
+#compatibility--cont p::after {
+    content: " ";
+}
+
+#compatibility--cont a {
+    color: var(--on-brand);
+    font-weight: var(--weight-bold);
+}
+
 :focus-visible {
     outline: var(--focus-w) solid var(--accent);
     outline-offset: 2px;

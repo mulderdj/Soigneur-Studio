@@ -312,14 +312,14 @@ class LiveChart extends HTMLElement {
         this.$empty.hidden = n > 0;
         this.dataset.samples = String(n);
 
-        const ink   = cssVar(this, '--dash-ink', '#E8EDF3');
-        const muted = cssVar(this, '--dash-muted', '#8A96A6');
-        const line  = cssVar(this, '--dash-line', '#2A3442');
-        const hrCol = cssVar(this, '--dash-hr', '#FF5C7A');
-        const cdCol = cssVar(this, '--dash-cadence', '#B38CFF');
-        const wbCol = cssVar(this, '--dash-wbal', '#39D0E8');
-        const zoneCols = ['--zone-gray', '--zone-blue', '--zone-teal', '--zone-green',
-                          '--zone-yellow', '--zone-orange', '--zone-red']
+        const ink   = cssVar(this, '--ink', '#E8EDF3');
+        const muted = cssVar(this, '--muted', '#8A96A6');
+        const line  = cssVar(this, '--line', '#2A3442');
+        const hrCol = cssVar(this, '--hr', '#FF5C7A');
+        const cdCol = cssVar(this, '--cadence', '#B38CFF');
+        const wbCol = cssVar(this, '--wbal', '#39D0E8');
+        const zoneCols = ['--zone-1', '--zone-2', '--zone-3', '--zone-4',
+                          '--zone-5', '--zone-6', '--zone-7']
               .map(v => cssVar(document.body, v, '#888'));
 
         const padL = 44, padR = 40, padT = 10, padB = 24;
