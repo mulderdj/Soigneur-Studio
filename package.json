@@ -10,7 +10,8 @@
         "starttls": "parcel --cert ./dev_cert/cert.pem --key ./dev_cert/key.pem",
         "build": "parcel build",
         "server": "node server/index.js",
-        "test:server": "node --test server/app.spec.mjs server/connections.spec.mjs"
+        "test:server": "node --test server/app.spec.mjs server/connections.spec.mjs",
+        "check:visual": "node test/visual/check.js"
     },
     "devDependencies": {
         "@babel/core": "^7.29.7",
@@ -22,6 +23,7 @@
         "jest": "^30.5.2",
         "jest-environment-jsdom": "^30.5.2",
         "parcel": "^2.16.4",
+        "playwright-core": "^1.65.1",
         "process": "^0.11.10"
     },
     "allowScripts": {
