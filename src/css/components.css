@@ -68,8 +68,12 @@
 }
 
 .card__title {
+    margin: 0 0 var(--space-3);
+    color: var(--ink);
     font-size: var(--text-l);
-    margin-bottom: var(--space-3);
+    letter-spacing: 0;
+    text-align: left;
+    text-transform: none;
 }
 
 .card__note {

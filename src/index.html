@@ -661,361 +661,59 @@
                         </div> <!-- end device-request--controls -->
                     </div> <!-- end device-request--wrapper -->
                 </ant-device-request> <!-- end ant-device-request -->
-                <header class="page--header header--tab--group">
-                    <navigation-action
-                        id="link--settings-settings"
-                        class="library--switch--heading active"
-                        action="settings:settings" topic=":nav">Settings
-                    </navigation-action>
-                    <navigation-action
-                        id="link--settings-profile"
-                        class="library--switch--heading"
-                        action="settings:profile" topic=":nav">Profile
-                    </navigation-action>
-                </header>
-                <!-- profile--sub-tab -->
-                <div id="view--settings-profile" class="sub-tab">
-                    <!-- auth -->
-                    <div class="auth">
-                        <auth-forms>
-                            <div id="password--forms" class="active">
-                                <form id="register--form" class="register--form">
-                                    <h2 class="form--header">Register</h2>
-                                    <div>
-                                        <input id="register--email--input"
-                                            class="input"
-                                            name="email"
-                                            type="email"
-                                            placeholder="Email"
-                                            value=""
-                                            required
-                                        />
-                                    </div>
-                                    <div>
-                                        <input id="register--password--input"
-                                            class="input"
-                                            name="password"
-                                            type="password"
-                                            pattern=".{8,64}"
-                                            maxlength="64"
-                                            title="8 characters minimum"
-                                            placeholder="Password"
-                                            value=""
-                                            required
-                                        />
-                                    </div>
-                                    <div>
-                                        <input id="register--password-confirmation--input"
-                                            class="input"
-                                            name="password_confirmation"
-                                            pattern=".{8,64}"
-                                            maxlength="64"
-                                            title="8 characters minimum"
-                                            placeholder="Confirm Password"
-                                            type="password"
-                                            value=""
-                                            required
-                                        />
-                                    </div>
-                                    <div>
-                                        <input class="input" name="username" type="text" value="" placeholder="Username" autocomplete="off" />
-                                    </div>
-                                    <div class="form--submit--section">
-                                        <button id="register--submit"
-                                                class="btn"
-                                                type="submit">Register</button>
-
-                                        <view-action action=":password:login" topic=":auth">
-                                            <div class="tab--button"
-                                                    index="1">Login instead</div>
-                                        </view-action>
-                                    </div>
-                                    <div id="register--msg"></div>
-                                </form>
-                                <form id="login--form" class="login--form active">
-                                    <h2 class="form--header">Login</h2>
-                                    <div>
-                                        <input id="login--email--input"
-                                            class="input"
-                                            name="email"
-                                            type="email"
-                                            placeholder="Email"
-                                            value=""
-                                            required
-                                        />
-                                    </div>
-                                    <div>
-                                        <input id="login--password--input"
-                                            class="input"
-                                            name="password"
-                                            type="Password"
-                                            pattern=".{8,64}"
-                                            maxlength="64"
-                                            title="8 characters minimum"
-                                            placeholder="Password"
-                                            value=""
-                                            required
-                                        />
-                                    </div>
-                                    <div class="form--submit--section">
-                                        <button id="login--submit"
-                                                class="btn"
-                                                type="submit">Login</button>
-
-                                        <view-action action=":password:register" topic=":auth">
-                                            <div class="tab--button">Register</div>
-                                        </view-action>
-                                        <view-action action=":password:forgot" topic=":auth">
-                                            <div class="tab--button">Forgot</div>
-                                        </view-action>
-                                    </div>
-                                    <div id="login--msg"></div>
-                                </form>
-                                <form id="forgot--form" class="forgot--form">
-                                    <h2 class="form--header">Forgot</h2>
-                                    <div>
-                                        <input id="forgot--email--input"
-                                            class="input"
-                                            name="email"
-                                            type="email"
-                                            placeholder="Email"
-                                            value=""
-                                            required
-                                        />
-                                    </div>
-                                    <div class="form--submit--section">
-                                        <button id="forgot--submit"
-                                                class="btn"
-                                                type="submit">Forgot</button>
-                                        <view-action action=":password:login" topic=":auth">
-                                            <div class="tab--button">Login instead</div>
-                                        </view-action>
-                                    </div>
-                                    <div id="forgot--msg"></div>
-                                </form>
-                                <form id="reset--form" class="reset--form">
-                                    <h2 class="form--header">Reset</h2>
-                                    <div>
-                                        <input id="reset--password--input"
-                                            class="input"
-                                            name="password"
-                                            type="password"
-                                            pattern=".{8,64}"
-                                            maxlength="64"
-                                            title="8 characters minimum"
-                                            placeholder="Password"
-                                            value=""
-                                            required
-                                        />
-                                    </div>
-                                    <div>
-                                        <input id="reset--password-confirmation--input"
-                                            class="input"
-                                            name="password_confirmation"
-                                            pattern=".{8,64}"
-                                            maxlength="64"
-                                            title="8 characters minimum"
-                                            placeholder="Confirm Password"
-                                            type="password"
-                                            value=""
-                                            required
-                                        />
-                                    </div>
-                                    <div class="form--submit--section">
-                                        <button id="reset--submit"
-                                                class="btn"
-                                                type="submit">Reset</button>
-                                        <view-action action=":password:login" topic=":auth">
-                                            <div class="tab--button">Login instead</div>
-                                        </view-action>
-                                    </div>
-                                </form>
-                                <!-- turnstile -->
-                                <div
-                                    id="cf-turnstile-container"
-                                    class="cf-turnstile"
-                                >
-                                </div> <!-- END turnstile -->
-                            </div> <!-- END password--forms -->
-                            <div id="auth-error--section" class="error">
+                <div id="view--settings-settings" class="sub-tab active settings page-content">
+                    <section class="card settings__profile" aria-labelledby="settings-profile-title">
+                        <h2 id="settings-profile-title" class="card__title">Profile</h2>
+                        <div class="settings-tiles--cont">
+                            <div id="ftp-settings" class="settings-tile">
+                                <label for="ftp-value" class="settings-tile--label">FTP</label>
+                                <input is="int-input"
+                                    id="ftp-value"
+                                    class="settings-tile--input input"
+                                    name="ftp-value"
+                                    type="number"
+                                    value="200"
+                                    prop="ftp"
+                                    effect="ftp-set" />
+                                <button is="set-button"
+                                        id="ftp-btn"
+                                        class="settings-tile--btn btn btn--secondary"
+                                        default="200"
+                                        effect="ftp-set"
+                                        prop="ftp">Set</button>
                             </div>
-                        </auth-forms>
-                    </div><!-- END auth -->
-
-                    <!-- profile -->
-                    <div id="profile" class="profile">
-                        <dialog id="dialog--delete-account" class="dialog">
-                            <form id="account--delete--form">
-                                <p>Delete your account? This cannot be undone.</p>
-                                <input id="account--delete--password"
-                                       class="input"
-                                       type="password"
-                                       autocomplete="current-password"
-                                       placeholder="Current password">
-                                <div id="account--delete--msg" class="error"></div>
-                                <div id="account--delete--form--actions">
-                                    <button type="submit"
-                                            class="btn"
-                                            id="account--delete--confirm">Delete</button>
-                                    <button type="button"
-                                            id="account--delete--cancel">Cancel</button>
-                                </div>
-                            </form>
-                        </dialog>
-                        <account-badge>
-                            <div>
-                                <div id="account--badge"></div>
-                                <div id="account--identifier"></div>
+                            <div id="weight-settings" class="settings-tile">
+                                <label id="weight-label" for="weight-value" class="settings-tile--label">
+                                    <measurement-unit type="weight">kg</measurement-unit>
+                                </label>
+                                <input is="weight-input"
+                                    id="weight-value"
+                                    class="settings-tile--input input"
+                                    name="weight-value"
+                                    type="number"
+                                    value="75"
+                                    prop="weight"
+                                    effect="weight-set" />
+                                <button is="set-button"
+                                        id="weight-btn"
+                                        class="settings-tile--btn btn btn--secondary"
+                                        default="75"
+                                        effect="weight-set"
+                                        prop="weight">Set</button>
                             </div>
-                        </account-badge>
-
-                        <div class="list--sub-section app-connections">
-                            <o-auth>
-                                <div class="list--row--outer">
-                                    <div class="list--row--inner list--heading--cont">
-                                        <h2 class="list--sub-heading">Connections</h2>
-                                    </div>
-                                </div>
-                                <div class="list--row--outer">
-                                    <div class="app-connection icon list--row--inner intervals">
-                                        <svg class="app-connection--icon">
-                                            <use href="#icon--intervals"></use>
-                                        </svg>
-                                        <h3 class="app-connection--heading">Intervals.icu</h3>
-
-                                        <view-action action=":intervals:switch"
-                                                     topic=":oauth">
-                                            <div
-                                                id="intervals--connect--button"
-                                                class="app-connection--button">
-                                               Connect
-                                            </div>
-                                        </view-action>
-                                    </div>
-                                </div>
-                                <!-- <div class="list--row--outer">
-                                     <div class="app-connection icon list--row--inner tp">
-                                     <div class="tp-logo">TP</div>
-                                     <h3 class="app-connection--heading">TrainingPeaks</h3>
-                                     <view-action action=":trainingPeaks:switch"
-                                     topic=":oauth">
-                                     <div
-                                     id="tp--connect--button"
-                                     class="app-connection--button">
-                                     Connect
-                                     </div>
-                                     </view-action>
-                                     </div>
-                                     </div> -->
-                                <div class="list--row--outer strava">
-                                    <div class="list--row--inner app-connection logo">
-                                        <!-- <img class="app-connection--logo"
-                                             alt=""
-                                             src="./images/connections/btn_strava_connectwith_orange.svg" /> -->
-                                        <img class="app-connection--logo"
-                                             alt=""
-                                             src="./images/connections/powered-by-strava-logo.svg" />
-                                        <view-action action=":strava:switch"
-                                                     topic=":oauth">
-                                            <div
-                                                id="strava--connect--button"
-                                                class="app-connection--button">
-                                                Connect
-                                            </div>
-                                        </view-action>
-                                    </div>
-                                </div>
-
-
-
-                                <div class="list--row--outer">
-                                    <div class="app-connection icon list--row--inner">
-                                        <img class="app-connection--icon" alt="GC" src="images/connections/garmin-connect.png"/>
-                                        <h3 class="app-connection--heading">Garmin</h3>
-                                        <a class="app-connection--button app-connection--link a"
-                                           href="https://connect.garmin.com/modern/import-data"
-                                           target="_blank">Import</a>
-                                    </div>
-                                </div>
-                            </o-auth>
-                        </div> <!-- end connections -->
-
-                        <div id="account--management--cont">
-                            <div class="list--row--outer">
-                                <div class="list--row--inner list--heading--cont">
-                                    <h2 class="list--sub-heading">Account</h2>
-                                </div>
-                            </div>
-                            <div class="list--row--outer">
-                                <div class="list--row--inner">
-                                    <button id="account--delete--button"
-                                            class="btn"
-                                            type="button">Delete Account</button>
-                                    <button id="account--logout--button"
-                                            class="btn"
-                                            type="button">Logout</button>
-                                </div>
-                            </div>
-                        </div> <!-- end account-management -->
-
-                    </div> <!-- end profile -->
-
-                </div> <!-- end profile--sub-tab -->
-
-                <!-- settings--sub-tab -->
-                <div id="view--settings-settings" class="sub-tab active">
-                    <div class="settings-tiles--cont">
-                        <div id="ftp-settings" class="settings-tile">
-                            <label for="ftp-value" class="settings-tile--label">FTP</label>
-                            <input is="int-input"
-                                id="ftp-value"
-                                class="settings-tile--input"
-                                name="ftp-value"
-                                type="number"
-                                value="200"
-                                prop="ftp"
-                                effect="ftp-set" />
-                            <button is="set-button"
-                                    id="ftp-btn"
-                                    class="settings-tile--btn flat-btn"
-                                    default="200"
-                                    effect="ftp-set"
-                                    prop="ftp">Set</button>
                         </div>
-                        <div id="weight-settings" class="settings-tile">
-                            <label id="weight-label" for="weight-value" class="settings-tile--label">
-                                <measurement-unit type="weight">kg</measurement-unit>
-                            </label>
-                            <input is="weight-input"
-                                id="weight-value"
-                                class="settings-tile--input"
-                                name="weight-value"
-                                type="number"
-                                value="75"
-                                prop="weight"
-                                effect="weight-set" />
-                            <button is="set-button"
-                                    id="weight-btn"
-                                    class="settings-tile--btn flat-btn"
-                                    default="75"
-                                    effect="weight-set"
-                                    prop="weight">Set</button>
-                        </div>
-                    </div>
-                    <div class="settings-btn-row">
-
-                        <dock-mode-btn class="flat-btn settings-switch-btn-cont">
-                            <div class="settings-switch-bnt">Dock</div>
-                        </dock-mode-btn>
-
-                        <button is="effect-button"
-                                id="msystem-settings"
-                                class="flat-btn settings-switch-btn-cont"
-                                effect="measurement-switch">
-                            <measurement-value id="measurement-btn"
-                                            class="settings-switch-bnt">Metric</measurement-value>
-                        </button>
-                    </div> <!-- end settings btn row -->
+                        <div class="settings-btn-row">
+                            <span class="settings-tile--label">Units</span>
+    
+                            <button is="effect-button"
+                                    id="msystem-settings"
+                                    class="settings-switch-btn-cont btn btn--secondary"
+                                    effect="measurement-switch">
+                                <measurement-value id="measurement-btn"
+                                                class="settings-switch-bnt">Metric</measurement-value>
+                            </button>
+                        </div> <!-- end settings btn row -->
+                    </section>
 
                     <!-- protocol-settings -->
                     <!-- <div class="protocol-settings settings-btn-row">
@@ -1039,12 +737,14 @@
                          </div> -->
                     <!-- end protocol-settings -->
 
+                    <section class="settings__devices" aria-labelledby="settings-devices-title">
+                        <h2 id="settings-devices-title" class="settings__heading">Devices</h2>
                     <!-- controlable settings -->
-                    <div class="device-card border-top">
+                    <div class="card device-card">
                         <div class="device-card--cont">
                             <div class="device-card--header">
                                 <div></div>
-                                <div class="device-card--header--label">Controllable</div>
+                                <div class="device-card--header--label card__title">Controllable</div>
                                 <div></div>
                             </div>
 
@@ -1059,17 +759,17 @@
                                         </svg>
                                         <div class="connection-icon-switch--indicator off"></div>
                                     </connection-switch>
-                                    <div class="device-card--tile name">
-                                        <h3 class="device-card--tile--header">Name</h3>
-                                        <data-view class="device-card--tile--value"
+                                    <div class="tile device-card--tile name">
+                                        <h3 class="device-card--tile--header tile__label">Name</h3>
+                                        <data-view class="device-card--tile--value tile__value"
                                                 prop="ble:controllable:name">--</data-view>
                                     </div>
-                                    <div class="device-card--tile">
+                                    <div class="tile device-card--tile">
                                         <source-switch class="source-switch"
                                                     for="power"
                                                     use="ble:controllable">
-                                            <h3 class="device-card--tile--header">Power</h3>
-                                            <power-value class="data-view device-card--tile--value" prop="db:power1s">--</power-value>
+                                            <h3 class="device-card--tile--header tile__label">Power</h3>
+                                            <power-value class="data-view device-card--tile--value tile__value" prop="db:power1s">--</power-value>
                                             <svg class="toggle--button">
                                                 <use class="on" href="#icon--toggle--on"></use>
                                                 <use class="off" href="#icon--toggle--off"></use>
@@ -1077,36 +777,36 @@
 
                                         </source-switch>
                                     </div>
-                                    <div class="device-card--tile">
+                                    <div class="tile device-card--tile">
                                         <source-switch class="source-switch"
                                                        for="cadence"
                                                        use="ble:controllable">
-                                            <h3 class="device-card--tile--header">Cadence</h3>
-                                            <cadence-value class="data-view device-card--tile--value">--</cadence-value>
+                                            <h3 class="device-card--tile--header tile__label">Cadence</h3>
+                                            <cadence-value class="data-view device-card--tile--value tile__value">--</cadence-value>
                                             <svg class="toggle--button">
                                                 <use class="on" href="#icon--toggle--on"></use>
                                                 <use class="off" href="#icon--toggle--off"></use>
                                             </svg>
                                         </source-switch>
                                     </div>
-                                    <div class="device-card--tile">
+                                    <div class="tile device-card--tile">
                                         <source-switch class="source-switch"
                                                        for="speed"
                                                        use="ble:controllable">
-                                            <h3 class="device-card--tile--header">Speed</h3>
-                                            <speed-value class="data-view device-card--tile--value">--</speed-value>
+                                            <h3 class="device-card--tile--header tile__label">Speed</h3>
+                                            <speed-value class="data-view device-card--tile--value tile__value">--</speed-value>
                                             <svg class="toggle--button">
                                                 <use class="on" href="#icon--toggle--on"></use>
                                                 <use class="off" href="#icon--toggle--off"></use>
                                             </svg>
                                         </source-switch>
                                     </div>
-                                    <div class="device-card--tile">
+                                    <div class="tile device-card--tile">
                                         <source-switch class="source-switch"
                                                        for="heartRate"
                                                        use="ble:controllable">
-                                            <h3 class="device-card--tile--header">Heart Rate</h3>
-                                            <heart-rate-value class="data-view device-card--tile--value">--</heart-rate-value>
+                                            <h3 class="device-card--tile--header tile__label">Heart Rate</h3>
+                                            <heart-rate-value class="data-view device-card--tile--value tile__value">--</heart-rate-value>
                                             <svg class="toggle--button">
                                                 <use class="on" href="#icon--toggle--on"></use>
                                                 <use class="off" href="#icon--toggle--off"></use>
@@ -1121,11 +821,11 @@
                     </div> <!-- end controlable settings -->
 
                     <!-- power-meter settings -->
-                    <div class="device-card">
+                    <div class="card device-card">
                         <div class="device-card--cont">
                             <div class="device-card--header">
                                 <div></div>
-                                <div class="device-card--header--label">Power Meter</div>
+                                <div class="device-card--header--label card__title">Power Meter</div>
                                 <battery-level for="ble:powerMeter">
                                     <div class="battery--level"></div>
                                 </battery-level>
@@ -1141,41 +841,41 @@
                                         </svg>
                                         <div class="connection-icon-switch--indicator off"></div>
                                     </connection-switch>
-                                    <div class="device-card--tile">
-                                        <h3 class="device-card--tile--header">Name</h3>
-                                        <data-view class="data-view device-card--tile--value"
+                                    <div class="tile device-card--tile">
+                                        <h3 class="device-card--tile--header tile__label">Name</h3>
+                                        <data-view class="data-view device-card--tile--value tile__value"
                                                 prop="ble:powerMeter:name">--</data-view>
                                     </div>
-                                    <div class="device-card--tile">
+                                    <div class="tile device-card--tile">
                                         <source-switch class="source-switch"
                                                     for="power"
                                                     use="ble:powerMeter">
-                                            <h3 class="device-card--tile--header">Power</h3>
-                                            <power-value class="data-view device-card--tile--value" prop="db:power1s">--</power-value>
+                                            <h3 class="device-card--tile--header tile__label">Power</h3>
+                                            <power-value class="data-view device-card--tile--value tile__value" prop="db:power1s">--</power-value>
                                             <svg class="toggle--button">
                                                 <use class="on" href="#icon--toggle--on"></use>
                                                 <use class="off" href="#icon--toggle--off"></use>
                                             </svg>
                                         </source-switch>
                                     </div>
-                                    <div class="device-card--tile">
+                                    <div class="tile device-card--tile">
                                         <source-switch class="source-switch"
                                                        for="cadence"
                                                        use="ble:powerMeter">
-                                            <h3 class="device-card--tile--header">Cadence</h3>
-                                            <cadence-value class="data-view device-card--tile--value">--</cadence-value>
+                                            <h3 class="device-card--tile--header tile__label">Cadence</h3>
+                                            <cadence-value class="data-view device-card--tile--value tile__value">--</cadence-value>
                                             <svg class="toggle--button">
                                                 <use class="on" href="#icon--toggle--on"></use>
                                                 <use class="off" href="#icon--toggle--off"></use>
                                             </svg>
                                         </source-switch>
                                     </div>
-                                    <div class="device-card--tile">
+                                    <div class="tile device-card--tile">
                                         <source-switch class="source-switch"
                                                        for="speed"
                                                        use="ble:powerMeter">
-                                            <h3 class="device-card--tile--header">Speed</h3>
-                                            <speed-value class="data-view device-card--tile--value">--</speed-value>
+                                            <h3 class="device-card--tile--header tile__label">Speed</h3>
+                                            <speed-value class="data-view device-card--tile--value tile__value">--</speed-value>
                                             <svg class="toggle--button">
                                                 <use class="on" href="#icon--toggle--on"></use>
                                                 <use class="off" href="#icon--toggle--off"></use>
@@ -1188,11 +888,11 @@
                     </div> <!-- end power-meter settings -->
 
                     <!-- cycling-speed-and-cadence settings -->
-                    <div class="device-card">
+                    <div class="card device-card">
                         <div class="device-card--cont">
                             <div class="device-card--header">
                                 <div></div>
-                                <div class="device-card--header--label">Speed and Cadence</div>
+                                <div class="device-card--header--label card__title">Speed and Cadence</div>
                                 <battery-level for="ble:speedCadenceSensor">
                                     <div class="battery--level"></div>
                                 </battery-level>
@@ -1207,30 +907,30 @@
                                         </svg>
                                         <div class="connection-icon-switch--indicator off"></div>
                                     </connection-switch>
-                                    <div class="device-card--tile">
-                                        <h3 class="device-card--tile--header">Name</h3>
-                                        <data-view class="data-view device-card--tile--value"
+                                    <div class="tile device-card--tile">
+                                        <h3 class="device-card--tile--header tile__label">Name</h3>
+                                        <data-view class="data-view device-card--tile--value tile__value"
                                                 prop="ble:speedCadenceSensor:name">--</data-view>
                                     </div>
-                                    <div class="device-card--tile"></div>
-                                    <div class="device-card--tile">
+                                    <div class="tile device-card--tile"></div>
+                                    <div class="tile device-card--tile">
                                         <source-switch class="source-switch"
                                                     for="cadence"
                                                     use="ble:speedCadenceSensor">
-                                            <h3 class="device-card--tile--header">Cadence</h3>
-                                            <cadence-value class="data-view device-card--tile--value">--</cadence-value>
+                                            <h3 class="device-card--tile--header tile__label">Cadence</h3>
+                                            <cadence-value class="data-view device-card--tile--value tile__value">--</cadence-value>
                                             <svg class="toggle--button">
                                                 <use class="on" href="#icon--toggle--on"></use>
                                                 <use class="off" href="#icon--toggle--off"></use>
                                             </svg>
                                         </source-switch>
                                     </div>
-                                    <div class="device-card--tile">
+                                    <div class="tile device-card--tile">
                                         <source-switch class="source-switch"
                                                        for="speed"
                                                        use="ble:speedCadenceSensor">
-                                            <h3 class="device-card--tile--header">Speed</h3>
-                                            <speed-value class="data-view device-card--tile--value">--</speed-value>
+                                            <h3 class="device-card--tile--header tile__label">Speed</h3>
+                                            <speed-value class="data-view device-card--tile--value tile__value">--</speed-value>
                                             <svg class="toggle--button">
                                                 <use class="on" href="#icon--toggle--on"></use>
                                                 <use class="off" href="#icon--toggle--off"></use>
@@ -1243,11 +943,11 @@
                     </div> <!-- end cycling-speed-and-cadence settings -->
 
                     <!-- hrm settings -->
-                    <div class="device-card">
+                    <div class="card device-card">
                         <div class="device-card--cont">
                             <div class="device-card--header">
                                 <div></div>
-                                <div class="device-card--header--label">HRM</div>
+                                <div class="device-card--header--label card__title">HRM</div>
                                 <battery-level for="ble:heartRateMonitor">
                                     <div class="battery--level"></div>
                                 </battery-level>
@@ -1264,32 +964,32 @@
                                         </svg>
                                         <div class="connection-icon-switch--indicator off"></div>
                                     </connection-switch>
-                                    <div class="device-card--tile">
-                                        <h3 class="device-card--tile--header">Name</h3>
-                                        <data-view class="device-card--tile--value"
+                                    <div class="tile device-card--tile">
+                                        <h3 class="device-card--tile--header tile__label">Name</h3>
+                                        <data-view class="device-card--tile--value tile__value"
                                                 prop="ble:heartRateMonitor:name">--</data-view>
                                     </div>
-                                    <div class="device-card--tile"></div>
-                                    <div class="device-card--tile">
+                                    <div class="tile device-card--tile"></div>
+                                    <div class="tile device-card--tile">
                                         <source-switch class="source-switch"
                                                     for="cadence"
                                                     use="ble:heartRateMonitor">
-                                            <h3 class="device-card--tile--header">Cadence</h3>
-                                            <cadence-value class="data-view device-card--tile--value">--</cadence-value>
+                                            <h3 class="device-card--tile--header tile__label">Cadence</h3>
+                                            <cadence-value class="data-view device-card--tile--value tile__value">--</cadence-value>
                                             <svg class="toggle--button">
                                                 <use class="on" href="#icon--toggle--on"></use>
                                                 <use class="off" href="#icon--toggle--off"></use>
                                             </svg>
                                         </source-switch>
                                     </div>
-                                    <div class="device-card--tile"></div>
-                                    <div class="device-card--tile">
+                                    <div class="tile device-card--tile"></div>
+                                    <div class="tile device-card--tile">
                                         <source-switch class="source-switch"
                                                     for="heartRate"
                                                     use="ble:heartRateMonitor">
-                                            <h3 class="device-card--tile--header">Heart Rate</h3>
+                                            <h3 class="device-card--tile--header tile__label">Heart Rate</h3>
                                             <heart-rate-value id="hrm-heartRate"
-                                                            class="data-view device-card--tile--value">--</heart-rate-value>
+                                                            class="data-view device-card--tile--value tile__value">--</heart-rate-value>
                                             <svg class="toggle--button">
                                                 <use class="on" href="#icon--toggle--on"></use>
                                                 <use class="off" href="#icon--toggle--off"></use>
@@ -1315,21 +1015,21 @@
                                         </svg>
                                         <div class="connection-icon-switch--indicator off"></div>
                                     </connection-switch>
-                                    <div class="device-card--tile">
-                                        <h3 class="device-card--tile--header">Name</h3>
-                                        <data-view class="device-card--tile--value"
+                                    <div class="tile device-card--tile">
+                                        <h3 class="device-card--tile--header tile__label">Name</h3>
+                                        <data-view class="device-card--tile--value tile__value"
                                                 prop="ant:hrm:name">--</data-view>
                                     </div>
-                                    <div class="device-card--tile"></div>
-                                    <div class="device-card--tile"></div>
-                                    <div class="device-card--tile"></div>
-                                    <div class="device-card--tile">
+                                    <div class="tile device-card--tile"></div>
+                                    <div class="tile device-card--tile"></div>
+                                    <div class="tile device-card--tile"></div>
+                                    <div class="tile device-card--tile">
                                         <source-switch class="source-switch"
                                                     for="heartRate"
                                                     use="ant:hrm">
-                                            <h3 class="device-card--tile--header">Heart Rate</h3>
+                                            <h3 class="device-card--tile--header tile__label">Heart Rate</h3>
                                             <heart-rate-value id="ant-heartRate"
-                                                            class="data-view device-card--tile--value">--</heart-rate-value>
+                                                            class="data-view device-card--tile--value tile__value">--</heart-rate-value>
                                         </source-switch>
                                     </div>
                                 </div> <!-- end device-card--body--row -->
@@ -1339,11 +1039,11 @@
                     </div> <!--end ant hrm settings -->
 
                     <!-- moxy-monitor settings -->
-                    <div class="device-card">
+                    <div class="card device-card">
                         <div class="device-card--cont">
                             <div class="device-card--header">
                                 <div></div>
-                                <div class="device-card--header--label">Moxy</div>
+                                <div class="device-card--header--label card__title">Moxy</div>
                                 <battery-level for="ble:smo2">
                                     <div class="battery--level"></div>
                                 </battery-level>
@@ -1359,29 +1059,29 @@
                                         </svg>
                                         <div class="connection-icon-switch--indicator off"></div>
                                     </connection-switch>
-                                    <div class="device-card--tile">
-                                        <h3 class="device-card--tile--header">Name</h3>
-                                        <data-view class="data-view device-card--tile--value"
+                                    <div class="tile device-card--tile">
+                                        <h3 class="device-card--tile--header tile__label">Name</h3>
+                                        <data-view class="data-view device-card--tile--value tile__value"
                                                 prop="ble:smo2:name">--</data-view>
                                     </div>
-                                    <div class="device-card--tile">
+                                    <div class="tile device-card--tile">
                                         <source-switch class="source-switch"
                                                     for="smo2"
                                                     use="ble:smo2">
-                                            <h3 class="device-card--tile--header">SmO2</h3>
-                                            <smo2-value class="data-view device-card--tile--value">--</smo2-value>
+                                            <h3 class="device-card--tile--header tile__label">SmO2</h3>
+                                            <smo2-value class="data-view device-card--tile--value tile__value">--</smo2-value>
                                             <svg class="toggle--button">
                                                 <use class="on" href="#icon--toggle--on"></use>
                                                 <use class="off" href="#icon--toggle--off"></use>
                                             </svg>
                                         </source-switch>
                                     </div>
-                                    <div class="device-card--tile">
+                                    <div class="tile device-card--tile">
                                         <source-switch class="source-switch"
                                                        for="thb"
                                                        use="ble:smo2">
-                                            <h3 class="device-card--tile--header">THb</h3>
-                                            <thb-value class="data-view device-card--tile--value">--</thb-value>
+                                            <h3 class="device-card--tile--header tile__label">THb</h3>
+                                            <thb-value class="data-view device-card--tile--value tile__value">--</thb-value>
                                             <svg class="toggle--button">
                                                 <use class="on" href="#icon--toggle--on"></use>
                                                 <use class="off" href="#icon--toggle--off"></use>
@@ -1394,11 +1094,11 @@
                     </div> <!-- end moxy-monitor settings -->
 
                     <!-- core-temp settings -->
-                    <div class="device-card">
+                    <div class="card device-card">
                         <div class="device-card--cont">
                             <div class="device-card--header">
                                 <div></div>
-                                <div class="device-card--header--label">CoreTemp</div>
+                                <div class="device-card--header--label card__title">CoreTemp</div>
                                 <battery-level for="ble:coreTemp">
                                     <div class="battery--level"></div>
                                 </battery-level>
@@ -1414,43 +1114,43 @@
                                         </svg>
                                         <div class="connection-icon-switch--indicator off"></div>
                                     </connection-switch>
-                                    <div class="device-card--tile">
-                                        <h3 class="device-card--tile--header">Name</h3>
-                                        <data-view class="data-view device-card--tile--value"
+                                    <div class="tile device-card--tile">
+                                        <h3 class="device-card--tile--header tile__label">Name</h3>
+                                        <data-view class="data-view device-card--tile--value tile__value"
                                                 prop="ble:coreTemp:name">--</data-view>
                                     </div>
-                                    <div class="device-card--tile">
+                                    <div class="tile device-card--tile">
                                         <source-switch class="source-switch"
                                                     for="coreBodyTemperature"
                                                     use="ble:coreTemp">
-                                            <h3 class="device-card--tile--header">Core</h3>
-                                            <core-body-temperature-value class="data-view device-card--tile--value">--</core-body-temperature-value>
+                                            <h3 class="device-card--tile--header tile__label">Core</h3>
+                                            <core-body-temperature-value class="data-view device-card--tile--value tile__value">--</core-body-temperature-value>
                                             <svg class="toggle--button">
                                                 <use class="on" href="#icon--toggle--on"></use>
                                                 <use class="off" href="#icon--toggle--off"></use>
                                             </svg>
                                         </source-switch>
                                     </div>
-                                    <div class="device-card--tile">
+                                    <div class="tile device-card--tile">
                                         <source-switch class="source-switch"
                                                        for="skinTemperature"
                                                        use="ble:coreTemp">
-                                            <h3 class="device-card--tile--header">Skin</h3>
-                                            <skin-temperature-value class="data-view device-card--tile--value">--</skin-temperature-value>
+                                            <h3 class="device-card--tile--header tile__label">Skin</h3>
+                                            <skin-temperature-value class="data-view device-card--tile--value tile__value">--</skin-temperature-value>
                                             <svg class="toggle--button">
                                                 <use class="on" href="#icon--toggle--on"></use>
                                                 <use class="off" href="#icon--toggle--off"></use>
                                             </svg>
                                         </source-switch>
                                     </div>
-                                    <div class="device-card--tile">
+                                    <div class="tile device-card--tile">
                                     </div>
-                                    <div class="device-card--tile">
+                                    <div class="tile device-card--tile">
                                         <source-switch class="source-switch"
                                                        for="heartRate"
                                                        use="ble:coreTemp">
-                                            <h3 class="device-card--tile--header">Heart Rate</h3>
-                                            <heart-rate-value class="data-view device-card--tile--value">--</heart-rate-value>
+                                            <h3 class="device-card--tile--header tile__label">Heart Rate</h3>
+                                            <heart-rate-value class="data-view device-card--tile--value tile__value">--</heart-rate-value>
                                             <svg class="toggle--button">
                                                 <use class="on" href="#icon--toggle--on"></use>
                                                 <use class="off" href="#icon--toggle--off"></use>
@@ -1463,11 +1163,11 @@
                     </div> <!-- end moxy-monitor settings -->
 
                     <!-- open bike control settings -->
-                    <div class="device-card">
+                    <div class="card device-card">
                         <div class="device-card--cont">
                             <div class="device-card--header">
                                 <div></div>
-                                <div class="device-card--header--label">OpenBikeControl</div>
+                                <div class="device-card--header--label card__title">OpenBikeControl</div>
                                 <battery-level for="ble:openBikeControl">
                                     <div class="battery--level"></div>
                                 </battery-level>
@@ -1483,28 +1183,29 @@
                                         </svg>
                                         <div class="connection-icon-switch--indicator off"></div>
                                     </connection-switch>
-                                    <div class="device-card--tile">
-                                        <h3 class="device-card--tile--header">Name</h3>
-                                        <data-view class="data-view device-card--tile--value"
+                                    <div class="tile device-card--tile">
+                                        <h3 class="device-card--tile--header tile__label">Name</h3>
+                                        <data-view class="data-view device-card--tile--value tile__value"
                                                 prop="ble:openBikeControl:name">--</data-view>
                                     </div>
-                                    <div class="device-card--tile"></div>
-                                    <div class="device-card--tile"></div>
-                                    <div class="device-card--tile"></div>
+                                    <div class="tile device-card--tile"></div>
+                                    <div class="tile device-card--tile"></div>
+                                    <div class="tile device-card--tile"></div>
                                 </div>
                             </div>
                         </div>
                     </div> <!-- end open bike control settings -->
+                    </section>
 
                     <!-- Options -->
-                    <div class="list--sub-section">
+                    <section class="card list--sub-section settings__options" aria-labelledby="settings-options-title">
                         <div class="list--row--outer">
                             <div class="list--row--inner list--heading--cont">
-                                <h2 class="list--sub-heading">Options</h2>
+                                <h2 id="settings-options-title" class="list--sub-heading card__title">Options</h2>
                             </div>
                         </div>
                         <div class="list--row--outer">
-                            <div class="list--row--inner option">
+                            <div class="list--row--inner option list-row">
                                 <div class="option--name">Sound</div>
                                 <sound-control class="option--value sound--row">
                                     <svg id="sound--mute"
@@ -1533,68 +1234,59 @@
                         </div>
 
                         <div class="list--row--outer">
-                            <div class="list--row--inner option">
+                            <div class="list--row--inner option list-row">
                                 <div class="option--name">Simulation</div>
-                                <virtual-state-source class="option--value">power</virtual-state-source>
+                                <virtual-state-source class="option--value btn btn--secondary">power</virtual-state-source>
                             </div>
                         </div>
 
                         <div class="list--row--outer">
-                            <div class="list--row--inner option">
+                            <div class="list--row--inner option list-row">
                                 <div class="option--name">Auto Start</div>
-                                <auto-start class="option--value">
+                                <auto-start class="option--value btn btn--secondary">
                                     ON
                                 </auto-start>
                             </div>
                         </div>
 
                         <div class="list--row--outer">
-                            <div class="list--row--inner option">
+                            <div class="list--row--inner option list-row">
                                 <div class="option--name">Auto Pause</div>
-                                <auto-pause class="option--value">
+                                <auto-pause class="option--value btn btn--secondary">
                                     OFF
                                 </auto-pause>
                             </div>
                         </div>
 
                         <div class="list--row--outer">
-                            <div class="list--row--inner option">
+                            <div class="list--row--inner option list-row">
                                 <div class="option--name">Theme</div>
-                                <theme-layout class="option--value">
+                                <theme-layout class="option--value btn btn--secondary">
                                     DARK
                                 </theme-layout>
                             </div>
                         </div>
-
-                        <div class="list--row--outer">
-                            <div class="list--row--inner option">
-                                <div class="option--name">Start in Dock Mode</div>
-                                <dock-mode-default class="option--value">
-                                    OFF
-                                </dock-mode-default>
-                            </div>
-                        </div>
-                    </div> <!-- END Options -->
+                    </section> <!-- END Options -->
 
                     <!-- about -->
-                    <div id="about">
-                        <h2 class="page--heading">About</h2>
+                    <section id="about" class="card settings__about">
+                        <h2 class="page--heading card__title">About</h2>
                         <div class="about--text">
-                            <p class="">This is an open-source project. For more information, please visit the <a class="a" href="https://github.com/dvmarinoff/Auuki">github</a> page. There you can get support or join the discussions.</p>
+                            <p>This is an open-source project. For more information, please visit the <a class="a" href="https://github.com/dvmarinoff/Auuki">github</a> page. There you can get support or join the discussions.</p>
                         </div>
                         <div class="about--version">
-                            <p class="">Latest version: 0.3.9</p>
+                            <p>Latest version: 0.3.9</p>
                         </div>
                         <div class="about--version">
-                            <p class="">Old stable version still available here: <a class="a" href="https://stable.auuki.com">0.1.43</a></p>
+                            <p>Old stable version still available here: <a class="a" href="https://stable.auuki.com">0.1.43</a></p>
                         </div>
                         <div class="about--links">
-                            License <a class="a" href="https://www.gnu.org/licenses/agpl-3.0.en.html"> AGPL-3.0</a></p>
+                            <p>License <a class="a" href="https://www.gnu.org/licenses/agpl-3.0.en.html">AGPL-3.0</a></p>
                         </div>
                         <div class="privacy-policy">
                             <a class="a" href="./privacy">Privacy</a>
                         </div>
-                    </div> <!-- end about -->
+                    </section> <!-- end about -->
                 </div> <!-- end settings--sub-tab -->
             </div> <!-- end settings page -->
 

@@ -384,8 +384,7 @@ body.white-theme {
     
 
     /* the other pages: keep content at a readable width */
-    #workouts-page,
-    #settings-page {
+    #workouts-page {
         max-width: 1180px;
         margin: 0 auto;
         padding-bottom: calc(var(--dash-bottom) + calc(2 * var(--r)));

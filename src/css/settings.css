@@ -1,1 +1,394 @@
-/* settings page layout: arranges components, uses tokens only. */
+/*
+ * Settings page layout: Profile, Devices, Options, About.
+ * One column on phones and tablets; two columns from 1200 px.
+ */
+
+.settings,
+.sub-tab.settings {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--space-4);
+    text-align: left;
+}
+
+.settings__heading {
+    margin: var(--space-2) 0 var(--space-3);
+    font-size: var(--text-l);
+}
+
+/* ---------- profile ---------- */
+
+.settings-tiles--cont {
+    display: grid;
+    gap: var(--space-3);
+}
+
+.settings-tile {
+    display: grid;
+    grid-template-columns: minmax(56px, auto) minmax(0, 1fr) auto;
+    align-items: center;
+    gap: var(--space-3);
+}
+
+.settings-tile--label {
+    color: var(--muted);
+    font-size: var(--text-s);
+    font-weight: var(--weight-bold);
+}
+
+.settings-tile--input {
+    width: 100%;
+    font-family: var(--font-num);
+    font-size: var(--text-l);
+    font-weight: var(--weight-bold);
+}
+
+.settings-btn-row {
+    display: grid;
+    grid-template-columns: minmax(56px, auto) auto;
+    justify-content: start;
+    align-items: center;
+    gap: var(--space-3);
+    margin-top: var(--space-3);
+}
+
+/* ---------- devices ---------- */
+
+.settings__devices {
+    display: grid;
+    gap: var(--space-3);
+    align-content: start;
+}
+
+.settings__devices .settings__heading {
+    margin-bottom: 0;
+}
+
+.device-card {
+    padding: var(--space-3);
+}
+
+.device-card--header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-3);
+    margin-bottom: var(--space-3);
+}
+
+.device-card--header > div:empty {
+    display: none;
+}
+
+.device-card--header .card__title {
+    margin: 0;
+    font-size: var(--text-m);
+}
+
+.device-card--body {
+    display: grid;
+    gap: var(--space-2);
+}
+
+.device-card--body--row {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(96px, 1fr));
+    align-items: stretch;
+    gap: var(--space-2);
+}
+
+.device-card .tile {
+    min-height: 80px;
+    background-color: var(--surface-2);
+}
+
+/* upstream spacer tiles */
+.device-card .tile:empty {
+    display: none;
+}
+
+.device-card .tile.name {
+    grid-column: span 2;
+}
+
+.device-card .tile__value {
+    font-size: var(--text-l);
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.device-card .tile.name .tile__value {
+    font-family: var(--font-text);
+    font-size: var(--text-m);
+}
+
+/* connect button with its status dot */
+.connection-icon-switch {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-2);
+    min-height: var(--tap);
+    border-radius: var(--radius-m);
+    background-color: var(--surface-2);
+    cursor: pointer;
+}
+
+.connection-icon-switch:hover {
+    background-color: var(--line);
+}
+
+.connection-icon-switch--icon {
+    width: 24px;
+    height: 24px;
+    fill: var(--ink);
+}
+
+.connection-icon-switch--icon.disabled {
+    fill: var(--muted);
+}
+
+.connection-icon-switch--indicator {
+    width: 10px;
+    height: 10px;
+    border-radius: var(--radius-pill);
+    background-color: var(--muted);
+}
+
+.connection-icon-switch--indicator.on,
+.connection-icon-switch--indicator.success { background-color: var(--good); }
+.connection-icon-switch--indicator.loading { background-color: var(--warn); }
+.connection-icon-switch--indicator.off,
+.connection-icon-switch--indicator.fail    { background-color: var(--danger); }
+
+/* the data sources each tile can feed into the ride */
+.source-switch {
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    gap: var(--space-1);
+    min-height: 100%;
+    color: var(--muted);
+    cursor: pointer;
+}
+
+.source-switch.active {
+    color: var(--ink);
+}
+
+.toggle--button {
+    width: 34px;
+    height: 20px;
+    color: var(--muted);
+}
+
+.toggle--button .on { display: none; }
+.toggle--button .off { display: block; }
+.toggle--button.active { color: var(--good); }
+.toggle--button.active .on { display: block; }
+.toggle--button.active .off { display: none; }
+
+/* battery: outline with a fill that JS sizes */
+battery-level {
+    position: relative;
+    flex: none;
+    width: 28px;
+    height: 14px;
+    border: var(--focus-w) solid transparent;
+    border-radius: 3px;
+}
+
+battery-level .battery--level {
+    position: absolute;
+    inset: 1px 1px 1px auto;
+}
+
+battery-level::before {
+    content: "";
+    position: absolute;
+    left: -5px;
+    top: 3px;
+    width: 3px;
+    height: 4px;
+}
+
+battery-level.ok        { border-color: var(--ink); }
+battery-level.ok .battery--level,
+battery-level.ok::before { background-color: var(--ink); }
+battery-level.low       { border-color: var(--warn); }
+battery-level.low .battery--level,
+battery-level.low::before { background-color: var(--warn); }
+battery-level.critical  { border-color: var(--danger); }
+battery-level.critical .battery--level,
+battery-level.critical::before { background-color: var(--danger); }
+
+.ant-not-supported {
+    display: none !important;
+}
+
+/* ---------- options ---------- */
+
+.settings__options .list--row--outer {
+    border-bottom: var(--line-w) solid var(--line);
+}
+
+.settings__options .list--row--outer:last-child {
+    border-bottom: 0;
+}
+
+.settings__options .list--heading--cont {
+    padding: 0;
+}
+
+.settings__options .list-row {
+    justify-content: space-between;
+    border-bottom: 0;
+    padding: var(--space-2) 0;
+}
+
+.option--name {
+    font-weight: var(--weight-medium);
+}
+
+.option--value.btn {
+    min-width: 96px;
+    text-transform: uppercase;
+}
+
+.sound--row {
+    display: flex;
+    align-items: center;
+    gap: var(--space-1);
+}
+
+.sound--row svg.sound--item {
+    box-sizing: content-box;
+    width: 24px;
+    height: 24px;
+    padding: 10px;
+    border-radius: var(--radius-pill);
+    fill: var(--ink);
+    cursor: pointer;
+}
+
+.sound--row svg.sound--item:hover {
+    background-color: var(--surface-2);
+}
+
+.sound--volume {
+    min-width: 48px;
+    text-align: right;
+    font-family: var(--font-num);
+    font-size: var(--text-m);
+    font-weight: var(--weight-bold);
+}
+
+/* ---------- about ---------- */
+
+.settings__about {
+    display: grid;
+    gap: var(--space-2);
+    color: var(--muted);
+    font-size: var(--text-s);
+}
+
+.settings__about a {
+    text-transform: none;
+}
+
+/* ---------- ANT+ pairing dialog ---------- */
+
+#ant-device-request {
+    position: fixed;
+    inset: 0;
+    z-index: 60;
+    display: none;
+    place-items: start center;
+    padding: var(--space-4);
+    background-color: var(--overlay);
+}
+
+#ant-device-request.active {
+    display: grid;
+}
+
+.device-request--wrapper {
+    width: min(560px, 100%);
+    border: var(--line-w) solid var(--line);
+    border-radius: var(--radius-m);
+    background-color: var(--surface);
+    box-shadow: var(--shadow);
+    overflow: hidden;
+    text-align: left;
+}
+
+.device-request--list {
+    min-height: 120px;
+}
+
+.device-request--item {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    align-items: center;
+    min-height: var(--tap);
+    padding: 0 var(--space-4);
+    cursor: pointer;
+}
+
+.device-request--item.active {
+    background-color: var(--surface-2);
+}
+
+.device-request--item--number {
+    font-weight: var(--weight-bold);
+}
+
+.device-request--controls {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    padding: var(--space-3) var(--space-4);
+    border-top: var(--line-w) solid var(--line);
+}
+
+.device-request--status {
+    flex: 1;
+    color: var(--muted);
+    font-size: var(--text-s);
+}
+
+.device-request--controls > div:empty {
+    display: none;
+}
+
+.device-request--controls button {
+    min-height: var(--tap);
+    padding: 0 var(--space-4);
+    border: var(--line-w) solid var(--line);
+    border-radius: var(--radius-s);
+    background-color: var(--surface-2);
+    color: var(--ink);
+    font-weight: var(--weight-bold);
+    cursor: pointer;
+}
+
+/* ---------- desktop: two columns ---------- */
+
+@media (min-width: 1200px) {
+    .settings,
+    .sub-tab.settings {
+        grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr);
+        grid-template-areas:
+            "profile devices"
+            "options devices"
+            "about   devices";
+        grid-template-rows: auto auto 1fr;
+        align-items: start;
+    }
+
+    .settings__profile { grid-area: profile; }
+    .settings__options { grid-area: options; }
+    .settings__about   { grid-area: about; }
+    .settings__devices { grid-area: devices; }
+}
