@@ -398,30 +398,23 @@
             </div> <!-- end page-home -->
 
             <div id="workouts-page" class="page" page="workouts">
-                <div class="library--switch--group">
+                <nav class="workouts__tabs tabs page-content" aria-label="Workouts">
                     <navigation-action
                         id="link--workouts-workouts"
-                        class="library--switch--heading active"
+                        class="library--switch--heading tabs__tab active"
                         action="workouts:workouts"
                         topic=":nav"
-                    >Workouts
+                    >Library
                     </navigation-action>
                     <navigation-action
                         id="link--workouts-editor"
-                        class="library--switch--heading"
+                        class="library--switch--heading tabs__tab"
                         action="workouts:editor"
                         topic=":nav"
                     >Editor
                     </navigation-action>
-                    <navigation-action
-                        id="link--workouts-report"
-                        class="library--switch--heading"
-                        action="workouts:report"
-                        topic=":nav"
-                    >Ride report
-                    </navigation-action>
-                </div>
-                <workout-editor id="view--workouts-editor" class="sub-tab">
+                </nav>
+                <workout-editor id="view--workouts-editor" class="sub-tab workouts__editor page-content">
                     <div class="editor-cont">
                         <form action="">
                             <div class="editor--meta">
@@ -507,116 +500,20 @@
                     </div> <!-- end editor--cont -->
                 </workout-editor>
 
-                <!-- ride-report -->
-                <div id="view--workouts-report" class="ride-report sub-tab">
-
-                    <power-in-zone id="power-in-zone">
-                        <div class="power--zone--item">
-                            <div class="power--zone-value">0</div>
-                            <div class="power--zone-bar zone-one"></div>
-                        </div>
-                        <div class="power--zone power--zone--item">
-                            <div class="power--zone-value">0</div>
-                            <div class="power--zone-bar  zone-two"></div>
-                        </div>
-                        <div class="power--zone power--zone--item">
-                            <div class="power--zone-value">0</div>
-                            <div class="power--zone-bar zone-three"></div>
-                        </div>
-                        <div class="power--zone power--zone--item">
-                            <div class="power--zone-value">0</div>
-                            <div class="power--zone-bar zone-four"></div>
-                        </div>
-                        <div class="power--zone power--zone--item">
-                            <div class="power--zone-value">0</div>
-                            <div class="power--zone-bar  zone-five"></div>
-                        </div>
-                        <div class="power--zone power--zone--item">
-                            <div class="power--zone-value">0</div>
-                            <div class="power--zone-bar zone-six"></div>
-                        </div>
-                        <div class="power--zone power--zone--item">
-                            <div class="power--zone-value">0</div>
-                            <div class="power--zone-bar zone-seven"></div>
-                        </div>
-                        <div class="power--unit power--zone--item chrome-bg">%</div>
-                    </power-in-zone>
-
-                    <laps-list>
-                        <div class="laps--header">
-                            <div class="lap--header--item"></div>
-                            <div class="lap--header--item">Time</div>
-                            <div class="lap--header--item">Power</div>
-                            <div class="lap--header--item">Cadence</div>
-                            <div class="lap--header--item">HR</div>
-                            <div class="lap--header--item">SmO2</div>
-                            <div class="lap--header--item">THb</div>
-                            <div class="lap--header--item">Core</div>
-                            <div class="lap--header--item">Skin</div>
-                        </div>
-                        <div class="laps--cont"></div>
-                    </laps-list>
-                </div> <!-- end ride-report -->
 
                 <!-- workout-list -->
-                <div id="view--workouts-workouts" class="workout-list sub-tab active">
-                    <div class="list--sub-section">
-                        <div class="list--row--outer">
-                            <div class="list--row--inner list--heading--cont control">
-                                <h2 class="list--sub-heading">Planned</h2>
-                                <div class="planned--actions">
-                                    <view-action
-                                        class="activity--action"
-                                        action=":intervals:wod"
-                                        topic=":planned">
-                                        <svg class="activity--icon intervals--icon">
-                                            <use href="#icon--intervals" />
-                                        </svg>
-                                        <div class="connection-icon-switch--indicator none intervals"></div>
-                                    </view-action>
-                                    <!--
-                                    <view-action
-                                        class="activity--action"
-                                        action=":trainingPeaks:wod"
-                                        topic=":planned">
-                                        <div class="tp-logo--icon">TP</div>
-                                        <div class="connection-icon-switch--indicator none tp"></div>
-                                    -->
-                                    </view-action>
-                                </div> <!-- end planned--actions -->
-                            </div> <!-- end list--heading--cont -->
-                        </div>
-                        <planned-list class="workouts--list planned--list">
-                        </planned-list>
-                    </div> <!-- list--sub-section -->
+                <div id="view--workouts-workouts" class="workout-list sub-tab active workouts__library page-content">
 
-                    <!-- activites -->
-                    <div class="list--sub-section">
-                        <div class="list--row--outer">
-                            <div class="list--row--inner list--heading--cont">
-                                <h2 class="list--sub-heading">Activities</h2>
-                            </div>
-                        </div>
-                        <activity-list class="activity--list">
-                        </activity-list>
-                    </div> <!-- end activities -->
+                    <section class="card workouts__rides" aria-labelledby="workouts-rides-title">
+                        <h2 id="workouts-rides-title" class="card__title">Your rides</h2>
+                        <activity-list class="activity--list"></activity-list>
+                        <p class="card__note workouts__rides-note">Rides recorded on this device. Sign in under the rider menu to keep every ride on your account and send it to Strava or intervals.icu.</p>
+                    </section>
 
-                    <div class="list--sub-section">
-                        <div class="list--row--outer">
-                            <div class="list--row--inner list--heading--cont">
-                                <h2 class="list--sub-heading">Library</h2>
-                            </div>
-                        </div>
-                        <div class="buildin-workouts">
-                            <workout-list id="workout-list" class="workout-list list" prop="workouts" metric="ftp">
-                            </workout-list>
-                        </div> <!-- end list--heading--cont -->
-                    </div>  <!-- list--sub-section -->
-
-
-                    <div class="workout-loader">
-                        <h2 class="page--heading">Load workout:</h2>
-                        <div class="file-btn">
+                    <section class="card workout-loader" aria-labelledby="workouts-load-title">
+                        <h2 id="workouts-load-title" class="card__title">Load workouts</h2>
+                        <label class="btn btn--secondary file-btn">
+                            Choose files
                             <input is="workout-upload"
                                    id="workout-file"
                                    class="file-btn-native"
@@ -625,11 +522,9 @@
                                    accept=".zwo,.xml,.erg,.mrc,.txt,.fit"
                                    multiple
                                    value="" />
-
-                        </div>
-
-                        <div class="workout-loader--note">
-                            <p class="p">You can load several files at once:</p>
+                        </label>
+                        <div class="workout-loader--note card__note">
+                            <p>You can load several files at once:</p>
                             <ul class="workout-loader--formats">
                                 <li><b>.zwo</b> Zwift workouts (also saved as .xml)</li>
                                 <li><b>.erg</b> and <b>.mrc</b> TrainerRoad, GoldenCheetah, PerfPRO and similar</li>
@@ -638,8 +533,13 @@
                             </ul>
                             <p>.fit workouts and .gpx files are not supported yet.</p>
                         </div>
-                    </div>
-                    <br/><br/><br/>
+                    </section>
+
+                    <section class="card workouts__list" aria-labelledby="workouts-library-title">
+                        <h2 id="workouts-library-title" class="card__title">Library</h2>
+                        <workout-list id="workout-list" class="workout-list list" prop="workouts" metric="ftp">
+                        </workout-list>
+                    </section>
                 </div> <!-- workout-list -->
             </div>
 
@@ -1442,6 +1342,10 @@
             <symbol id="icon--stop-btn" viewBox="0 0 24 24">
                 <path d="M0 0h24v24H0V0z" fill="none"/>
                 <path d="M6 6h12v12H6V6z"/>
+            </symbol>
+            <symbol id="icon--delete" viewBox="0 0 24 24">
+                <path d="M0 0h24v24H0V0z" fill="none"/>
+                <path d="M16 9v10H8V9h8m-1.5-6h-5l-1 1H5v2h14V4h-3.5l-1-1zM18 7H6v12c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7z"/>
             </symbol>
             <symbol id="icon--save-btn"
                     viewBox="0 0 24 24">

@@ -61,17 +61,6 @@ body.white-theme {
 }
 
 /* supported workout formats on the Workouts page */
-.workout-loader--formats {
-    margin: 0.4em 0 0.8em;
-    padding: 0;
-    list-style: none;
-    line-height: 1.6em;
-}
-
-.workout-loader--formats code {
-    font-size: 0.95em;
-    opacity: 0.85;
-}
 
 /* the dashboard panels only exist on wide screens */
 
@@ -384,11 +373,7 @@ body.white-theme {
     
 
     /* the other pages: keep content at a readable width */
-    #workouts-page {
-        max-width: 1180px;
-        margin: 0 auto;
-        padding-bottom: calc(var(--dash-bottom) + calc(2 * var(--r)));
-    }
+    
 }
 
 /* Short laptop screens: give the chart the height */

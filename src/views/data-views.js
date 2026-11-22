@@ -1379,13 +1379,13 @@ class NavigationStack extends HTMLElement {
         // it means all content should be 'non-active'
         for(let prop in elements) {
             if(!(target === prop)) {
-                elements[prop].$view.classList.remove('active');
-                elements[prop].$link.classList.remove('active');
+                elements[prop].$view?.classList.remove('active');
+                elements[prop].$link?.classList.remove('active');
             }
         }
         if(target) {
-            elements[target].$view.classList.add('active');
-            elements[target].$link.classList.add('active');
+            elements[target]?.$view?.classList.add('active');
+            elements[target]?.$link?.classList.add('active');
         }
     }
 }

@@ -65,6 +65,15 @@ function inspect(isPhone) {
         problems.push(`page scrolls sideways (${doc.scrollWidth}px > ${window.innerWidth}px): ${wide.join(', ')}`);
     }
 
+    // content past the right edge, even where an overflow: hidden clips it
+    for(const el of document.querySelectorAll('.card, .tile, .panel, .list-row, .btn')) {
+        if(!visible(el) || el.closest('[data-check-ignore]')) continue;
+        const r = el.getBoundingClientRect();
+        if(r.right > window.innerWidth + 1 && !el.closest('.ride__stats')) {
+            problems.push(`runs off the right edge (${Math.round(r.right)}px > ${window.innerWidth}px): ${label(el)}`);
+        }
+    }
+
     if(isPhone) {
         const tappable = 'button, a[href], [role=button], [role=tab], input:not([type=hidden]), select, .control--btn, .btn';
         for(const el of document.querySelectorAll(tappable)) {

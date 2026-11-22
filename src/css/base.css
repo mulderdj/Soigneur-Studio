@@ -86,7 +86,7 @@ textarea {
     height: calc(var(--app-bar-h) + env(safe-area-inset-bottom, 0px));
     padding: 0 var(--space-2) env(safe-area-inset-bottom, 0px);
     display: grid;
-    grid-template-columns: repeat(5, minmax(0, 1fr));
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto minmax(0, 1fr) minmax(0, 1fr);
     align-items: center;
     background-color: var(--surface);
     border-top: var(--line-w) solid var(--line);

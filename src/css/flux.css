@@ -152,23 +152,6 @@ input[type="number"] {
     transition: all 0.2s ease-in-out 0s;
 }
 
-.file-btn {
-    position: relative;
-    height: 3.0em;
-    margin: 0px auto 2.0em;
-    color: var(--gray);
-}
-
-.file-btn-native {
-    font-size: var(--workout--description-font-size);
-    position: relative;
-    margin-left: 3.2em;
-    line-height: 2.7em;
-    height: 3.0em;
-    background: none;
-    z-index: 0;
-}
-
 /* END Defaults */
 
 /* Atomics */
@@ -200,17 +183,7 @@ input, svg, a,
 }
 
 /* Clearfix */
-.cf:before, .cf:after {
-    content: " ";
-    display: table;
-}
-.cf:after {
-    clear: both;
-}
-.cf {
-    /* *zoom: 1; */
-    /*For IE 6/7 only*/
-}
+
 /* End Clearfix */
 /* End Atomics */
 
@@ -408,16 +381,8 @@ svg {
     background-color: var(--background-color-2);
 }
 
-#progress-active {
-    background-color: transparent;
-}
-
 .flat-btn {
     color: var(--foreground-color);
-}
-
-.radio {
-    fill: var(--foreground-color);
 }
 
 .icon-btn .icon {
@@ -475,9 +440,6 @@ svg {
     letter-spacing: 1px;
 }
 
-#workouts-page .page--header {
-    margin-bottom: 40px;
-}
 /* End Page */
 
 /* Home Page */
@@ -542,51 +504,10 @@ svg {
 
 /* Graphs */
 
-div.graph--bar-group {
-    display: flex;
-    flex-direction: row;
-    flex-wrap: nowrap;
-    justify-content: flex-start;
-    align-items: flex-end;
-    padding: 0;
-}
-.graph--info--cont {
-    display: none;
-    font-size: 1.4em;
-    line-height: 1.2em;
-    position: absolute;
-    padding: 0.4em 0.4em;
-    color: var(--black);
-    white-space: nowrap;
-    background-color: var(--white);
-    border-radius: 0.2em;
-    z-index: 2;
-    pointer-events: none;
-}
-
 /* #graph-moxy { */
 /*     display: none; */
 /*     overflow: hidden; */
 /* } */
-
-#workout-list svg.graph--bar-group {
-    height: var(--graph-height);
-    height: 8em;
-}
-
-.graph--heading {
-    position: relative;
-    font-family: var(--ssb-font-family);
-    font-size: 1em;
-    font-weight: bold;
-    text-align: center;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-
-    /* height: var(--graph-heading-height); */
-    z-index: 1;
-}
 
 .elevation--value {
     position: absolute;
@@ -599,130 +520,6 @@ div.graph--bar-group {
 }
 .altitude--value {
     left: 0.3em;
-}
-
-.graph--msg {
-    font-size: 1em;
-    line-height: 1.4em;
-
-    position: relative;
-    z-index: 1;
-}
-
-.graph--cont {
-    display: flex;
-    flex-direction: row;
-    flex-wrap: nowrap;
-    justify-content: flex-start;
-    align-items: flex-end;
-    position: absolute;
-    width: 100%;
-    height: 100%;
-    left: 0px;
-    bottom: 0px;
-    padding: 0;
-}
-
-.graph--bar {
-    position: relative;
-    display: flex;
-    justify-content: center;
-    align-items: flex-start;
-    margin: 0;
-    padding: 0;
-    width: 1px;
-
-}
-
-.graph--info {
-    display: none;
-    position: absolute;
-    bottom: 60%;
-    padding: 2px 2px;
-    color: var(--black);
-    background-color: var(--white);
-    border-radius: 2px;
-    z-index: 1;
-}
-
-.graph--bar:hover .graph--info {
-    display: block;
-}
-
-.graph--info--power {
-    min-width: 48px;
-}
-
-.graph--info--slope {
-    min-width: 48px;
-}
-
-.graph--info--cadence {
-    min-width: 48px;
-}
-
-.graph--info--time {
-    color: var(--gray);
-}
-
-.graph--bar-distance {
-}
-
-.workout--graph-cont {
-    position: relative;
-    display: flex;
-    flex-direction: row;
-    flex-wrap: nowrap;
-    justify-content: center;
-    align-items: flex-end;
-    height: var(--graph-height);
-    height: 100%;
-    max-width: 100vw;
-    padding: 0;
-}
-
-.workout-list--graph-cont {
-    display: flex;
-    flex-direction: row;
-    flex-wrap: nowrap;
-    justify-content: center;
-    align-items: flex-end;
-    position: relative;
-    /* min-height: 100%; */
-    /* min-height: var(--list--graph--height); */
-    padding: 0;
-}
-.workout--graph {
-    height: 8em;
-    max-width: 100%;
-}
-
-#progress {
-    position: absolute;
-    bottom: 0px;
-    left: 0;
-    display: flex;
-    justify-content: start;
-    align-items: flex-end;
-    width: 0px;
-    height: 100%;
-    background: var(--progress);
-    border-right: 1px solid var(--zone-orange);
-    z-index: 1;
-    pointer-events: none;
-}
-
-#progress-active {
-    display: flex;
-    justify-content: start;
-    align-items: flex-end;
-    position: absolute;
-    bottom: 0px;
-    left: 0;
-    width: 0px;
-    height: var(--graph-height);
-    z-index: 1;
-    pointer-events: none;
 }
 
 /* END Graphs */
@@ -782,50 +579,8 @@ div.graph--bar-group {
 /* } */
 
 /* Workout Page */
-#workouts-page {
-    font-size: 1rem;
-
-    --workout--name-font-size: 1.4em;
-    --workout--type-font-size: 1.4em;
-    --workout--duration-font-size: 1.4em;
-    --workout--description-font-size: 1.4em;
-    --inner-max-width: 60em;
-    --size--icon--global: 2.4em;
-    --list--graph--height: 8em;
-
-    text-align: center;
-}
 
 /* Workout List */
-.tp-logo {
-    display: grid;
-    font-size: 20px;
-    font-style: italic;
-    font-weight: bold;
-    height: 40px;
-    width: 40px;
-    letter-spacing: 1px;
-    text-indent: -2px;
-    align-content: center;
-    color: #fff;
-    background-color: #005695;
-    /* border: 1px solid #fff; */
-    border-radius: 7px;
-}
-.tp-logo--icon {
-    display: grid;
-    font-style: italic;
-    font-weight: bold;
-    height: 2.4em;
-    width: 2.4em;
-    letter-spacing: 1px;
-    text-indent: -1px;
-    align-content: center;
-    color: #fff;
-    background-color: #005695;
-    /* border: 1px solid #fff; */
-    border-radius: 7px;
-}
 
 /* The new classes */
 .active-list-item {
@@ -930,223 +685,10 @@ div.graph--bar-group {
 }
 
 /* The old classes */
-.workout {
-    display: block;
-    position: relative;
-    border-bottom: 1px solid var(--border-color);
-}
 
-.workout--info {
-    position: relative;
-    padding: 0em 1em;
-    background-color: var(--background-color);
-    z-index: 1;
-}
-.options-show {
-    transform: translateX(-8em);
-}
-
-.options-hide {
-    transform: translateX(0);
-}
-
-.workout--actions {
-    position: absolute;
-    display: grid;
-    top: 0.1em;
-    right: 0;
-    bottom: 0.1em;
-    width: 8em;
-    background-color: var(--red);
-    z-index: 0;
-}
-
-.workout--remove {
-    font-size: 1.4em;
-    justify-self: center;
-    align-self: center;
-    cursor: pointer;
-}
-
-.workout--options {
-    /* display: flex; */
-    /* justify-content: center; */
-}
-
-.workout--short-info {
-    display: flex;
-    flex-direction: row;
-    align-items: center;
-    align-content: center;
-    max-width: var(--inner-max-width);
-    margin: 0 auto;
-}
-
-.workout--summary {
-    display: grid;
-    grid-template-columns: 5fr 3fr 2fr 1fr 3rem;
-
-    align-items: center;
-    align-content: center;
-    width: 100%;
-    margin: 0 auto;
-    padding: 1.5em 0;
-    text-align: left;
-    cursor: pointer;
-}
-
-.workout--name {
-    font-size: var(--workout--name-font-size);
-    overflow: hidden;
-    text-overflow: ellipsis;
-    text-wrap: nowrap;
-    line-height: 1.4em;
-}
-
-.workout--type {
-    font-size: var(--workout--type-font-size);
-    /* min-width: 100px; */
-    font-weight: bold;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    text-wrap: nowrap;
-    line-height: 1.4em;
-}
-
-.workout--duration {
-    font-size: var(--workout--duration-font-size);
-    /* min-width: 60px; */
-    color: var(--gray);
-}
-
-.workout--full-info {
-    display: none;
-}
-
-.workout--description {
-    font-size: var(--workout--description-font-size);
-    max-width: var(--inner-max-width);
-    margin: 0 auto;
-    line-height: 1.4em;
-    padding: 1.5em 0 0.5em;
-    text-align: left;
-}
-.radio {
-    width: var(--size--icon--global);
-    height: var(--size--icon--global);
-}
-
-.workout-loader--note {
-    font-size: var(--workout--description-font-size);
-    line-height: 1.4em;
-    margin: 0 2em 2em 2em;
-    /* color: var(--foreground-color-inactive); */
-}
 /* END Workout List */
 
 /* Ride Report */
-#power-in-zone {
-
-    display: grid;
-    grid-template-columns: repeat(8, 1fr);
-    justify-items: center;
-    align-items: center;
-    max-width: var(--inner-max-width);
-    margin: 20px auto;
-    padding: 0 1em;
-    height: 4em;
-}
-
-.power--zone--item {
-    position: relative;
-    font-size: 1.4em;
-    font-weight: bold;
-
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    width: 100%;
-    height: 100%;
-}
-
-.power--unit {
-    cursor: pointer;
-}
-
-.power--zone-bar {
-    position: absolute;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    height: 0;
-    min-height: 1px;
-    z-index: -1;
-}
-
-.laps--cont {
-    margin: 0em auto 4em;
-}
-
-.lap--item {
-    border-bottom: 1px solid var(--border-color);
-}
-
-.laps--header {
-    display: grid;
-    grid-template-columns: 2em repeat(8, 1fr);
-    justify-items: center;
-    align-items: center;
-    padding: 0 1em;
-    height: 2em;
-    margin: 4em auto 0;
-    max-width: var(--inner-max-width);
-}
-
-.lap--item--inner {
-    display: grid;
-    grid-template-columns: 2em repeat(8, 1fr);
-    justify-items: center;
-    align-items: center;
-    padding: 0 1em;
-    height: 4em;
-    margin: 0 auto;
-    max-width: var(--inner-max-width);
-}
-
-.lap--value {
-    font-size: 1.2em;
-}
-
-.lap--power {
-    font-weight: bold;
-}
-
-.library--switch--group {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    justify-items: center;
-    align-items: center;
-}
-
-.library--switch {
-    cursor: pointer;
-}
-
-.library--switch--heading {
-    font-size: 1.1em;
-    text-transform: uppercase;
-    line-height: 5em;
-    text-align: center;
-    letter-spacing: 1px;
-}
-
-.library--switch .library--switch--heading {
-    color: var(--foreground-color-inactive);
-}
-
-.library--switch.active .library--switch--heading {
-    color: var(--foreground-color);
-}
 
 .sub-tab {
     display: none;
@@ -1173,10 +715,6 @@ navigation-action {
     display: none;
 }
 
-#workout-editor {
-    display: none;
-}
-
 #workouts.active {
     display: block;
 }
@@ -1185,139 +723,10 @@ navigation-action {
     display: block;
 }
 
-#workout-editor.active {
-    display: block;
-}
 /* END Ride Report */
 
 /* Editor */
-.editor-cont {
-    --editor-max-width: 48em;
-    /* font-size: 1rem; */
-    width: 100%;
-}
 
-.editor--row, .editor--form--group {
-    max-width: var(--editor-max-width);
-    width: 100%;
-    margin: 0 auto;
-}
-
-.editor--meta {
-    display: grid;
-    background-color: var(--background-color-2);
-    padding: 0.5em 0;
-}
-
-.editor--form--group {
-    display: grid;
-    align-items: center;
-}
-
-.editor--input {
-    font-size: 1.3em;
-    line-height: 1.3em;
-    margin: 1em 1em;
-    color: var(--foreground-color);
-    background-color: var(--background-color);
-    background-color: var(--background-color-2);
-    border-top: none;
-    border-left: none;
-    border-right: none;
-    border-bottom: 1px solid var(--yellow);
-}
-
-.editor--label {
-    text-align: left;
-    margin: 1em 1.3em 0;
-    line-height: 1.3em;
-
-    text-transform: uppercase;
-    letter-spacing: 1px;
-    font-weight: bold;
-}
-
-.editor--label--textarea {
-    align-self: start;
-    margin-top: 1.5em;
-}
-
-.editor--head {
-    margin: 0 0 1em 0;
-    background-color: var(--background-color-2);
-}
-
-.editor--row {
-    display: grid;
-    grid-template-columns: 10% repeat(6, 15%);
-
-    input {
-        color: var(--foreground-color);
-    }
-}
-
-.editor--th {
-    font-size: 1em;
-    font-weight: bold;
-    padding: 0.5em 0.5em;
-    cursor: default;
-}
-
-.editor--td {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 1.3em;
-    width: 100%;
-    padding: 0.5em 0.5em;
-    line-height: 1.3em;
-    text-align: center;
-    background-color: var(--background-color);
-    border: none;
-}
-
-.editor--td.power, .editor--td.ramp {
-    font-size: 1.4em;
-    font-weight: bold;
-}
-
-.editor--header {
-    font-size: 1em;
-    padding: 1.5em 1em 1em;
-    text-transform: uppercase;
-    letter-spacing: 1px;
-    font-weight: bold;
-    background-color: var(--background-color-2);
-}
-
-.editor--static {
-    cursor: default;
-}
-
-.editor--icon {
-    width: var(--size--icon--global);
-    height: var(--size--icon--global);
-    margin: 1em 2em;
-    cursor: pointer;
-    fill: var(--foreground-color);
-}
-
-.editor--save {
-    fill: var(--foreground-color-inactive);
-    cursor: not-allowed;
-}
-
-.editor--radio {
-    fill: var(--foreground-color);
-    display: none;
-    width: 1em;
-    height: 1em;
-    cursor: pointer;
-}
-
-.editor--radio.selected {
-    display: block;
-}
 /* END Editor */
 /* END Workouts Page */
 
@@ -1574,45 +983,6 @@ body.white-theme {
 }
 
 /* App Connections */
-.list--section {
-    width: 100%;
-}
-.list--row--outer {
-    width: 100%;
-    border-bottom: 1px solid var(--border-color);
-}
-.list--row--inner {
-    max-width: var(--inner-max-width);
-    margin: 0 auto;
-    padding: 1em;
-}
-.list--heading--cont {
-    width: 100%;
-    margin: 0 auto;
-    /* border-bottom: 1px solid var(--white-opacity-01); */
-
-    &.control {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-    }
-}
-
-.planned--actions {
-    display: flex;
-    justify-content: flex-end;
-    padding-right: 1.5em;
-}
-.planned--empty {
-    display: grid;
-    font-size: var(--workout--name-font-size);
-    padding: 1.5em 0;
-    border-bottom: 1px solid var(--white-opacity-01);
-}
-
-planned-list {
-    display: grid;
-    /* margin: 0 1.5em; */
-}
 
 workout-graph-svg {
     display: block;
@@ -1620,162 +990,6 @@ workout-graph-svg {
     height: 8em;
     max-width: 100%;
     margin: 0 auto;
-}
-
-.list--heading {
-    font-size: 1.8em;
-    line-height: 1.8em;
-    font-weight: bold;
-    text-transform: uppercase;
-    text-align: left;
-}
-
-activity-item {
-    position: relative;
-
-    .activity--cont {
-        width: 100%;
-        position: relative;
-        background-color: var(--background-color);
-        z-index: 1;
-
-        .control--btn--icon {
-            display: block;
-        }
-    }
-
-    &.options .activity--cont {
-        transform: translateX(-8em);
-    }
-    &.expand .activity--info--full {
-        display: grid;
-    }
-}
-
-.activity--info--short {
-    display: grid;
-    grid-template-columns: 1fr 3rem;
-    justify-content: center;
-    align-items: center;
-    line-height: 4rem;
-    background-color: var(--background-color);
-
-    position: relative;
-    z-index: 1;
-
-    .info {
-        display: grid;
-        grid-template-columns: 50% 1fr 1fr;
-        justify-content: center;
-        align-items: center;
-        line-height: 4em;
-        cursor: pointer;
-    }
-}
-.activity--info--full {
-    display: none;
-    background-color: var(--background-color);
-    position: relative;
-    z-index: 1;
-
-    .activity--image {
-        width: 100%;
-        /* height: 8rem; */
-        background-color: var(--background-color-2);
-    }
-
-    .action--image {
-        cursor: not-allowed;
-
-        svg {
-            fill: var(--gray);
-        }
-    }
-}
-.activity--options {
-    display: grid ;
-    width: 8em;
-    position: absolute;
-    top: 0.1em;
-    bottom: 0.1em;
-    right: 0;
-    z-index: 0;
-    background-color: var(--red);
-
-    .activity--remove {
-        font-size: 1.4em;
-        place-self: center;
-        cursor: pointer;
-    }
-}
-
-.activity--actions {
-    display: none;
-    display: grid;
-    grid-template-columns: 40% 1fr 1fr 1fr 1fr;
-    /* Uncomment when Training Peaks integration is on */
-    /* grid-template-columns: 40% 1fr 1fr 1fr 1fr 1fr; */
-    align-items: center;
-    line-height: 4em;
-    height: 4em;
-
-    .action--image {
-        justify-self: center;
-    }
-    .action--intervals {
-        justify-self: left;
-    }
-    .control--btn--icon {
-        justify-self: center;
-    }
-}
-.activity--name {
-    font-size: var(--workout--name-font-size);
-    text-overflow: ellipsis;
-    text-wrap: nowrap;
-    overflow: hidden;
-    text-align: left;
-}
-.activity--date {
-    font-size: 1.2em;
-    text-align: left;
-}
-.activity--duration {
-    text-align: left;
-    font-size: var(--workout--duration-font-size);
-    color: var(--gray);
-}
-.activity--action {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    cursor: pointer;
-
-    .connection-icon-switch--indicator {
-        margin: 0em 1em;
-    }
-}
-.activity--icon {
-    display: block;
-    width: var(--size--icon--global);
-    height: var(--size--icon--global);
-    fill: var(--foreground-color);
-}
-.activity--upload {
-    font-size: 1.2em;
-    text-transform: uppercase;
-    color: var(--zone-blue);
-    cursor: pointer;
-    text-align: right;
-}
-.activity--upload.success {
-    color: var(--zone-green);
-}
-.activity--upload.error {
-    color: var(--zone-red);
-}
-.activity--upload.progress {
-    color: var(--zone-yellow);
 }
 
 dialog {
@@ -1907,9 +1121,7 @@ and (min-height: 600px) {
 
     
 
-    .list--row--inner {
-        padding: 1em 0em;
-    }
+    
 }
 
 /* IPad, Galaxy Tab S, Portrait */
@@ -1941,14 +1153,9 @@ and (orientation: portrait) {
 
     
 
-    .graph--heading {
-        font-size: 1.2em;
-        line-height: 2em;
-    }
+    
 
-    .graph--info--cont {
-        font-size: 1.6em;
-    }
+    
 
     
 }
@@ -1962,9 +1169,7 @@ and (min-height: 768px) {
 
     
 
-    .graph--info--cont {
-        font-size: 1.6em;
-    }
+    
 }
 
 /* IPad Pro, Portrait */
@@ -1976,10 +1181,7 @@ and (min-height: 1366px) {
 
     
 
-    .graph--heading {
-        font-size: 1.2em;
-        line-height: 2em;
-    }
+    
 
     
 }
@@ -2015,9 +1217,7 @@ and (min-height: 850px) {
     
     
 
-    .graph--info--cont {
-        font-size: 2.0em;
-    }
+    
 
     
 
@@ -2041,16 +1241,11 @@ and (min-height: 900px) {
 
     
 
-    #workouts-page {
-        font-size: 1.6rem;
-    }
+    
 
     
 
-    .graph--heading {
-        font-size: 2em;
-        line-height: 2em;
-    }
+    
 }
 
 @media only screen
@@ -2067,18 +1262,9 @@ and (min-height: 1200px) {
 
     
 
-    .graph--heading {
-        font-size: 3em;
-        line-height: 2.5em;
-    }
+    
 
-    .workout--short-info {
-        line-height: 1.5em;
-    }
-
-    .graph--info--cont {
-        font-size: 2.4em;
-    }
+    
 
     
 
@@ -2088,9 +1274,9 @@ and (min-height: 1200px) {
 
     
 
-    #workouts-page {
-        font-size: 1.6rem;
-    }
+    
+
+    
 }
 
 @media only screen
@@ -2104,17 +1290,13 @@ and (min-height: 1600px) {
 
     
 
-    .graph--info--cont {
-        font-size: 4.0em;
-    }
-
     
 
     
 
-    #workouts-page {
-        font-size: 3.0rem;
-    }
+    
+
+    
 
     
 }
@@ -2262,15 +1444,8 @@ and (min-width: 1024px) {
 
     
 
-    .workout-list--graph-cont {
-        float: left;
-        width: 50%;
-    }
-    .workout--description {
-        float: right;
-        width: 50%;
-        padding: 1em 1em 0;
-    }
+    
+    
 }
 
 /* END Media Queries */

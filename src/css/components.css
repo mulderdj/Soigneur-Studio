@@ -390,3 +390,84 @@
 .zone-five-color  { color: var(--zone-5); }
 .zone-six-color   { color: var(--zone-6); }
 .zone-seven-color { color: var(--zone-7); }
+
+/* ---------- workout graph (Ride page strip and workout list) ---------- */
+
+.graph--cont,
+div.graph--bar-group {
+    display: flex;
+    flex-wrap: nowrap;
+    justify-content: flex-start;
+    align-items: flex-end;
+    padding: 0;
+}
+
+.graph--cont {
+    position: absolute;
+    inset: auto 0 0 0;
+    height: 100%;
+}
+
+.workout--graph-cont,
+.workout-list--graph-cont {
+    position: relative;
+    display: flex;
+    flex-wrap: nowrap;
+    justify-content: center;
+    align-items: flex-end;
+    padding: 0;
+}
+
+.graph--bar {
+    position: relative;
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+    width: 1px;
+    margin: 0;
+    padding: 0;
+}
+
+.graph--info,
+.graph--info--cont {
+    position: absolute;
+    display: none;
+    padding: var(--space-1) var(--space-2);
+    border-radius: var(--radius-s);
+    background-color: var(--ink);
+    color: var(--bg);
+    font-size: var(--text-xs);
+    line-height: 1.3;
+    white-space: nowrap;
+    pointer-events: none;
+}
+
+.graph--info { bottom: 60%; z-index: 1; }
+.graph--info--cont { z-index: 2; }
+.graph--bar:hover .graph--info { display: block; }
+
+.graph--info--power,
+.graph--info--slope,
+.graph--info--cadence { min-width: 48px; }
+.graph--info--time { color: var(--muted); }
+
+/* how far the ride is through the workout */
+#progress {
+    position: absolute;
+    inset: auto auto 0 0;
+    z-index: 1;
+    width: 0;
+    height: 100%;
+    background-color: var(--overlay);
+    border-right: var(--line-w) solid var(--zone-6);
+    pointer-events: none;
+}
+
+#progress-active {
+    position: absolute;
+    inset: auto auto 0 0;
+    z-index: 1;
+    width: 0;
+    background-color: transparent;
+    pointer-events: none;
+}
