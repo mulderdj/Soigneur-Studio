@@ -9,6 +9,7 @@ Status: proposal. Each subproject gets its own spec (brainstorm, written spec, p
   - 1+2: responsive UI and style system
   - 3a: Training page with form, calendar, plan and progress
 - **Built, waiting for the live check:** 3b, intervals.icu history and the two-way plan, on branch `intervals-3b`.
+- **Built, waiting for the live check:** 4, Garmin health data and activities, plus a load for every workout (power, HR, RPE, estimate), on branch `garmin-4` (on top of `intervals-3b`).
 - **Docs:** walkthrough with screenshots and screencast (`docs/walkthrough/`).
 
 ## What a serious athlete misses today

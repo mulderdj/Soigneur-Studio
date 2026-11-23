@@ -158,10 +158,13 @@ describe('other sports and intervals.icu status', () => {
         document.body.innerHTML = '<training-calendar layout="desktop"></training-calendar>';
         const el = document.querySelector('training-calendar');
         el.data = {...data, summaries: [...data.summaries,
-            {id: 'icu-run', day: '2026-11-26', name: 'Lunch run', sport: 'run', duration: 2700, tss: 40, start: 9}]};
-        const item = [...el.querySelectorAll('.cal-ride')].find(i => i.textContent.includes('Lunch run'));
-        expect(item.textContent).toContain('Run');
+            {id: 'icu-run', day: '2026-11-26', name: 'Lunch', sport: 'run', duration: 2700, tss: 40, start: 9},
+            {id: 'icu-run2', day: '2026-11-26', name: 'Easy run', sport: 'run', duration: 1800, tss: 20, start: 10}]};
+        const item = [...el.querySelectorAll('.cal-ride')].find(i => i.textContent.includes('Lunch'));
+        expect(item.querySelector('.cal-sport').textContent).toBe('Run');
         expect(item.textContent).toContain('0:45');
+        // the name already says it: no second label
+        expect([...el.querySelectorAll('.cal-ride')].find(i => i.textContent.includes('Easy run')).querySelector('.cal-sport')).toBeNull();
         const ride = [...el.querySelectorAll('.cal-item')].find(i => i.textContent.includes('Sweet spot'));
         expect(ride.querySelector('.cal-sport')).toBeNull();
     });
@@ -169,7 +172,7 @@ describe('other sports and intervals.icu status', () => {
     test('the day dialog names the sport of a run', () => {
         document.body.innerHTML = '<day-dialog></day-dialog>';
         const el = document.querySelector('day-dialog');
-        el.open('2026-11-26', {...data, summaries: [{id: 'icu-run', day: '2026-11-26', name: 'Lunch run', sport: 'run', duration: 2700, tss: 40, start: 9}]});
+        el.open('2026-11-26', {...data, summaries: [{id: 'icu-run', day: '2026-11-26', name: 'Lunch', sport: 'run', duration: 2700, tss: 40, start: 9}]});
         expect(el.querySelector('.dd-ride .list-row__meta').textContent).toMatch(/^\s*Run · 0:45/);
     });
 

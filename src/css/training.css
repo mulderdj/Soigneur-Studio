@@ -178,6 +178,7 @@
 }
 
 .hc-legend {
+    font-size: var(--text-xs);
     display: flex;
     flex-wrap: wrap;
     align-items: center;
@@ -509,9 +510,21 @@
         grid-auto-flow: row dense;
     }
 
-    .tp-form     { grid-column: 1 / 2; grid-row: span 2; }
+    .tp-form     { grid-column: 1 / 2; }
     .tp-week     { grid-column: 2 / 4; }
-    .tp-health   { grid-column: 2 / 4; }
+
+    /* health: one wide row, the numbers beside the chart */
+    .tp-health:not([hidden]) {
+        grid-column: 1 / -1;
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) minmax(0, 2fr);
+        grid-template-areas: "title title" "grid plot" "grid legend";
+        column-gap: var(--space-4);
+    }
+    .tp-health .hc-title  { grid-area: title; }
+    .tp-health .hc-grid   { grid-area: grid; align-content: start; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .tp-health .hc-plot   { grid-area: plot; }
+    .tp-health .hc-legend { grid-area: legend; }
     .tp-calendar { grid-column: 1 / -1; }
     .training > volume-card { grid-column: 1 / 2; }
     .training > zones-card  { grid-column: 1 / 2; }

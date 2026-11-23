@@ -18,7 +18,7 @@ class HealthCard extends ChartElement {
     connectedCallback() {
         if(!this.querySelector('.hc-plot')) {
             this.innerHTML = `
-                <h2 class="card__title">Health <small class="hc-when" data-k="when"></small></h2>
+                <h2 class="card__title hc-title">Health <small class="hc-when" data-k="when"></small></h2>
                 <dl class="hc-grid"></dl>
                 <div class="tc-plot hc-plot"><canvas class="tc-canvas" role="img" aria-label="HRV and resting heart rate over the last 60 days, with the normal HRV range shaded"></canvas></div>
                 <p class="card__note hc-legend"><span class="hc-key hc-key--hrv"></span>HRV (ms) <span class="hc-key hc-key--rest"></span>Resting heart rate (bpm) <span class="hc-key hc-key--band"></span>Normal HRV range</p>`;
@@ -72,7 +72,7 @@ class HealthCard extends ChartElement {
         const {days, range} = this.model;
         const labels = days.map((d, i) => (i % 14 === 0 ? fmtDay(d.day, {day: 'numeric', month: 'short'}) : ''));
         drawLines(ctx, this, w, h, {
-            labels, every: 1,
+            labels, every: 1, fromZero: false,
             band: range ? {low: range.low, high: range.high, color: token(this, '--band', 'rgba(76,154,255,0.15)')} : null,
             lines: [
                 {values: days.map(d => d.hrv), color: token(this, '--accent'), width: 2.5},

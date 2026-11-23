@@ -8,8 +8,9 @@
 // generated history, nothing from your own riders. It signs a demo account
 // up on the dev account server (the first account there becomes its admin),
 // so run it against a scratch account server, not your real one. The
-// intervals.icu card is shown connected with a canned status: the walkthrough
-// needs no API key. Set CHROME_PATH when Playwright's own browser is missing.
+// intervals.icu and Garmin cards are shown connected with a canned status:
+// the walkthrough needs no API key. Set CHROME_PATH when Playwright's own
+// browser is missing.
 //
 // Needs ffmpeg for the .mp4 and .gif.
 //
@@ -51,6 +52,9 @@ async function newPage(browser, {viewport, phone = false, scale = 1}) {
         const body = await res.json().catch(() => ({}));
         body.intervals = {...body.intervals, connected: true, athlete: 'Demo rider', athleteId: 'i000000', autoUpload: true,
                           sync: {lastRun: Date.now() - 6 * 60000, stored: 412, skipped: {STRAVA: 12}, planSkipped: 0, error: null}};
+        body.garmin = {...body.garmin, connected: true, expiresOn: new Date(Date.now() + 200 * 86400000).toISOString().slice(0, 10),
+                       thresholds: {cycling: 165, running: 172},
+                       sync: {lastRun: Date.now() - 4 * 60000, activities: 386, days: 90, error: null}};
         await route.fulfill({response: res, json: body});
     });
     const page = await context.newPage();
@@ -116,7 +120,8 @@ async function shots(browser) {
     await shot(page, 'training-desktop');
     await shotOf(page.locator('training-calendar'), 'training-calendar');
     for(const [sel, name] of [['volume-card', 'progress-volume'], ['curve-card', 'progress-curve'],
-                              ['zones-card', 'progress-zones'], ['ftp-card', 'progress-ftp'], ['form-card', 'training-form']]) {
+                              ['zones-card', 'progress-zones'], ['ftp-card', 'progress-ftp'], ['form-card', 'training-form'],
+                              ['health-card', 'training-health']]) {
         await page.locator(sel).scrollIntoViewIfNeeded();
         await shotOf(page.locator(sel), name);
     }
@@ -125,6 +130,13 @@ async function shots(browser) {
     await pause(page, 500);
     await shotOf(page.locator('day-dialog dialog'), 'day-dialog');
     await page.keyboard.press('Escape');
+    // a gym session from Garmin without heart rate: rate how hard it was
+    await page.locator('.cal-day', {hasText: 'Strength'}).first().locator('.cal-open').first().click();
+    await pause(page, 500);
+    await shotOf(page.locator('day-dialog dialog'), 'day-rating');
+    await page.locator('day-dialog [data-close]').click();
+    await tab(page, '#settings-tab-btn');
+    await shotOf(page.locator('.settings__profile'), 'settings-thresholds');
 
     await tab(page, '#workouts-tab-btn');
     await shot(page, 'workouts-desktop');

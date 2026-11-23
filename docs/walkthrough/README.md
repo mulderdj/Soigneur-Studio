@@ -6,7 +6,7 @@ A tour of what the app does, page by page. Click a picture to see it full size. 
 
 <a href="img/walkthrough.gif"><img src="img/walkthrough.gif" alt="The walkthrough as an animation" width="560"></a>
 
-Contents: [Getting started](#getting-started) · [Ride](#ride) · [Training](#training) · [intervals.icu](#intervalsicu) · [Workouts](#workouts) · [Riders and accounts](#riders-and-accounts) · [Settings](#settings) · [Phones](#phones) · [Light theme](#light-theme) · [Updating these pictures](#updating-these-pictures)
+Contents: [Getting started](#getting-started) · [Ride](#ride) · [Training](#training) · [intervals.icu](#intervalsicu) · [Garmin](#garmin) · [Workouts](#workouts) · [Riders and accounts](#riders-and-accounts) · [Settings](#settings) · [Phones](#phones) · [Light theme](#light-theme) · [Updating these pictures](#updating-these-pictures)
 
 ---
 
@@ -49,6 +49,16 @@ Without a trainer, `npm start` with `?simulate` in the address gives you a simul
 
 Rides, hours, TSS and kJ so far this week, against the same days of last week.
 
+### Health
+
+<a href="img/training-health.png"><img src="img/training-health.png" alt="The health card: HRV, resting heart rate, sleep and Body Battery, with 60 days of HRV and resting heart rate" width="720"></a>
+
+- **Needs Garmin.** With Garmin connected ([see below](#garmin)), the health card shows last night's numbers.
+- **HRV** against your normal range: Garmin's baseline, or else your own last 60 days. Green when it's in range, orange below, blue above.
+- **Resting heart rate** against its 30-day average.
+- **Sleep** (duration and score) and **Body Battery**.
+- **60 days** of HRV, with the normal range shaded, and resting heart rate.
+
 ### Calendar
 
 <a href="img/training-calendar.png"><img src="img/training-calendar.png" alt="The month calendar with rides, planned workouts and intervals.icu entries" width="640"></a>
@@ -70,6 +80,18 @@ Click or tap a day to open it:
 - **Plan a workout.** Search your library and pick one. It shows up on the calendar right away, counts in the form forecast, and, with intervals.icu connected, appears there too.
 
 On the day of a planned workout, the Ride page selects it when the app opens. It never does so over a workout you picked yourself that day, or during a ride. A saved ride is matched to that day's plan.
+
+### A load for every workout
+
+Fitness, fatigue and form need a training load (TSS) for every workout, also one without a power meter:
+
+1. **Power**, when there is power.
+2. **Heart rate**, against your threshold heart rate for the sport. Set it under *Settings*, or Garmin's value is used. Marked **HR**.
+3. **How hard it was**: tap 1–10 in the day dialog. Marked **RPE**.
+4. **An estimate** from the sport and duration (strength 30 an hour, a run 60), until you rate it. Marked **est.**
+
+<a href="img/day-rating.png"><img src="img/day-rating.png" alt="The day dialog for a gym session from Garmin: an estimated load and the 1–10 rating" width="360"></a>
+<a href="img/settings-thresholds.png"><img src="img/settings-thresholds.png" alt="Threshold heart rate for cycling and running in Settings, with Garmin's values as hints" width="360"></a>
 
 ### Progress
 
@@ -106,6 +128,17 @@ Connect intervals.icu under *rider menu → Account* with your personal API key 
 The card shows when it last synced, how many activities came in, and how many weren't available. Activities that reached intervals.icu from Strava come back empty through its API, so the card counts them instead. For those rides, use **Import .fit files**. **Sync now** starts a sync right away.
 
 > The card in this screenshot is shown connected with a sample status. The walkthrough doesn't use a real intervals.icu account.
+
+## Garmin
+
+Connect Garmin under *rider menu → Account* with your Personal API key: Garmin Connect on the web, Settings, Personal API Key. Optionally enter the date the key expires; you get a warning a week before.
+
+- **Health data**: every 15 minutes, 90 days back at first. That covers overnight HRV, resting heart rate, sleep, Body Battery, stress, weight and VO2max.
+- **Activities**: 2 years back at first, then every 15 minutes, as a second source next to intervals.icu. A ride that arrives from several sources counts once: Auuki's own recording, then Garmin, then imported `.fit`, then intervals.icu.
+- **Threshold heart rate** per sport comes from your Garmin heart-rate zones, unless you set your own under *Settings*.
+- The key is for your own data, stays on the server, and only reads: Garmin's personal key can't send workouts to the watch.
+
+The Garmin card in the account picture above is shown connected with a sample status. The walkthrough doesn't use a real Garmin account.
 
 ## Workouts
 

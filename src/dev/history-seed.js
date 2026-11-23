@@ -119,7 +119,43 @@ function generateHistory({today, days = 120, ftp = 250, weight = 75, seed = 1} =
     plan.push({id: 'seed-icu-2', day: addDays(today, 4), origin: 'intervals', intervalsEventId: 2, name: 'Strength circuit',
                workout: null, rideId: null, deleted: false, updatedAt: 0, dirty: false});
 
-    return {summaries, plan, external};
+    // Garmin: a gym session (no heart rate) on Wednesday mornings and a run
+    // with heart rate only on Thursday mornings, over the last weeks
+    const blank = {if: null, np: null, avgPower: null, kj: null, zoneSeconds: Array(7).fill(0),
+                   best: {5: null, 60: null, 300: null, 1200: null, 3600: null}, ftp: null, weight,
+                   workoutId: null, auukiRideId: null, version: 1, source: 'garmin', tss: null};
+    for(let w = 0; w < 4; w++) {
+        const wed = addDays(weekStart(today), 2 - 7 * w);
+        if(wed <= today) {
+            external.push({...blank, id: `garmin-seed-gym-${wed}`, sport: 'weighttraining', day: wed, name: 'Strength',
+                           start: dayToDate(wed).getTime() - 5 * 3600 * 1000, duration: 2700 + Math.round(rnd() * 900),
+                           distance: null, avgHr: null, maxHr: null, remote: {source: 'garmin', externalId: null}});
+        }
+        const thu = addDays(weekStart(today), 3 - 7 * w);
+        if(thu <= today) {
+            const duration = 2400 + Math.round(rnd() * 1500);
+            external.push({...blank, id: `garmin-seed-run-${thu}`, sport: 'run', day: thu, name: 'Easy run',
+                           start: dayToDate(thu).getTime() - 5 * 3600 * 1000, duration, distance: duration * 2.9,
+                           avgHr: 148 + Math.round(rnd() * 8), maxHr: 168, remote: {source: 'garmin', externalId: null}});
+        }
+    }
+
+    // 90 days of health data from a Garmin watch: HRV dips after hard days
+    const loadByDay = new Map(summaries.map(x => [x.day, x.tss]));
+    const wellness = [];
+    for(let d = 89; d >= 0; d--) {
+        const day = addDays(today, -d);
+        const hard = (loadByDay.get(addDays(day, -1)) ?? 0) > 80;
+        const hrv = Math.round(58 + (rnd() - 0.5) * 10 - (hard ? 7 : 0));
+        wellness.push({
+            id: day, day, hrv, hrvWeekly: 58, hrvStatus: hrv < 52 ? 'UNBALANCED' : 'BALANCED', hrvBaseline: {low: 52, high: 65},
+            restingHr: Math.round(47 + (rnd() - 0.5) * 4 + (hard ? 2 : 0)),
+            sleepSeconds: Math.round((7 + (rnd() - 0.5) * 1.5) * 3600), sleepScore: Math.round(62 + rnd() * 28),
+            bodyBattery: Math.round(55 + rnd() * 40 - (hard ? 12 : 0)),
+        });
+    }
+
+    return {summaries, plan, external, wellness, thresholds: {cycling: 165, running: 172}};
 }
 
 async function seedHistory({ftp, weight} = {}) {
@@ -127,9 +163,11 @@ async function seedHistory({ftp, weight} = {}) {
     const { idb } = await import('../storage/idb.js');
     const { today } = await import('../training/dates.js');
     if((await history.summaries()).length > 0) return false;
-    const {summaries, plan, external} = generateHistory({today: today(), ftp: ftp || 250, weight: weight || 75});
+    const {summaries, plan, external, wellness, thresholds} = generateHistory({today: today(), ftp: ftp || 250, weight: weight || 75});
     for(const s of summaries) await idb.put('rideSummaries', s);
     for(const r of external) await idb.put('externalRides', r);
+    for(const d of wellness) await idb.put('wellness', d);
+    (await import('../training/rider-thresholds.js')).thresholds.setGarmin(thresholds);
     for(const e of plan) await idb.put('plan', e);
     await history.saveSummary(summaries.at(-1)); // announce the change once
     console.log(`:dev :history ${summaries.length} rides, ${plan.length} plan entries`);

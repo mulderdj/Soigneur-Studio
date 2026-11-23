@@ -32,6 +32,12 @@ function fmtTss(x) {
 // a ride's sport from intervals.icu; '' for cycling (the default)
 const SPORTS = {weighttraining: 'Strength', virtualrun: 'Virtual run', alpineski: 'Ski', backcountryski: 'Ski touring'};
 
+// the sport label for a workout, '' when its name already says it ("Easy run")
+function sportLabelFor(r) {
+    const label = sportLabel(r?.sport);
+    return label && !String(r?.name ?? '').toLowerCase().includes(label.toLowerCase()) ? label : '';
+}
+
 function sportLabel(sport) {
     if(!sport || sport === 'cycling') return '';
     const s = String(sport).toLowerCase();
@@ -68,4 +74,4 @@ const LOAD_TITLES = {
 function loadTag(source) { return LOAD_TAGS[source] ?? ''; }
 function loadTitle(source) { return LOAD_TITLES[source] ?? ''; }
 
-export { esc, fmtDuration, fmtHours, fmtDay, fmtMonth, fmtTss, sportLabel, syncCounts, garminCounts, loadTag, loadTitle };
+export { esc, fmtDuration, fmtHours, fmtDay, fmtMonth, fmtTss, sportLabel, sportLabelFor, syncCounts, garminCounts, loadTag, loadTitle };

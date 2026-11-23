@@ -34,16 +34,37 @@ describe('generated training history', () => {
     });
 
     test('runs from intervals.icu, and intervals.icu plan entries (one unreadable)', () => {
-        expect(a.external.length).toBeGreaterThanOrEqual(3);
-        for(const r of a.external) {
+        const icu = a.external.filter(r => r.id.startsWith('icu-'));
+        expect(icu.length).toBeGreaterThanOrEqual(3);
+        for(const r of icu) {
             expect(r.source).toBe('intervals');
             expect(r.sport).toBe('run');
             expect(r.id).toMatch(/^icu-/);
             expect(r.day <= today).toBe(true);
             expect(r.tss).toBeGreaterThan(0);
         }
-        const icu = a.plan.filter(e => e.origin === 'intervals');
-        expect(icu.some(e => e.workout?.intervals.length > 0 && e.day > today)).toBe(true);
-        expect(icu.some(e => e.workout === null && e.name)).toBe(true);
+        const planned = a.plan.filter(e => e.origin === 'intervals');
+        expect(planned.some(e => e.workout?.intervals.length > 0 && e.day > today)).toBe(true);
+        expect(planned.some(e => e.workout === null && e.name)).toBe(true);
+    });
+
+    test('90 days of health data, a Garmin gym session and a run with heart rate only', () => {
+        expect(a.wellness).toHaveLength(90);
+        expect(a.wellness.at(-1).day).toBe(today);
+        for(const d of a.wellness) {
+            expect(d.id).toBe(d.day);
+            expect(d.hrv).toBeGreaterThan(30);
+            expect(d.hrv).toBeLessThan(100);
+            expect(d.restingHr).toBeGreaterThan(38);
+            expect(d.sleepSeconds).toBeGreaterThan(4 * 3600);
+            expect(d.hrvBaseline.low).toBeLessThan(d.hrvBaseline.high);
+        }
+        const gym = a.external.filter(r => r.source === 'garmin' && r.sport === 'weighttraining');
+        expect(gym.length).toBeGreaterThan(0);
+        expect(gym.every(r => r.tss === null && r.avgHr === null)).toBe(true);
+        const hrRuns = a.external.filter(r => r.source === 'garmin' && r.sport === 'run');
+        expect(hrRuns.length).toBeGreaterThan(0);
+        expect(hrRuns.every(r => r.tss === null && r.avgHr > 100)).toBe(true);
+        expect(a.thresholds).toEqual({cycling: 165, running: 172});
     });
 });

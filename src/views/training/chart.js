@@ -115,9 +115,12 @@ function drawBars(ctx, el, w, h, {labels, series, stacked = false, every = 1, un
 
 // lines: [{values: (number|null)[], color, width, dashedFrom}] over the same x positions
 // band: optional {low, high, color}, a shaded range behind the lines (e.g. HRV's normal range)
-function drawLines(ctx, el, w, h, {labels, lines, every = 1, zero = false, markIndex = null, band = null}) {
+// fromZero: false fits the axis to the data instead of starting at 0
+function drawLines(ctx, el, w, h, {labels, lines, every = 1, zero = false, markIndex = null, band = null, fromZero = true}) {
     const all = [...lines.flatMap(l => l.values), ...(band ? [band.low, band.high] : [])].filter(Number.isFinite);
-    const {min, max, ticks} = scale(Math.min(0, ...all), Math.max(10, ...all));
+    const lo = fromZero ? Math.min(0, ...all) : Math.max(0, Math.min(...all) - 5);
+    const hi = fromZero ? Math.max(10, ...all) : Math.max(...all) + 5;
+    const {min, max, ticks} = scale(lo, hi);
     axis(ctx, el, w, h, {min, max, ticks, labels, every});
     const pw = w - PAD.l - PAD.r, ph = h - PAD.t - PAD.b;
     const xOf = i => PAD.l + (i + 0.5) * pw / labels.length;
