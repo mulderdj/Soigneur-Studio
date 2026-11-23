@@ -1113,3 +1113,17 @@ body.white-theme .ride .tile--hero .tile__value {
         display: none;
     }
 }
+
+/* phones have room for two small tiles: always Speed and Distance, whatever
+   tile set was last picked on a wider screen (the switch is hidden here) */
+@media (max-width: 599px), (max-height: 599px) and (orientation: landscape) and (max-width: 1199px) {
+    .ride #data-tile--speed,
+    .ride #data-tile--distance {
+        display: flex;
+    }
+
+    .ride #data-tile--smo2,
+    .ride #data-tile--thb {
+        display: none;
+    }
+}

@@ -43,8 +43,21 @@ const pages = arg('pages', Object.keys(PAGES).join(',')).split(',').map(s => s.t
 const outDir = path.join(__dirname, 'out');
 
 // runs in the page: layout problems on the visible page
-function inspect(isPhone) {
+function inspect({isPhone, longValues}) {
     const problems = [];
+    if(longValues) {
+        // the longest values a ride shows, written just before measuring
+        // (live updates would overwrite them within a second)
+        const put = (sel, text) => document.querySelectorAll(sel).forEach(el => { el.textContent = text; });
+        put('#data-tile--power .tile__value', '1234');
+        put('#data-tile--target .tile__value', '1234');
+        put('#elapsed-time', '1:23:45');
+        put('#interval-time', '01:23:45');
+        put('#data-tile--heart-rate .tile__value', '188');
+        put('#data-tile--cadence .tile__value', '115');
+        put('#data-tile--speed .tile__value', '45.6');
+        put('#data-tile--distance .tile__value', '123.4');
+    }
     const visible = el => {
         const r = el.getBoundingClientRect();
         if(r.width === 0 || r.height === 0) return false;
@@ -93,6 +106,14 @@ function inspect(isPhone) {
         if(!visible(el)) continue;
         if(el.scrollWidth > el.clientWidth + 1) {
             problems.push(`text overflows its tile: ${label(el)}`);
+        }
+        // clipped from above or below inside the tile
+        const tile = el.closest('.tile');
+        if(tile) {
+            const r = el.getBoundingClientRect(), t = tile.getBoundingClientRect();
+            if(r.top < t.top - 1 || r.bottom > t.bottom + 1) {
+                problems.push(`text clipped by its tile: ${label(el)}`);
+            }
         }
     }
     return problems;
@@ -184,8 +205,10 @@ async function main() {
                     await pill.click();
                     await page.waitForTimeout(400);
                 }
-                const problems = await page.evaluate(inspect, !!size.phone);
+                const problems = [];
+                // rotate first: inspect() writes long test values into the tiles
                 if(name === 'ride' && size.phone && sizeName === 'phone') problems.push(...await rotateCheck(page));
+                problems.push(...await page.evaluate(inspect, {isPhone: !!size.phone, longValues: name === 'ride'}));
                 await page.screenshot({path: path.join(outDir, `${name}-${sizeName}-${theme}.png`)});
                 for(const p of problems) failures.push(`${where}: ${p}`);
                 if(name === 'riders') {
@@ -197,6 +220,32 @@ async function main() {
             await context.close();
         }
     }
+    // a stored tile choice from a wider screen (SmO2/THb) must not take the
+    // phone's Speed and Distance slots
+    {
+        const context = await browser.newContext({viewport: {width: 390, height: 844}, hasTouch: true});
+        await context.addInitScript(() => {
+            try { localStorage.setItem('dataTileSwitch', '1'); } catch(e) {}
+            if(!('bluetooth' in navigator)) {
+                Object.defineProperty(navigator, 'bluetooth', {value: {
+                    getAvailability: async () => false, getDevices: async () => [],
+                    addEventListener() {}, removeEventListener() {},
+                }});
+            }
+        });
+        const page = await context.newPage();
+        await page.goto(`${url}/?simulate`, {waitUntil: 'networkidle'});
+        await page.waitForTimeout(800);
+        const shown = await page.evaluate(() => Object.fromEntries(
+            ['speed', 'distance', 'smo2', 'thb'].map(t => {
+                const el = document.querySelector(`#data-tile--${t}`);
+                return [t, !!el && getComputedStyle(el).display !== 'none'];
+            })));
+        if(!shown.speed || !shown.distance) failures.push(`ride @ phone with stored tile choice 1: Speed/Distance hidden (${JSON.stringify(shown)})`);
+        if(shown.smo2 || shown.thb) failures.push(`ride @ phone with stored tile choice 1: SmO2/THb shown (${JSON.stringify(shown)})`);
+        await context.close();
+    }
+
     await browser.close();
 
     for(const name of missing) console.log(`note: page "${name}" not present, skipped`);

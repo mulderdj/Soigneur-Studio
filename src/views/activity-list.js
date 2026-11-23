@@ -18,7 +18,6 @@ class ActivityList extends HTMLElement {
     }
     disconnectedCallback() {
         this.abortController.abort();
-        this.unsubs();
     }
     onAdd(activity) {
         const self = this;
@@ -97,11 +96,29 @@ class ActivityItem extends HTMLElement {
     }
     disconnectedCallback() {
         this.abortController.abort();
+        clearTimeout(this.disarmTimer);
+    }
+    arm() {
+        const $btn = this.querySelector('.btn--danger');
+        const label = $btn?.getAttribute('aria-label') ?? '';
+        this.dataset.armed = '1';
+        $btn?.setAttribute('aria-label', label.replace(/^Delete/, 'Tap again to delete'));
+        this.disarmTimer = setTimeout(() => {
+            delete this.dataset.armed;
+            $btn?.setAttribute('aria-label', label);
+        }, 4000);
     }
     onAction(action) {
         if(action === ':remove') {
-            models.activity.remove(this.id);
-            this.remove();
+            // rides on this device exist nowhere else: the first tap asks,
+            // a second tap within a few seconds deletes
+            if(this.dataset.armed) {
+                clearTimeout(this.disarmTimer);
+                models.activity.remove(this.id);
+                this.remove();
+            } else {
+                this.arm();
+            }
             return;
         }
         if(action === ':download') {

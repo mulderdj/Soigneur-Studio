@@ -34,6 +34,12 @@
     font-size: var(--text-s);
 }
 
+/* first tap on delete: the button turns red and asks for a second tap */
+.activity[data-armed] .btn--danger {
+    background-color: var(--danger);
+    color: var(--on-brand);
+}
+
 .activity .list-row__meta {
     font-variant-numeric: tabular-nums;
 }
