@@ -14,6 +14,7 @@ const http = require('node:http');
 const crypto = require('node:crypto');
 const { DatabaseSync } = require('node:sqlite');
 const { createConnections } = require('./connections.js');
+const { createIntervalsSync } = require('./intervals-sync.js');
 
 const SESSION_DAYS = 90;
 const MAX_JSON_BYTES = 1 * 1024 * 1024;       // profile, workouts, user edits
@@ -202,6 +203,8 @@ function createApp(options = {}) {
     const allowSignup = !!options.allowSignup;
     const loginFails = new Map(); // key -> {count, since}
     const connections = createConnections({db, fail, options: options.connections});
+    const intervalsSync = createIntervalsSync({db, options: options.intervals});
+    connections.setIntervalsStatus(userId => intervalsSync.status(userId));
 
     const q = {
         userCount:     db.prepare('SELECT COUNT(*) AS n FROM users'),
@@ -471,6 +474,7 @@ function createApp(options = {}) {
     }, {auth: true});
 
     connections.routes(route, {validId});
+    intervalsSync.routes(route, {fail, validId});
 
     // --- user management (admin) ---
 
@@ -552,8 +556,8 @@ function createApp(options = {}) {
     const server = http.createServer(handle);
 
     return {
-        server, db, connections,
-        close: () => { connections.close(); server.closeAllConnections(); server.close(); db.close(); },
+        server, db, connections, intervalsSync,
+        close: () => { connections.close(); intervalsSync.close(); server.closeAllConnections(); server.close(); db.close(); },
     };
 }
 

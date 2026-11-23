@@ -268,6 +268,9 @@ function createConnections({db, fail, options = {}}) {
 
     // --- routes ------------------------------------------------------------
 
+    let intervalsStatus = () => null;
+    function setIntervalsStatus(fn) { intervalsStatus = fn; }
+
     function describe(userId) {
         const rows = Object.fromEntries(q.all.all(userId).map(r => [r.service, r]));
         const s = rows.strava ? JSON.parse(rows.strava.data) : null;
@@ -285,6 +288,7 @@ function createConnections({db, fail, options = {}}) {
                 athlete: i?.athleteName ?? null,
                 athleteId: i?.athleteId ?? null,
                 autoUpload: rows.intervals ? !!rows.intervals.auto_upload : true,
+                sync: intervalsStatus(userId),
             },
             garmin: {
                 available: false,
@@ -388,7 +392,7 @@ function createConnections({db, fail, options = {}}) {
         timers.clear();
     }
 
-    return {routes, onRideSaved, uploadsFor, resume, close, stravaConfigured};
+    return {routes, onRideSaved, uploadsFor, resume, close, stravaConfigured, setIntervalsStatus};
 }
 
 module.exports = { createConnections };

@@ -18,7 +18,7 @@ const port = Number(process.env.PORT ?? 3000);
 const dataDir = process.env.DATA_DIR ?? path.join(__dirname, 'data');
 fs.mkdirSync(dataDir, {recursive: true});
 
-const { server, connections } = createApp({
+const { server, connections, intervalsSync } = createApp({
     dbPath: path.join(dataDir, 'auuki.db'),
     allowSignup: String(process.env.ALLOW_SIGNUP ?? '').toLowerCase() === 'true',
     connections: {
@@ -32,6 +32,7 @@ const { server, connections } = createApp({
     },
 });
 connections.resume();
+intervalsSync.start(); // every 15 minutes for each rider with intervals.icu connected
 
 server.listen(port, () => {
     console.log(`auuki account server on :${port}, data in ${dataDir}`);
