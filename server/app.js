@@ -175,6 +175,14 @@ function openDatabase(path) {
             updated_at INTEGER NOT NULL,
             PRIMARY KEY (user_id, id)
         );
+        CREATE TABLE IF NOT EXISTS plan (
+            user_id    TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+            id         TEXT NOT NULL,
+            data       TEXT NOT NULL,
+            deleted    INTEGER NOT NULL DEFAULT 0,
+            updated_at INTEGER NOT NULL,
+            PRIMARY KEY (user_id, id)
+        );
         CREATE TABLE IF NOT EXISTS activities (
             user_id    TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
             id         TEXT NOT NULL,
@@ -219,6 +227,12 @@ function createApp(options = {}) {
         deleteWorkout: db.prepare(`UPDATE workouts SET deleted = 1, data = '{}', updated_at = ? WHERE user_id = ? AND id = ?`),
         activities:    db.prepare('SELECT id, summary, created_at, length(fit) AS bytes FROM activities WHERE user_id = ? ORDER BY created_at DESC'),
         activity:      db.prepare('SELECT summary, fit FROM activities WHERE user_id = ? AND id = ?'),
+        activitySummary: db.prepare('SELECT summary FROM activities WHERE user_id = ? AND id = ?'),
+        updateActivitySummary: db.prepare('UPDATE activities SET summary = ? WHERE user_id = ? AND id = ?'),
+        plan:          db.prepare('SELECT id, data, deleted, updated_at FROM plan WHERE user_id = ? AND updated_at > ? ORDER BY updated_at'),
+        upsertPlan:    db.prepare(`INSERT INTO plan (user_id, id, data, deleted, updated_at) VALUES (?, ?, ?, 0, ?)
+                                   ON CONFLICT (user_id, id) DO UPDATE SET data = excluded.data, deleted = 0, updated_at = excluded.updated_at`),
+        deletePlan:    db.prepare(`UPDATE plan SET deleted = 1, data = '{}', updated_at = ? WHERE user_id = ? AND id = ?`),
         insertActivity: db.prepare(`INSERT INTO activities (user_id, id, summary, fit, created_at) VALUES (?, ?, ?, ?, ?)
                                     ON CONFLICT(user_id, id) DO NOTHING`),
         deleteActivity: db.prepare('DELETE FROM activities WHERE user_id = ? AND id = ?'),
@@ -376,6 +390,43 @@ function createApp(options = {}) {
 
     route('DELETE', '/api/me/workouts/:id', ({auth, params}) => {
         q.deleteWorkout.run(now(), auth.user.id, validId(params.id));
+        return {ok: true};
+    }, {auth: true});
+
+    // training plan: incremental sync with ?since=<updatedAt>, like workouts
+    route('GET', '/api/me/plan', ({auth, url}) => {
+        const since = Number(url.searchParams.get('since') ?? 0) || 0;
+        const rows = q.plan.all(auth.user.id, since);
+        return {
+            entries: rows.map(r => ({id: r.id, deleted: !!r.deleted, updatedAt: r.updated_at,
+                                     data: r.deleted ? null : JSON.parse(r.data)})),
+            now: now(),
+        };
+    }, {auth: true});
+
+    route('PUT', '/api/me/plan/:id', ({auth, body, params}) => {
+        const id = validId(params.id);
+        if(typeof body.data !== 'object' || body.data === null) fail(400, 'Expected {data: {...}}.');
+        const t = now();
+        q.upsertPlan.run(auth.user.id, id, JSON.stringify(body.data), t);
+        return {updatedAt: t};
+    }, {auth: true});
+
+    route('DELETE', '/api/me/plan/:id', ({auth, params}) => {
+        q.deletePlan.run(now(), auth.user.id, validId(params.id));
+        return {ok: true};
+    }, {auth: true});
+
+    // a ride summary for the Training page, added to a ride saved earlier
+    route('PATCH', '/api/me/activities/:id/summary', ({auth, body, params}) => {
+        const id = validId(params.id);
+        if(typeof body.training !== 'object' || body.training === null || Array.isArray(body.training)) {
+            fail(400, 'Expected {training: {...}}.');
+        }
+        const row = q.activitySummary.get(auth.user.id, id);
+        if(!row) fail(404, 'Ride not found.');
+        const summary = {...JSON.parse(row.summary), training: body.training};
+        q.updateActivitySummary.run(JSON.stringify(summary), auth.user.id, id);
         return {ok: true};
     }, {auth: true});
 

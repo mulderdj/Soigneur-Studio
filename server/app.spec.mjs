@@ -166,3 +166,54 @@ test('rejects non-JSON bodies and oversized requests', async () => {
     assert.equal(big.status, 413);
     stop();
 });
+
+test('training plan syncs per user, incrementally, with deletions', async () => {
+    const {call, stop} = await start({allowSignup: true});
+    try {
+        const a = (await call('POST', '/api/auth/register', {body: {username: 'dj', password: 'password123'}})).json.token;
+        const b = (await call('POST', '/api/auth/register', {body: {username: 'ane', password: 'password123'}})).json.token;
+        const entry = (day) => ({data: {day, workout: {id: 'w1', meta: {name: 'Sweet spot'}, intervals: []}, rideId: null}});
+
+        assert.equal((await call('PUT', '/api/me/plan/p1', {token: a, body: entry('2026-11-24')})).status, 200);
+        await call('PUT', '/api/me/plan/p2', {token: a, body: entry('2026-11-25')});
+        const all = (await call('GET', '/api/me/plan', {token: a})).json;
+        assert.equal(all.entries.length, 2);
+        assert.equal(all.entries.find(e => e.id === 'p1').data.day, '2026-11-24');
+        const since = Math.max(...all.entries.map(e => e.updatedAt));
+
+        await new Promise(r => setTimeout(r, 5));
+        await call('PUT', '/api/me/plan/p1', {token: a, body: entry('2026-11-26')});
+        await call('DELETE', '/api/me/plan/p2', {token: a});
+        const delta = (await call('GET', `/api/me/plan?since=${since}`, {token: a})).json.entries;
+        assert.equal(delta.length, 2);
+        assert.equal(delta.find(e => e.id === 'p1').data.day, '2026-11-26');
+        assert.equal(delta.find(e => e.id === 'p2').deleted, true);
+        assert.equal(delta.find(e => e.id === 'p2').data, null);
+
+        assert.equal((await call('GET', '/api/me/plan', {token: b})).json.entries.length, 0);
+        assert.equal((await call('PUT', '/api/me/plan/p3', {token: a, body: {nope: 1}})).status, 400);
+    } finally {
+        stop();
+    }
+});
+
+test('ride summaries can be added to rides already on the server', async () => {
+    const {call, stop} = await start({allowSignup: true});
+    try {
+        const a = (await call('POST', '/api/auth/register', {body: {username: 'dj', password: 'password123'}})).json.token;
+        const b = (await call('POST', '/api/auth/register', {body: {username: 'ane', password: 'password123'}})).json.token;
+        await call('POST', '/api/me/activities', {token: a, body: {id: 'r1', fit: FIT.toString('base64'),
+            summary: {name: 'Sweet spot', timestamp: Date.UTC(2026, 10, 22), duration: 3600}}});
+
+        const training = {version: 1, id: 'r1', day: '2026-11-22', tss: 72};
+        assert.equal((await call('PATCH', '/api/me/activities/r1/summary', {token: a, body: {training}})).status, 200);
+        const ride = (await call('GET', '/api/me/activities', {token: a})).json.activities[0];
+        assert.deepEqual(ride.training, training);
+        assert.equal(ride.name, 'Sweet spot');
+
+        assert.equal((await call('PATCH', '/api/me/activities/r1/summary', {token: b, body: {training}})).status, 404);
+        assert.equal((await call('PATCH', '/api/me/activities/r1/summary', {token: a, body: {training: 'x'}})).status, 400);
+    } finally {
+        stop();
+    }
+});
