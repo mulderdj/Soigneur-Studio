@@ -21,6 +21,14 @@ A fork of [dvmarinoff/Auuki](https://github.com/dvmarinoff/Auuki) with one inter
   * W′bal line on the ride chart, and peak power for 5 s, 30 s, 1, 5, 10, 20 and 60 min.
 * Light and dark theme, 4K / TV scaling, and statistics rebuilt from the recorded session after a page reload.
 
+**Training page.** Your riding at a glance, on every screen size:
+* *Form*: fitness (42-day), fatigue (7-day) and form, with the last 90 days and a 4-week forecast from your plan.
+* *Calendar*: your rides and planned workouts per week (phone) or month. Tap a day to see its rides, plan a workout from your library, or move or remove a planned one. Planned workouts show as planned, done (planned vs. actual TSS) or missed.
+* *Riding the plan*: on a day with a planned workout, the Ride page selects it when the app opens (not over a workout you picked yourself that day, and never during a ride). A saved ride is matched to that day's plan.
+* *Progress*: weekly volume (hours, TSS, kJ), power curve (last 6 weeks vs. all time, W or W/kg), FTP trend (estimated from your best 20 and 60 minutes, with a button to update your FTP when it's more than 5 % off) and time in zones per week or month.
+* Every saved ride keeps a small summary, also when the device trims old `.fit` files. Rides from before this version are read back from their `.fit` the first time you open Training, from this device or from your account. Signed in, the plan and summaries sync through your account server.
+* Development: `?simulate&history` on `npm start` fills a rider with 4 months of generated rides and a plan.
+
 **More workout files.** Load several at once from the Workouts page:
 * `.zwo` Zwift workouts (also when saved as `.xml`)
 * `.erg` (watts) and `.mrc` (percent of FTP) from TrainerRoad, GoldenCheetah, PerfPRO and others, including `[COURSE TEXT]` cues
