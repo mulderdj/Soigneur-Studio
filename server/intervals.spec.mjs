@@ -80,3 +80,12 @@ test('start falls back to the local time when no UTC start is given', () => {
     assert.equal(s.day, '2026-11-20');
     assert.ok(Number.isFinite(s.start));
 });
+
+test('heart rate comes along, for a load when intervals.icu has none (live check)', () => {
+    const s = toSummary({...ride, icu_training_load: undefined, average_heartrate: 148, max_heartrate: 176}, {});
+    assert.equal(s.avgHr, 148);
+    assert.equal(s.maxHr, 176);
+    const none = toSummary({...ride, average_heartrate: undefined, max_heartrate: undefined}, {});
+    assert.equal(none.avgHr, null);
+    assert.equal(none.maxHr, null);
+});

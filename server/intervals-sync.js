@@ -138,8 +138,11 @@ function createIntervalsSync({db, options = {}}) {
         };
     }
 
+    // what decides "unchanged"; MAPPING changes when toSummary maps more,
+    // so rides stored before are mapped again on the next sync
+    const MAPPING = 'm2'; // m2: heart rate (live check, 2026-11-23)
     function fingerprint(a) {
-        return [a.start_date_local, a.moving_time, a.elapsed_time, a.icu_training_load,
+        return [MAPPING, a.start_date_local, a.moving_time, a.elapsed_time, a.icu_training_load,
                 a.icu_weighted_avg_watts, a.name, a.type].join('|');
     }
 

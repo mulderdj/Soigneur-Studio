@@ -438,3 +438,21 @@ test('imported .fit rides are stored per user', async () => {
         assert.deepEqual((await call('GET', '/api/me/external-rides', {token: other})).json.rides, []);
     } finally { stop(); }
 });
+
+test('rides stored by an older mapping are mapped again (live check)', async () => {
+    const {app, call, token, userId, fake, stop} = await setup();
+    try {
+        await connect(call, token);
+        const a = activity('a1', 3, {average_heartrate: 151});
+        fake.state.activities = [a];
+        // as stored before heart rate was mapped: the old fingerprint, no avgHr
+        const oldFp = [a.start_date_local, a.moving_time, a.elapsed_time, a.icu_training_load,
+                       a.icu_weighted_avg_watts, a.name, a.type].join('|');
+        app.db.prepare('INSERT INTO external_rides (user_id, id, summary, day, fingerprint, updated_at) VALUES (?, ?, ?, ?, ?, ?)')
+            .run(userId, 'icu-a1', JSON.stringify({id: 'icu-a1', day: a.start_date_local.slice(0, 10), source: 'intervals'}),
+                 a.start_date_local.slice(0, 10), oldFp, 1);
+        await app.intervalsSync.run(userId);
+        const ride = (await call('GET', '/api/me/external-rides', {token})).json.rides.find(r => r.id === 'icu-a1');
+        assert.equal(ride.avgHr, 151);
+    } finally { stop(); }
+});

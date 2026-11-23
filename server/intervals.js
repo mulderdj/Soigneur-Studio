@@ -85,6 +85,8 @@ function toSummary(a, {powerCurve = null, auukiRideId = null} = {}) {
         kj:        Number.isFinite(a.icu_joules) ? Math.round(a.icu_joules / 1000) : null,
         zoneSeconds: cycling ? zonesFromZoneTimes(a.icu_zone_times) : Array(7).fill(0),
         best:      cycling ? bestFromPowerCurve(powerCurve) : bestFromPowerCurve(null),
+        avgHr:     num(a.average_heartrate), // for a heart-rate load when there is no load
+        maxHr:     num(a.max_heartrate),
         ftp:       num(a.icu_ftp),
         weight:    num(a.icu_weight),
         remote:    {source: a.source ?? null, externalId: a.external_id ?? null},
