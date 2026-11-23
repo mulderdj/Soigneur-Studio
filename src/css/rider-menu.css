@@ -469,3 +469,10 @@ a.rm--sent:hover {
 /* intervals.icu sync status on its account card */
 .rm--icu-sync { display: block; }
 .rm--icu-sync.rm--error { color: var(--danger); }
+
+/* the Garmin key form: key, optional expiry date, Connect */
+.rm--garmin-expiry {
+    flex: 0 1 auto;
+    font-size: var(--text-xs);
+    color: var(--muted);
+}

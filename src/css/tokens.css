@@ -18,6 +18,7 @@ body.dark-theme {
     --muted:     #8C98A8;
     --accent:    #4C9AFF;
     --on-accent: #0B1220;
+    --band:      rgba(76, 154, 255, 0.16); /* a shaded range in charts (HRV normal range) */
     --good:      #57C057;
     --warn:      #F8C73A;
     --danger:    #FF663A;
@@ -56,6 +57,7 @@ body.white-theme {
     --muted:     #5D6A7A;
     --accent:    #1F6FE0;
     --on-accent: #FFFFFF;
+    --band:      rgba(31, 111, 224, 0.12); /* a shaded range in charts (HRV normal range) */
     --good:      #2E8B3A;
     --warn:      #B98900;
     --danger:    #D84A1B;
@@ -79,6 +81,7 @@ body.white-theme {
         --muted:     #5D6A7A;
         --accent:    #1F6FE0;
         --on-accent: #FFFFFF;
+        --band:      rgba(31, 111, 224, 0.12); /* a shaded range in charts (HRV normal range) */
         --good:      #2E8B3A;
         --warn:      #B98900;
         --danger:    #D84A1B;

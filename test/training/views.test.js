@@ -1,8 +1,12 @@
 /**
  * @jest-environment jsdom
  */
+// jsdom has no ResizeObserver; the chart cards only need it to redraw
+globalThis.ResizeObserver ??= class { observe() {} disconnect() {} };
 import { ftpNudge } from '../../src/views/training/progress-cards.js';
-import { syncCounts, sportLabel } from '../../src/views/training/format.js';
+import { syncCounts, sportLabel, garminCounts, loadTag } from '../../src/views/training/format.js';
+import '../../src/views/training/health-card.js';
+import '../../src/views/training/hr-thresholds.js';
 import '../../src/views/training/calendar.js';
 import '../../src/views/training/day-dialog.js';
 
@@ -183,5 +187,91 @@ describe('other sports and intervals.icu status', () => {
         expect(syncCounts({stored: 3, skipped: {STRAVA: 1, GARMIN_CONNECT: 2}}))
             .toBe('3 activities · 1 from Strava, 2 from Garmin weren\'t available');
         expect(syncCounts(null)).toBe('');
+    });
+});
+
+describe('loads, ratings and health', () => {
+    test('workouts whose load is not from power carry a tag', () => {
+        expect(loadTag('power')).toBe('');
+        expect(loadTag('hr')).toBe('HR');
+        expect(loadTag('rpe')).toBe('RPE');
+        expect(loadTag('estimate')).toBe('est.');
+        document.body.innerHTML = '<training-calendar layout="desktop"></training-calendar>';
+        const el = document.querySelector('training-calendar');
+        el.data = {...data, summaries: [
+            {id: 'g1', day: '2026-11-26', name: 'Gym', sport: 'weighttraining', duration: 3600, tss: 30, loadSource: 'estimate', start: 1},
+            {id: 'g2', day: '2026-11-26', name: 'Run', sport: 'run', duration: 3600, tss: 69, loadSource: 'hr', start: 2},
+            {id: 'g3', day: '2026-11-26', name: 'Ride', duration: 3600, tss: 60, loadSource: 'power', start: 3},
+        ]};
+        const tag = name => [...el.querySelectorAll('.cal-ride')].find(i => i.textContent.includes(name)).querySelector('.cal-load')?.textContent;
+        expect(tag('Gym')).toBe('est.');
+        expect(tag('Run')).toBe('HR');
+        expect(tag('Ride')).toBeUndefined();
+    });
+
+    test('the day dialog asks how hard a workout without power or heart rate was', () => {
+        document.body.innerHTML = '<day-dialog></day-dialog>';
+        const el = document.querySelector('day-dialog');
+        el.actions = {rateRide: jest.fn(async () => {})};
+        el.open('2026-11-26', {...data, summaries: [
+            {id: 'g1', day: '2026-11-26', name: 'Gym', sport: 'weighttraining', duration: 3600, tss: 49, loadSource: 'rpe', rating: 7, start: 1},
+            {id: 'g3', day: '2026-11-26', name: 'Ride', duration: 3600, tss: 60, loadSource: 'power', start: 3},
+        ]});
+        const buttons = el.querySelectorAll('[data-rate="g1"]');
+        expect(buttons).toHaveLength(10);
+        expect(el.querySelector('[data-rate="g1"][aria-pressed="true"]').dataset.rpe).toBe('7');
+        expect(el.querySelector('[data-rate="g3"]')).toBeNull();
+        el.querySelector('[data-rate="g1"][data-rpe="5"]').click();
+        expect(el.actions.rateRide).toHaveBeenCalledWith('g1', 5);
+        el.open('2026-11-26', {...data, summaries: [{id: 'g1', day: '2026-11-26', name: 'Gym', duration: 3600, tss: 49, loadSource: 'rpe', rating: 7, start: 1}]});
+        el.querySelector('[data-rate="g1"][data-rpe="7"]').click();   // the same again takes it away
+        expect(el.actions.rateRide).toHaveBeenLastCalledWith('g1', null);
+    });
+
+    test('the health card: last night against the normal range, resting HR, sleep, Body Battery', () => {
+        document.body.innerHTML = '<health-card></health-card>';
+        const el = document.querySelector('health-card');
+        const days = Array.from({length: 20}, (_, i) => ({day: `2026-11-${String(i + 4).padStart(2, '0')}`, hrv: 60, restingHr: 48}));
+        days.push({day: '2026-11-24', hrv: 44, hrvBaseline: {low: 52, high: 66}, restingHr: 53, sleepSeconds: 25920, sleepScore: 71, bodyBattery: 62});
+        el.data = {today, wellness: days};
+        expect(el.hidden).toBe(false);
+        expect(el.querySelector('[data-hrv-state]').dataset.hrvState).toBe('below');
+        expect(el.textContent).toContain('44');
+        expect(el.textContent).toContain('52–66');
+        expect(el.textContent).toContain('53');
+        expect(el.textContent).toContain('7:12');
+        expect(el.textContent).toContain('71');
+        expect(el.textContent).toContain('62');
+        expect(el.querySelector('canvas')).not.toBeNull();
+        el.data = {today, wellness: []};
+        expect(el.hidden).toBe(true);
+    });
+
+    test('Garmin status text', () => {
+        expect(garminCounts({activities: 120, days: 90})).toBe('120 activities · 90 days of health data');
+        expect(garminCounts({activities: 1, days: 1})).toBe('1 activity · 1 day of health data');
+        expect(garminCounts(null)).toBe('');
+    });
+});
+
+describe('threshold heart rate in Settings', () => {
+    test('shows Garmin\'s value as a hint and saves the rider\'s own', () => {
+        const saved = [];
+        const store = {
+            own: () => ({cycling: null, running: 171}),
+            garmin: () => ({cycling: 165, running: 172}),
+            setOwn: v => saved.push(v),
+        };
+        document.body.innerHTML = '<hr-thresholds></hr-thresholds>';
+        const el = document.querySelector('hr-thresholds');
+        el.store = store;
+        const cycling = el.querySelector('input[name="cycling"]');
+        const running = el.querySelector('input[name="running"]');
+        expect(cycling.value).toBe('');
+        expect(cycling.placeholder).toBe('165 from Garmin');
+        expect(running.value).toBe('171');
+        cycling.value = '158';
+        el.querySelector('form').dispatchEvent(new Event('submit', {cancelable: true, bubbles: true}));
+        expect(saved).toEqual([{cycling: '158', running: '171'}]);
     });
 });

@@ -8,7 +8,7 @@ import { riders } from '../riders.js';
 import { sensors } from '../sensors.js';
 import { api, ApiError } from '../account/api.js';
 import { syncNow, status as syncStatus } from '../account/sync.js';
-import { syncCounts } from './training/format.js';
+import { syncCounts, garminCounts } from './training/format.js';
 
 function esc(s) {
     return String(s ?? '').replace(/[&<>"']/g, c => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'}[c]));
@@ -59,6 +59,27 @@ const SYNC_LABEL = {
     offline: 'Offline, will retry',
     error: 'Sync problem',
 };
+
+// the Garmin card: sync status, and a warning before the key expires
+function garminStatus(g) {
+    const lines = [];
+    if(g.sync?.lastRun) {
+        const when = new Date(g.sync.lastRun).toLocaleString([], {day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit'});
+        lines.push(`<small class="rm--icu-sync">Synced ${esc(when)}: ${esc(garminCounts(g.sync))}.</small>`);
+    } else {
+        lines.push('<small class="rm--icu-sync">First sync on its way: 90 days of health data and 2 years of activities.</small>');
+    }
+    if(g.expiresOn) {
+        const days = Math.ceil((Date.parse(g.expiresOn) - Date.now()) / 86400000);
+        if(days <= 7) {
+            lines.push(`<small class="rm--icu-sync rm--error">${days < 0 ? 'The key has expired' : `The key expires ${days === 0 ? 'today' : `in ${days} day${days === 1 ? '' : 's'}`}`}. Create a new one on Garmin Connect and paste it here.</small>`);
+        } else {
+            lines.push(`<small class="rm--icu-sync">Key valid until ${esc(new Date(g.expiresOn).toLocaleDateString([], {day: 'numeric', month: 'short', year: 'numeric'}))}.</small>`);
+        }
+    }
+    if(g.sync?.error) lines.push(`<small class="rm--icu-sync rm--error">${esc(g.sync.error)}</small>`);
+    return lines.join('');
+}
 
 // the intervals.icu sync status on its account card
 function intervalsSync(sync) {
@@ -324,9 +345,21 @@ class RiderMenu extends HTMLElement {
                 <span class="rm--svc rm--svc-garmin" aria-hidden="true">G</span>
                 <div class="rm--svc-body">
                     <b>Garmin Connect</b>
-                    <small>Garmin only lets approved businesses upload for you. Use <i>Send to Garmin</i> in Ride history: it downloads the ride and opens Garmin's import page.</small>
+                    ${c.garmin?.connected ? `<small>Connected. Your health data (HRV, resting heart rate, sleep, Body Battery) and activities come in every 15 minutes.</small>${garminStatus(c.garmin)}` : `
+                    <small>Paste your Personal API key: Garmin Connect on the web, Settings, Personal API Key. It brings in your health data (HRV, resting heart rate, sleep, Body Battery) and activities.</small>
+                    ${c.garmin?.sync?.error ? `<small class="rm--icu-sync rm--error">${esc(c.garmin.sync.error)}</small>` : ''}
+                    <form class="rm--inline rm--garmin-form" data-form="garmin-key">
+                        <input class="input" name="apiKey" autocomplete="off" spellcheck="false" placeholder="Personal API key" aria-label="Garmin Personal API key" required>
+                        <label class="field rm--garmin-expiry">Expires on <input class="input" type="date" name="expiresOn" aria-label="Expiry date of the key (optional)"></label>
+                        <button type="submit" class="btn rm--btn">Connect</button>
+                    </form>
+                    <small>For your own use: Garmin's personal key is for the account holder's own data.</small>`}
+                    <small>Sending rides to Garmin is for approved businesses only. Use <i>Send to Garmin</i> in Ride history: it downloads the ride and opens Garmin's import page.</small>
                 </div>
-                <div class="rm--svc-actions"></div>
+                <div class="rm--svc-actions">
+                    ${c.garmin?.connected ? `<button type="button" class="btn rm--btn" data-act="sync-garmin">Sync now</button>
+                        <button type="button" class="btn rm--btn rm--quiet btn--quiet" data-act="disconnect" data-id="garmin">Disconnect</button>` : ''}
+                </div>
             </div>`;
     }
 
@@ -499,6 +532,11 @@ class RiderMenu extends HTMLElement {
                 await syncNow();
                 this.render();
                 break;
+            case 'sync-garmin':
+                await api.post('/me/garmin/sync', {});
+                this.say('Garmin sync started. New health data and activities show up on the Training page in a minute.');
+                setTimeout(() => syncNow().then(() => this.render()).catch(() => {}), 30 * 1000);
+                break;
             case 'sync-intervals':
                 await api.post('/me/intervals/sync', {});
                 this.say('intervals.icu sync started. New rides and workouts show up on the Training page in a minute.');
@@ -545,7 +583,8 @@ class RiderMenu extends HTMLElement {
             case 'disconnect':
                 if(!this.confirmed(b, 'Disconnect?')) return;
                 await api.delete(`/me/connections/${encodeURIComponent(id)}`);
-                this.say(`${id === 'strava' ? 'Strava' : 'intervals.icu'} disconnected. Rides already sent stay there.`);
+                this.say(id === 'garmin' ? 'Garmin disconnected. The health data and activities already here stay.' :
+                         `${id === 'strava' ? 'Strava' : 'intervals.icu'} disconnected. Rides already sent stay there.`);
                 this.renderConnections();
                 break;
             case 'delete-ride':
@@ -638,6 +677,12 @@ class RiderMenu extends HTMLElement {
                 await api.post('/users', {...data, displayName: data.displayName || undefined});
                 this.say(`Account @${data.username.toLowerCase()} created.`);
                 this.render();
+                break;
+            case 'garmin-key':
+                await api.put('/me/connections/garmin', {apiKey: data.apiKey, ...(data.expiresOn ? {expiresOn: data.expiresOn} : {})});
+                this.say('Garmin connected. Your health data and activities are on their way; the first sync takes a few minutes.');
+                this.renderConnections();
+                setTimeout(() => syncNow().then(() => this.render()).catch(() => {}), 60 * 1000);
                 break;
             case 'intervals-key':
                 await api.put('/me/connections/intervals', {apiKey: data.apiKey});

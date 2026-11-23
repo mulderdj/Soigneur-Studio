@@ -10,7 +10,17 @@
 
 import { history } from '../../training/history.js';
 import { planStatus, plannedTss } from '../../training/plan.js';
-import { esc, fmtDuration, fmtDay, fmtTss, sportLabel } from './format.js';
+import { esc, fmtDuration, fmtDay, fmtTss, sportLabel, loadTag, loadTitle } from './format.js';
+
+// "How hard was it?" 1–10, for a workout without power or heart rate
+function rating(r) {
+    const buttons = Array.from({length: 10}, (_, i) => i + 1).map(n =>
+        `<button type="button" class="dd-rpe" data-rate="${esc(r.id)}" data-rpe="${n}" aria-pressed="${r.rating === n}" aria-label="${n} out of 10">${n}</button>`).join('');
+    return `<div class="dd-rating" role="group" aria-label="How hard was ${esc(r.name)}?">
+                <span class="dd-rating__label">How hard was it?</span><span class="dd-rating__scale">${buttons}</span>
+                <small class="dd-rating__hint">1 very easy · 5 steady · 10 all-out</small>
+            </div>`;
+}
 
 class DayDialog extends HTMLElement {
     constructor() {
@@ -48,6 +58,14 @@ class DayDialog extends HTMLElement {
             if(workout) { await this.actions.addPlanEntry(this.day, workout); this.close(); }
             return;
         }
+        const rate = e.target.closest('[data-rate]');
+        if(rate) {
+            const rpe = Number(rate.dataset.rpe);
+            const ride = (this.data.allSummaries ?? this.data.summaries ?? []).find(s => s.id === rate.dataset.rate);
+            this.actions.rateRide(rate.dataset.rate, ride?.rating === rpe ? null : rpe); // the same again takes it away
+            this.close();
+            return;
+        }
         const hide = e.target.closest('[data-hide]');
         if(hide) { this.actions.hideRide(hide.dataset.hide); this.close(); return; }
         const show = e.target.closest('[data-show]');
@@ -73,10 +91,11 @@ class DayDialog extends HTMLElement {
             </div>
             ${rides.length ? `<h3 class="dd-sub">Rides</h3><ul class="dd-list">${rides.map(r => `
                 <li class="list-row dd-ride${r.hidden ? ' is-hidden' : ''}"><div class="list-row__main"><div class="list-row__title">${esc(r.name)}</div>
-                    <div class="list-row__meta">${sportLabel(r.sport) ? `${esc(sportLabel(r.sport))} · ` : ''}${fmtDuration(r.duration)} · ${fmtTss(r.tss)} TSS${Number.isFinite(r.np) ? ` · NP ${Math.round(r.np)} W` : ''}${r.hidden ? ' · hidden' : ''}</div></div>
+                    <div class="list-row__meta">${sportLabel(r.sport) ? `${esc(sportLabel(r.sport))} · ` : ''}${fmtDuration(r.duration)} · ${fmtTss(r.tss)} TSS${loadTag(r.loadSource) ? ` <span class="badge cal-load" title="${esc(loadTitle(r.loadSource))}">${loadTag(r.loadSource)}</span>` : ''}${Number.isFinite(r.np) ? ` · NP ${Math.round(r.np)} W` : ''}${r.hidden ? ' · hidden' : ''}</div></div>
                     ${r.hidden ?
                       `<button type="button" class="btn" data-show="${esc(r.id)}">Show</button>` :
-                      `<button type="button" class="btn" data-hide="${esc(r.id)}">Hide this ride</button>`}</li>`).join('')}</ul>` : ''}
+                      `<button type="button" class="btn" data-hide="${esc(r.id)}">Hide this ride</button>`}
+                    ${r.loadSource === 'rpe' || r.loadSource === 'estimate' ? rating(r) : ''}</li>`).join('')}</ul>` : ''}
             ${entries.length ? `<h3 class="dd-sub">Planned</h3><ul class="dd-list">${entries.map(e => `
                 <li class="list-row"><div class="list-row__main"><div class="list-row__title">${esc(e.workout?.meta?.name ?? e.name ?? 'Workout')}</div>
                     <div class="list-row__meta"><span class="badge">${planStatus(e, today)}</span>

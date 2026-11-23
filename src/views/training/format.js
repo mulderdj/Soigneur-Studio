@@ -51,4 +51,21 @@ function syncCounts(sync) {
     return skipped.length ? `${text} · ${skipped.join(', ')} weren't available` : text;
 }
 
-export { esc, fmtDuration, fmtHours, fmtDay, fmtMonth, fmtTss, sportLabel, syncCounts };
+// the Garmin sync status: "120 activities · 90 days of health data"
+function garminCounts(sync) {
+    if(!sync) return '';
+    const a = Number(sync.activities) || 0, d = Number(sync.days) || 0;
+    return `${a} ${a === 1 ? 'activity' : 'activities'} · ${d} ${d === 1 ? 'day' : 'days'} of health data`;
+}
+
+// where a workout's load came from, when it isn't power
+const LOAD_TAGS = {hr: 'HR', rpe: 'RPE', estimate: 'est.'};
+const LOAD_TITLES = {
+    hr: 'Load from heart rate',
+    rpe: 'Load from how hard you said it was',
+    estimate: 'Estimated load: rate the workout in its day to improve it',
+};
+function loadTag(source) { return LOAD_TAGS[source] ?? ''; }
+function loadTitle(source) { return LOAD_TITLES[source] ?? ''; }
+
+export { esc, fmtDuration, fmtHours, fmtDay, fmtMonth, fmtTss, sportLabel, syncCounts, garminCounts, loadTag, loadTitle };

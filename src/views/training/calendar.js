@@ -10,7 +10,7 @@
 import { addDays, weekStart, monthStart, dayToDate } from '../../training/dates.js';
 import { planStatus, plannedTss } from '../../training/plan.js';
 import { currentLayout, isPhone } from '../layout.js';
-import { esc, fmtDuration, fmtDay, fmtMonth, fmtTss, sportLabel } from './format.js';
+import { esc, fmtDuration, fmtDay, fmtMonth, fmtTss, sportLabel, loadTag, loadTitle } from './format.js';
 
 const WEEKDAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
@@ -86,10 +86,11 @@ class TrainingCalendar extends HTMLElement {
         }).join('');
         const rideHtml = rides.filter(r => !matched.has(r.id)).map(r => {
             const sport = sportLabel(r.sport);
+            const load = loadTag(r.loadSource);
             return `
                     <li class="cal-item cal-ride">
                         <span class="cal-item__name">${esc(r.name)}</span>
-                        <span class="cal-item__meta">${sport ? `<span class="badge cal-sport">${esc(sport)}</span> ` : ''}${fmtDuration(r.duration)} · ${fmtTss(r.tss)} TSS</span>
+                        <span class="cal-item__meta">${sport ? `<span class="badge cal-sport">${esc(sport)}</span> ` : ''}${fmtDuration(r.duration)} · ${fmtTss(r.tss)} TSS${load ? ` <span class="badge cal-load" title="${esc(loadTitle(r.loadSource))}">${load}</span>` : ''}</span>
                     </li>`;
         }).join('');
         return planHtml + rideHtml;

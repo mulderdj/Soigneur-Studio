@@ -114,13 +114,18 @@ function drawBars(ctx, el, w, h, {labels, series, stacked = false, every = 1, un
 }
 
 // lines: [{values: (number|null)[], color, width, dashedFrom}] over the same x positions
-function drawLines(ctx, el, w, h, {labels, lines, every = 1, zero = false, markIndex = null}) {
-    const all = lines.flatMap(l => l.values).filter(Number.isFinite);
+// band: optional {low, high, color}, a shaded range behind the lines (e.g. HRV's normal range)
+function drawLines(ctx, el, w, h, {labels, lines, every = 1, zero = false, markIndex = null, band = null}) {
+    const all = [...lines.flatMap(l => l.values), ...(band ? [band.low, band.high] : [])].filter(Number.isFinite);
     const {min, max, ticks} = scale(Math.min(0, ...all), Math.max(10, ...all));
     axis(ctx, el, w, h, {min, max, ticks, labels, every});
     const pw = w - PAD.l - PAD.r, ph = h - PAD.t - PAD.b;
     const xOf = i => PAD.l + (i + 0.5) * pw / labels.length;
     const yOf = v => PAD.t + ph - (v - min) / (max - min || 1) * ph;
+    if(band && Number.isFinite(band.low) && Number.isFinite(band.high)) {
+        ctx.fillStyle = band.color;
+        ctx.fillRect(PAD.l, yOf(band.high), pw, yOf(band.low) - yOf(band.high));
+    }
     if(zero && min < 0) {
         ctx.strokeStyle = token(el, '--muted');
         ctx.beginPath(); ctx.moveTo(PAD.l, yOf(0)); ctx.lineTo(w - PAD.r, yOf(0)); ctx.stroke();

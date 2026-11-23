@@ -73,7 +73,7 @@ async function summaries() {
     try { thresholds = remote.thresholds?.() ?? {}; } catch(e) { thresholds = {}; }
     return mergeRides(await ownSummaries(), await externalRides()).map(s => {
         const load = effectiveLoad(s, {rating: rated.get(s.id) ?? null, thresholds, restingHr: restingHrOn(s.day, days)});
-        const out = {...s, rawTss: Number.isFinite(s.tss) ? s.tss : null, ...load};
+        const out = {...s, rawTss: Number.isFinite(s.tss) ? s.tss : null, ...load, rating: rated.get(s.id) ?? null};
         if(hidden.has(s.id)) out.hidden = true;
         return out;
     });

@@ -13,6 +13,8 @@ import './calendar.js';
 import './day-dialog.js';
 import './form-card.js';
 import './week-card.js';
+import './health-card.js';
+import './hr-thresholds.js';
 import './progress-cards.js';
 
 class TrainingPage extends HTMLElement {
@@ -32,6 +34,7 @@ class TrainingPage extends HTMLElement {
             <div class="training">
                 <form-card class="card tp-form"></form-card>
                 <week-card class="card tp-week"></week-card>
+                <health-card class="card tp-health" hidden></health-card>
                 <training-calendar class="card tp-calendar"></training-calendar>
                 <volume-card class="card"></volume-card>
                 <curve-card class="card"></curve-card>
@@ -112,6 +115,7 @@ class TrainingPage extends HTMLElement {
         try {
             this.state.summaries = await history.summaries();
             this.state.plan = await history.planEntries();
+            this.state.wellness = await history.wellnessDays();
         } catch(e) {
             return; // database not open yet
         }
