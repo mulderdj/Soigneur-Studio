@@ -30,6 +30,9 @@ const { server, connections, intervalsSync } = createApp({
             clientSecret: process.env.STRAVA_CLIENT_SECRET ?? '',
         },
     },
+    // INTERVALS_READ_ONLY=true: bring activities and planned workouts in from
+    // intervals.icu but never write planned workouts there (for a first try)
+    intervals: {readOnly: String(process.env.INTERVALS_READ_ONLY ?? '').toLowerCase() === 'true'},
 });
 connections.resume();
 intervalsSync.start(); // every 15 minutes for each rider with intervals.icu connected
