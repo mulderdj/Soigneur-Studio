@@ -88,11 +88,23 @@ This starts two containers: `soigneur-studio` (Caddy serving the app; compose se
 * **Riding on another device** (Docker on a notebook or NAS, riding on a PC or Android phone): start it with the address the other devices use, then open `https://<that address>:8443` there.
 
   ```sh
-  SOIGNEUR_HOST=192.168.1.20 docker compose up -d --build
-  docker compose cp auuki:/data/caddy/pki/authorities/local/root.crt ./soigneur-root.crt
+  echo SOIGNEUR_HOST=192.168.1.20 >> .env
+  docker compose up -d --build
   ```
 
-  Install `soigneur-root.crt` as a trusted root certificate on each riding device; a device on your network can also download it from `http://<that address>:8080/soigneur-root.crt`. Without it the browser shows the address as not secure, and the app can't be installed and can't use Bluetooth. On Windows, import it under *Trusted Root Certification Authorities*. On Android, use *Settings → Security → Install a certificate → CA certificate*. Use the same address in the browser as in `SOIGNEUR_HOST` (`AUUKI_HOST`, the name before the rename, still works). The certificate is kept in the `caddy-data` volume, so you only install it once.
+  Put the address in a file named `.env` next to `docker-compose.yml` (`SOIGNEUR_HOST=192.168.1.20`), so later rebuilds keep it; without it the certificate is made for `localhost` only and other devices get *ERR_SSL_PROTOCOL_ERROR*. (`AUUKI_HOST`, the name before the rename, still works.) Use that same address in the browser.
+
+  Then make each riding device trust Caddy's root certificate. Without it the browser shows the address as not secure, the app can't be installed and Bluetooth doesn't work. You do this once per device: the certificate stays in the `caddy-data` volume across rebuilds and lasts 10 years.
+
+  **Android phone or tablet:**
+  1. In Chrome, open `http://<that address>:8080/soigneur-root.crt` (note: `http` and port 8080). This downloads `soigneur-root.crt`.
+  2. *Settings → Security → Encryption & credentials → Install a certificate →* **CA certificate** (the menu names differ a little per brand; search Settings for "certificate"). Confirm *Install anyway* and pick the file. Not *VPN & app user certificate* or *Wi-Fi certificate*: Chrome ignores those.
+  3. Check: *Encryption & credentials → Trusted credentials →* tab **User** lists *Caddy Local Authority - 2026 ECC Root*.
+  4. *Settings → Apps → Chrome →* **Force stop**: Chrome reads trusted certificates only when it starts. Then open `https://<that address>:8443`; the address is no longer red, and the Chrome menu offers *Install app*.
+
+  **Windows:** download the file the same way (or copy it with `docker compose cp auuki:/data/caddy/pki/authorities/local/root.crt ./soigneur-root.crt`), double-click it, *Install Certificate → Local Machine →* place it in **Trusted Root Certification Authorities**, and restart the browser.
+
+  To check you have the right certificate: its name is *Caddy Local Authority - …*, and its SHA-256 fingerprint matches `openssl x509 -in soigneur-root.crt -noout -fingerprint -sha256` on the Docker machine. Only the public certificate is offered for download; its private key never leaves the container.
 * **Quick test without a certificate**, one PC only: in Chrome open `chrome://flags/#unsafely-treat-insecure-origin-as-secure`, add `http://<host>:8080`, and relaunch Chrome.
 
 * **Updating from Auuki Desktop:** `docker compose up -d --build` replaces the containers (now named `soigneur-studio` and `soigneur-studio-api`); accounts, rides and certificates stay, because the data volumes keep their names.

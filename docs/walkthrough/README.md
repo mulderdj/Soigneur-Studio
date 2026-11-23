@@ -12,7 +12,7 @@ Contents: [Getting started](#getting-started) · [Ride](#ride) · [Training](#tr
 
 ## Getting started
 
-1. Open the app in Chrome or Edge, either from Docker (`http://localhost:8080`, or `https://<host>:8443` from another device) or from `npm start`. Bluetooth needs `localhost` or HTTPS.
+1. Open the app in Chrome or Edge, either from Docker (`http://localhost:8080`, or `https://<host>:8443` from another device, which must trust the server's certificate first: see [Run with Docker](../../README.md#run-with-docker) in the README) or from `npm start`. Bluetooth needs `localhost` or HTTPS.
 2. Connect the trainer and heart-rate strap with the pills at the top left (**Trainer**, **HR**). Saved sensors reconnect by themselves the next time.
 3. Pick a workout on the **Workouts** page, or let the plan pick today's workout for you.
 4. Press **▶** in the bottom bar. The app counts down, then controls the trainer.
