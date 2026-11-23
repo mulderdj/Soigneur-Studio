@@ -23,7 +23,9 @@ const MAX_RIDE_BYTES = 25 * 1024 * 1024;      // a ride upload (base64 .fit + su
 const LOGIN_WINDOW_MS = 10 * 60 * 1000;
 const LOGIN_MAX_FAILS = 10;
 const USERNAME_RE = /^[a-z0-9][a-z0-9._-]{1,31}$/i;
-const ID_RE = /^[A-Za-z0-9_-]{1,64}$/;
+// letters, digits, - and _; or a hex id in curly braces, as older apps made
+// on pages that weren't secure
+const ID_RE = /^(?:[A-Za-z0-9_-]{1,64}|\{[0-9A-Fa-f-]{1,62}\})$/;
 
 // --- helpers ---------------------------------------------------------------
 

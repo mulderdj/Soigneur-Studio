@@ -96,11 +96,21 @@ class Xuid {
   static ntohl32(v)/*:<Number>*/{return Number(this.ntohl(v))}
 }
 
+// A v4 id like 'f47ac10b-58cc-4372-a567-0e02b2c3d479'. crypto.randomUUID only
+// exists on secure pages (https, localhost); crypto.getRandomValues works on
+// plain http too. (Xuid's ids are wrapped in {}, which the account server
+// doesn't take as an id; it is only a last resort.)
 function uuid() {
-    if('crypto' in window && crypto.randomUUID) {
-        return crypto.randomUUID();
+    const c = globalThis.crypto;
+    if(c?.randomUUID) return c.randomUUID();
+    if(c?.getRandomValues) {
+        const b = c.getRandomValues(new Uint8Array(16));
+        b[6] = (b[6] & 0x0f) | 0x40;   // version 4
+        b[8] = (b[8] & 0x3f) | 0x80;   // variant 10xx
+        const h = Array.from(b, x => x.toString(16).padStart(2, '0')).join('');
+        return `${h.slice(0, 8)}-${h.slice(8, 12)}-${h.slice(12, 16)}-${h.slice(16, 20)}-${h.slice(20)}`;
     }
-    return Xuid.v4New;
+    return Xuid.v4New.slice(1, -1);
 }
 
 export { uuid };

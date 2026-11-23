@@ -238,6 +238,21 @@ test('ride ratings are stored per user, 1 to 10', async () => {
     }
 });
 
+test('ids made by older apps with curly braces are accepted (live check)', async () => {
+    const {call, stop} = await start({allowSignup: true});
+    try {
+        const a = (await call('POST', '/api/auth/register', {body: {username: 'dj', password: 'password123'}})).json.token;
+        const id = '{1eb4a659-8bdc-4ce0-c002-b1d505d38ea8}';
+        const entry = {data: {day: '2026-11-30', workout: {id: 'w1', meta: {name: 'Sweet spot'}, intervals: []}, rideId: null}};
+        assert.equal((await call('PUT', `/api/me/plan/${encodeURIComponent(id)}`, {token: a, body: entry})).status, 200);
+        assert.deepEqual((await call('GET', '/api/me/plan', {token: a})).json.entries.map(e => e.id), [id]);
+        assert.equal((await call('PUT', `/api/me/plan/${encodeURIComponent('{a}{b}')}`, {token: a, body: entry})).status, 400);
+        assert.equal((await call('PUT', `/api/me/plan/${encodeURIComponent('a/b')}`, {token: a, body: entry})).status, 400);
+    } finally {
+        stop();
+    }
+});
+
 test('ride summaries can be added to rides already on the server', async () => {
     const {call, stop} = await start({allowSignup: true});
     try {
