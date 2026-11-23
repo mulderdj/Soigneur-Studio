@@ -159,3 +159,62 @@ describe('period titles', () => {
         expect(weekTitle('2026-12-28', 'en-GB')).toMatch(/^28 Dec 2026\s?–\s?3 Jan 2027$/);
     });
 });
+
+describe('power curve and FTP trend', () => {
+    const { curveChart, ftpChart } = require('../../src/views/training/chart-models.js');
+    const best = (b5, b60, b300, b1200, b3600) => ({5: b5, 60: b60, 300: b300, 1200: b1200, 3600: b3600});
+    const r = (id, day, b, weight, name) => ({id, day, name, start: Date.parse(day), duration: 3600, tss: 60, kj: 600, zoneSeconds: Array(7).fill(0), best: b, weight, ftp: 250});
+    const data = {today: '2026-11-25', ftp: 250, summaries: [
+        r('old', '2026-09-12', best(900, 450, 320, 285, 280), 75, 'Long ride'),
+        r('new', '2026-11-04', best(600, 400, 300, 268, 240), 75, 'Sweet spot'),
+        r('noweight', '2026-11-20', best(500, 350, 280, 250, 230), null, 'No scale'),
+    ]};
+
+    test('a line per period with points, over 5 s to 60 min on a log axis', () => {
+        const {model} = curveChart(data, 'w', {accent: 'a', muted: 'm'});
+        expect(model.x).toEqual([5, 60, 300, 1200, 3600]);
+        expect(model.log).toBe(true);
+        expect(model.time).toBe(false);
+        expect(model.series.map(s => [s.label, s.color, s.points])).toEqual([['Last 6 weeks', 'a', true], ['All time', 'm', true]]);
+        expect(model.series[1].values).toEqual([900, 450, 320, 285, 280]);
+        expect(model.xFormat(1200)).toBe('20 min');
+    });
+
+    test('the read-out names each record\'s ride and day; a click opens the recent record', () => {
+        const {readout} = curveChart(data, 'w', {});
+        const o = readout(3);
+        expect(o.title).toBe('20 min');
+        expect(o.rows.map(x => [x.label, x.value])).toEqual([['Last 6 weeks', '268 W'], ['All time', '285 W']]);
+        expect(o.rows[0].note).toMatch(/Sweet spot/);
+        expect(o.rows[0].note).toMatch(/4/);
+        expect(o.rows[1].note).toMatch(/Long ride/);
+        expect(o.day).toBe('2026-11-04');
+    });
+
+    test('W/kg: "–" where the ride has no weight', () => {
+        const only = {today: '2026-11-25', summaries: [r('noweight', '2026-11-20', best(500, 350, 280, 250, 230), null, 'No scale')]};
+        const {model, readout} = curveChart(only, 'wkg', {});
+        expect(model.series[0].values[3]).toBeNull();
+        expect(readout(3).rows[0].value).toBe('–');
+    });
+
+    test('FTP: the estimate per week with where it came from, the set FTP dashed', () => {
+        const {model, readout} = ftpChart(data, {accent: 'a', muted: 'm'});
+        expect(model.x).toHaveLength(52);
+        expect(model.ranges.map(x => x[0])).toEqual(['12w', '1y']);
+        expect(model.series.map(s => s.label)).toEqual(['Set FTP', 'Estimate']);
+        expect(model.series[0].dash).toBeTruthy();
+        const o = readout(model.x.length - 1);
+        expect(o.rows.map(x => [x.label, x.value])).toEqual([['Estimate', '255 W'], ['Set', '250 W']]);
+        expect(o.more[0]).toMatch(/^95 % of 268 W over 20 min · /);
+        expect(o.day).toBe('2026-11-04');
+    });
+
+    test('a week without an effort says so and has nothing to open', () => {
+        const {readout} = ftpChart(data, {});
+        const o = readout(0);
+        expect(o.rows[0]).toMatchObject({label: 'Estimate', value: '–'});
+        expect(o.more).toEqual(['No 20 or 60-minute effort in the 6 weeks before']);
+        expect(o.day).toBeUndefined();
+    });
+});

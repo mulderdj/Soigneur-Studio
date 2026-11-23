@@ -9,7 +9,7 @@
 import { dailyTss, pmc, forecast, formLabel } from '../../training/load.js';
 import { planStatus, plannedTss } from '../../training/plan.js';
 import { hrvRangeOn, sortedDays } from '../../training/wellness.js';
-import { weeklyVolume, zoneTotals } from '../../training/progress.js';
+import { weeklyVolume, zoneTotals, powerCurve, ftpEstimates, WINDOWS } from '../../training/progress.js';
 import { addDays } from '../../training/dates.js';
 import { ZONES } from '../../analytics.js';
 import { fmtDay, fmtDuration } from './format.js';
@@ -200,4 +200,76 @@ function zonesChart(data, by = 'week', colors = {}) {
     return {model, readout};
 }
 
-export { formModel, formChart, healthChart, volumeChart, zonesChart, PAST_DAYS, AHEAD_DAYS, daySec, longDay, weekTitle, shortDay };
+const DURATION_LABEL = {5: '5 s', 60: '1 min', 300: '5 min', 1200: '20 min', 3600: '60 min'};
+const recordNote = (from) => (from ? `${shortDay(from.day)}${from.name ? ` · ${from.name}` : ''}` : undefined);
+
+// best power at 5 s … 60 min: the last 6 weeks against all time, as lines
+// with points on a log time axis; W or W/kg (unit 'w' or 'wkg')
+function curveChart(data, unit = 'w', colors = {}) {
+    const c = powerCurve(data.summaries ?? [], data.today);
+    const key = unit === 'wkg' ? 'wkg' : 'watts';
+    const val = (v) => (v === null || v === undefined ? null : key === 'wkg' ? Math.round(v * 100) / 100 : Math.round(v));
+    const show = (v) => (v === null ? '–' : key === 'wkg' ? `${v.toFixed(2)} W/kg` : `${v} W`);
+    const recent = c.recent[key].map(val), all = c.allTime[key].map(val);
+    const model = {
+        x: [...WINDOWS],
+        time: false,
+        log: true,
+        series: [
+            {label: 'Last 6 weeks', color: colors.accent, width: 2.5, points: true, values: recent},
+            {label: 'All time', color: colors.muted, width: 1.5, points: true, values: all},
+        ],
+        xFormat: (v) => DURATION_LABEL[v] ?? '',
+    };
+    const readout = (i) => {
+        if(i < 0 || i >= WINDOWS.length) return null;
+        const from = c.recent.from[i] ?? c.allTime.from[i];
+        return {
+            title: DURATION_LABEL[WINDOWS[i]],
+            rows: [
+                {label: 'Last 6 weeks', color: colors.accent, value: show(recent[i]), note: recordNote(c.recent.from[i])},
+                {label: 'All time', color: colors.muted, value: show(all[i]), note: recordNote(c.allTime.from[i])},
+            ],
+            more: [],
+            day: from?.day,   // the recent record first: today's form
+        };
+    };
+    return {model, readout};
+}
+
+// estimated FTP per week (52, opening on 12) and the set FTP
+function ftpChart(data, colors = {}) {
+    const est = ftpEstimates(data.summaries ?? [], data.today, 52);
+    const set = Number.isFinite(data.ftp) ? data.ftp : null;
+    const model = {
+        x: est.map(e => daySec(e.week)),
+        series: [
+            {label: 'Set FTP', color: colors.muted, width: 1, dash: [4, 4], values: est.map(() => set)},
+            {label: 'Estimate', color: colors.accent, width: 2.5, points: true, values: est.map(e => (e.ftp === null ? null : Math.round(e.ftp)))},
+        ],
+        ranges: [['12w', '12 weeks'], ['1y', '1 year']],
+        defaultRange: '12w',
+        today: daySec(data.today),
+        xFormat: (t) => shortDay(new Date(t * 1000).toISOString().slice(0, 10)),
+    };
+    const readout = (i) => {
+        const e = est[i];
+        if(!e) return null;
+        const f = e.from;
+        const source = !f ? 'No 20 or 60-minute effort in the 6 weeks before' :
+              f.seconds === 1200 ? `95 % of ${Math.round(f.watts)} W over 20 min · ${shortDay(f.day)}${f.name ? ` · ${f.name}` : ''}` :
+              `60 min best ${Math.round(f.watts)} W · ${shortDay(f.day)}${f.name ? ` · ${f.name}` : ''}`;
+        return {
+            title: weekTitle(e.week),
+            rows: [
+                {label: 'Estimate', color: colors.accent, value: e.ftp === null ? '–' : `${Math.round(e.ftp)} W`},
+                {label: 'Set', color: colors.muted, value: set === null ? '–' : `${set} W`},
+            ],
+            more: [source],
+            day: f?.day,
+        };
+    };
+    return {model, readout};
+}
+
+export { formModel, formChart, healthChart, volumeChart, zonesChart, curveChart, ftpChart, PAST_DAYS, AHEAD_DAYS, daySec, longDay, weekTitle, shortDay };

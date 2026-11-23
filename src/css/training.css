@@ -73,7 +73,7 @@
 }
 
 .pc-key--recent { background-color: var(--accent); }
-.pc-key--all    { background-color: var(--line); }
+.pc-key--all    { background-color: var(--muted); }
 
 .pc-nudge {
     display: flex;
