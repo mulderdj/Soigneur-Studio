@@ -1,10 +1,10 @@
 # Auuki Desktop: a walkthrough
 
-A tour of what the app does, page by page. The screenshots and the screencast come from the development build with a simulated rider and four months of generated training (`?simulate&history`), so every number in them is made up.
+A tour of what the app does, page by page. Click a picture to see it full size. The screenshots and the screencast come from the development build with a simulated rider and four months of generated training (`?simulate&history`), so every number in them is made up.
 
 **Screencast** (44 s): [walkthrough.mp4](walkthrough.mp4). It covers riding a workout, the Training page (form, calendar, planning a workout, progress), the workout library and the rider menu.
 
-![The walkthrough as an animation](img/walkthrough.gif)
+<a href="img/walkthrough.gif"><img src="img/walkthrough.gif" alt="The walkthrough as an animation" width="560"></a>
 
 Contents: [Getting started](#getting-started) · [Ride](#ride) · [Training](#training) · [intervals.icu](#intervalsicu) · [Workouts](#workouts) · [Riders and accounts](#riders-and-accounts) · [Settings](#settings) · [Phones](#phones) · [Light theme](#light-theme) · [Updating these pictures](#updating-these-pictures)
 
@@ -21,7 +21,7 @@ Without a trainer, `npm start` with `?simulate` in the address gives you a simul
 
 ## Ride
 
-![The Ride page on a desktop while riding a workout](img/ride-desktop.png)
+<a href="img/ride-desktop.png"><img src="img/ride-desktop.png" alt="The Ride page on a desktop while riding a workout" width="720"></a>
 
 - **Power** is the big tile. It takes the colour of your current power zone and shows the zone name and live W/kg. **Target** is next to it.
 - **The metric tiles** show interval time, elapsed time, heart rate, cadence, speed, distance, slope and lap power. The two dots switch between tile sets.
@@ -36,11 +36,11 @@ Without a trainer, `npm start` with `?simulate` in the address gives you a simul
 
 ## Training
 
-![The Training page: form, this week and the calendar](img/training-desktop.png)
+<a href="img/training-desktop.png"><img src="img/training-desktop.png" alt="The Training page: form, this week and the calendar" width="720"></a>
 
 ### Form
 
-![The form chart](img/training-form.png)
+<a href="img/training-form.png"><img src="img/training-form.png" alt="The form chart" width="420"></a>
 
 - **Fitness** (42-day load), **fatigue** (7-day load) and **form** (fitness minus fatigue), over the last 90 days.
 - **The dashed part** is a 4-week forecast from your planned workouts. The line below the chart tells you where your plan takes you, for example "form +23 (fresh) on Mon, Dec 21".
@@ -51,7 +51,7 @@ Rides, hours, TSS and kJ so far this week, against the same days of last week.
 
 ### Calendar
 
-![The month calendar with rides, planned workouts and intervals.icu entries](img/training-calendar.png)
+<a href="img/training-calendar.png"><img src="img/training-calendar.png" alt="The month calendar with rides, planned workouts and intervals.icu entries" width="640"></a>
 
 - **Rides** have a solid bar. Rides from other sports carry a label, such as **Run**.
 - **Planned workouts** have a dashed bar and show their planned TSS.
@@ -63,7 +63,7 @@ Rides, hours, TSS and kJ so far this week, against the same days of last week.
 
 Click or tap a day to open it:
 
-![The day dialog: a run from intervals.icu and planning a workout](img/day-dialog.png)
+<a href="img/day-dialog.png"><img src="img/day-dialog.png" alt="The day dialog: a run from intervals.icu and planning a workout" width="360"></a>
 
 - **The day's rides.** **Hide this ride** takes one out of every count without deleting it, which is useful for a duplicate the app didn't catch. It stays listed, greyed, with **Show** to bring it back.
 - **The day's planned workouts.** Move them with the date field, or remove them.
@@ -75,8 +75,8 @@ On the day of a planned workout, the Ride page selects it when the app opens. It
 
 | | |
 |---|---|
-| ![Weekly volume](img/progress-volume.png) | ![Power curve](img/progress-curve.png) |
-| ![Time in zones](img/progress-zones.png) | ![FTP trend](img/progress-ftp.png) |
+| <a href="img/progress-volume.png"><img src="img/progress-volume.png" alt="Weekly volume" width="380"></a> | <a href="img/progress-curve.png"><img src="img/progress-curve.png" alt="Power curve" width="380"></a> |
+| <a href="img/progress-zones.png"><img src="img/progress-zones.png" alt="Time in zones" width="380"></a> | <a href="img/progress-ftp.png"><img src="img/progress-ftp.png" alt="FTP trend" width="380"></a> |
 
 - **Weekly volume**: hours, TSS or kJ for the last 12 weeks.
 - **Power curve**: your best 5 s, 1, 5, 20 and 60 min over the last 6 weeks against all time, in W or W/kg.
@@ -101,7 +101,7 @@ Connect intervals.icu under *rider menu → Account* with your personal API key 
   - A workout planned in Auuki appears on intervals.icu.
   - Moving or removing a workout on one side follows on the other. When both sides changed it, the newer change wins.
 
-![The intervals.icu card in the account panel, with its sync status](img/account.png)
+<a href="img/account.png"><img src="img/account.png" alt="The intervals.icu card in the account panel, with its sync status" width="440"></a>
 
 The card shows when it last synced, how many activities came in, and how many weren't available. Activities that reached intervals.icu from Strava come back empty through its API, so the card counts them instead. For those rides, use **Import .fit files**. **Sync now** starts a sync right away.
 
@@ -109,7 +109,7 @@ The card shows when it last synced, how many activities came in, and how many we
 
 ## Workouts
 
-![The workout library](img/workouts-desktop.png)
+<a href="img/workouts-desktop.png"><img src="img/workouts-desktop.png" alt="The workout library" width="720"></a>
 
 - **The library** lists each workout with its type, duration and graph. Pick one with the round button; the ⋮ menu has more.
 - **Load workouts** takes several files at once: `.zwo` (also as `.xml`), `.erg`, `.mrc`, intervals.icu workout text (`.txt`) and `.fit` courses. Files that can't be read are listed, and the rest still load.
@@ -120,7 +120,7 @@ The card shows when it last synced, how many activities came in, and how many we
 
 The rider pill at the top left opens the rider menu:
 
-![The rider menu: riders on this device](img/riders.png)
+<a href="img/riders.png"><img src="img/riders.png" alt="The rider menu: riders on this device" width="480"></a>
 
 - **Riders**: several riders on one device, each with their own FTP, weight, W′, workouts, rides and sensors.
 - **Account**: sign in to your own account server (part of the Docker setup). That syncs your settings, workouts, rides, plan and hidden rides across devices. It also connects Strava, intervals.icu and Garmin Connect (*Send to Garmin* downloads the ride and opens Garmin's import page).
@@ -130,7 +130,7 @@ The rider pill at the top left opens the rider menu:
 
 ## Settings
 
-![Settings](img/settings-desktop.png)
+<a href="img/settings-desktop.png"><img src="img/settings-desktop.png" alt="Settings" width="720"></a>
 
 - **The profile**: FTP, weight and the theme (dark, light or auto).
 - **Every kind of sensor**: trainer, power meter, heart rate, Moxy, CoreTemp and more. Each one has its own switches for which data it provides.
@@ -139,7 +139,7 @@ The rider pill at the top left opens the rider menu:
 
 | Ride | Training | Calendar |
 |---|---|---|
-| ![Ride on a phone](img/ride-phone.png) | ![Training on a phone](img/training-phone.png) | ![The week calendar on a phone](img/training-phone-calendar.png) |
+| <a href="img/ride-phone.png"><img src="img/ride-phone.png" alt="Ride on a phone" width="220"></a> | <a href="img/training-phone.png"><img src="img/training-phone.png" alt="Training on a phone" width="220"></a> | <a href="img/training-phone-calendar.png"><img src="img/training-phone-calendar.png" alt="The week calendar on a phone" width="220"></a> |
 
 - **Riding on a phone**: everything you need fits on one screen, and the statistics below are swiped one at a time.
 - **On the handlebars in landscape**: power, target, six metrics, the chart and the controls.
@@ -147,7 +147,7 @@ The rider pill at the top left opens the rider menu:
 
 ## Light theme
 
-![The Training page in the light theme](img/training-desktop-light.png)
+<a href="img/training-desktop-light.png"><img src="img/training-desktop-light.png" alt="The Training page in the light theme" width="720"></a>
 
 Every page has a dark and a light version. *Auto* follows the system.
 

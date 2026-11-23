@@ -33,7 +33,7 @@ const PHONE = {width: 390, height: 844};
 
 const pause = (page, ms) => page.waitForTimeout(ms);
 
-async function newPage(browser, {viewport, phone = false, scale = 2}) {
+async function newPage(browser, {viewport, phone = false, scale = 1}) {
     const context = await browser.newContext({viewport, deviceScaleFactor: scale, hasTouch: phone, isMobile: phone});
     await context.addInitScript(() => {
         // headless Chrome has no Web Bluetooth: show what a Chrome user sees
@@ -232,7 +232,7 @@ async function screencast(browser) {
     execFileSync('ffmpeg', ['-y', '-loglevel', 'error', '-i', master, '-c:v', 'libx264', '-pix_fmt', 'yuv420p',
                             '-crf', '28', '-preset', 'slow', '-movflags', '+faststart', mp4]);
     execFileSync('ffmpeg', ['-y', '-loglevel', 'error', '-i', master, '-vf',
-                            'fps=8,scale=800:-1:flags=lanczos,split[a][b];[a]palettegen=max_colors=96[p];[b][p]paletteuse=dither=bayer:bayer_scale=4',
+                            'fps=6,scale=640:-1:flags=lanczos,split[a][b];[a]palettegen=max_colors=64[p];[b][p]paletteuse=dither=bayer:bayer_scale=5',
                             gif]);
     fs.rmSync(tmp, {recursive: true, force: true});
     console.log(`screencast: ${mp4}\npreview:    ${gif}`);

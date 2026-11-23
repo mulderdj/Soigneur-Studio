@@ -4,7 +4,7 @@ A fork of [dvmarinoff/Auuki](https://github.com/dvmarinoff/Auuki) with one inter
 
 **Walkthrough**: [a tour of every page with screenshots](docs/walkthrough/README.md) and a [44-second screencast](docs/walkthrough/walkthrough.mp4).
 
-![Riding a workout, then the Training page: form, calendar, planning, progress](docs/walkthrough/img/walkthrough.gif)
+<a href="docs/walkthrough/README.md"><img src="docs/walkthrough/img/walkthrough.gif" alt="Riding a workout, then the Training page: form, calendar, planning, progress" width="560"></a>
 
 **What's new on the Ride page**
 * **One layout from phone to TV**: power as a large tile that takes the colour of your current power zone (with zone name and live W/kg), the other metrics in a compact grid, connections in a slim header and one bottom bar for the ride controls and the pages (Ride, Training, Workouts, Settings).
