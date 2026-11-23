@@ -49,10 +49,11 @@ describe('backfill', () => {
         await idb.put('activity', {id: 'good2', blob: fitBlob(t + 86400000), summary: {id: 'good2', name: 'Two', timestamp: t + 86460000, duration: 60}});
         const progress = [];
         const result = await history.backfill({ftp: 250, weight: 75, onProgress: p => progress.push(p)});
-        expect(result.added).toBe(2);
+        expect(result.added).toBe(3);
         expect(result.skipped).toEqual(['broken']);
         const all = await history.summaries();
-        expect(all.map(s => s.id).sort()).toEqual(['good1', 'good2']);
+        expect(all.map(s => s.id).sort()).toEqual(['broken', 'good1', 'good2']);
+        expect(all.find(s => s.id === 'broken').tss).toBeNull();
         expect(all.find(s => s.id === 'good1').name).toBe('One');
         expect(all.find(s => s.id === 'good1').avgPower).toBe(220);
         expect(progress.at(-1)).toEqual({done: 3, total: 3});
@@ -92,5 +93,44 @@ describe('upgrading an existing database', () => {
         await history.saveSummary(summary('x', '2026-11-20', 1));
         expect((await history.summaries()).map(s => s.id)).toEqual(['x']);
         expect((await idb.get('activity', 'old')).id).toBe('old');
+    });
+});
+
+describe('plan sync', () => {
+    test('an edit made while its upload is in flight is not lost', async () => {
+        const e = await history.addPlanEntry('2026-11-24', {id: 'w1', meta: {name: 'A'}, intervals: []});
+        let edited = false;
+        const api = {
+            get: async () => ({entries: [], now: Date.now()}),
+            put: async () => {
+                if(!edited) { edited = true; await history.movePlanEntry(e.id, '2026-11-28'); }
+                return {updatedAt: Date.now()};
+            },
+            delete: async () => ({ok: true}),
+        };
+        history.connect({api, linked: () => true});
+        try {
+            await history.syncPlan();
+            const after = (await history.planEntries()).find(x => x.id === e.id);
+            expect(after.day).toBe('2026-11-28');
+            const stored = await idb.get('plan', e.id);
+            expect(stored.dirty).toBe(true);           // still to be pushed
+        } finally {
+            history.connect({api: null, linked: () => false});
+        }
+    });
+});
+
+describe('an unreadable ride', () => {
+    test('stays on the calendar with its duration', async () => {
+        const t = new Date(2026, 10, 18, 18, 0).getTime();
+        await idb.put('activity', {id: 'broken', blob: new Blob([new Uint8Array(10)]), summary: {id: 'broken', name: 'Bad', timestamp: t, duration: 1800}});
+        const result = await history.backfill({ftp: 250, weight: 75});
+        expect(result.skipped).toEqual(['broken']);
+        const s = (await history.summaries()).find(x => x.id === 'broken');
+        expect(s.duration).toBe(1800);
+        expect(s.tss).toBeNull();
+        expect(s.day).toBe('2026-11-18');
+        expect((await history.backfill({ftp: 250, weight: 75})).skipped).toEqual([]); // not retried
     });
 });

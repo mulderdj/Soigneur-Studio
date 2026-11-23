@@ -73,6 +73,16 @@ async function summaryFromFit(blob, meta, {ftp, weight}) {
     });
 }
 
+// what the ride's own record knows when its .fit can't be read
+function durationOnly(meta, {ftp, weight}) {
+    const duration = Number.isFinite(meta.duration) ? meta.duration : 0;
+    const start = (meta.timestamp ?? Date.now()) - duration * 1000;
+    const s = rideSummary(new Array(duration).fill({power: 0}), {
+        id: meta.id, start, name: meta.name, workoutId: meta.workoutId ?? null, ftp, weight, distance: null,
+    });
+    return {...s, unreadable: true};
+}
+
 // summaries for rides that have none of the current version yet: first the
 // .fit files on this device, then (signed in) rides only on the server
 async function backfill({ftp, weight, onProgress = () => {}} = {}) {
@@ -102,10 +112,18 @@ async function backfill({ftp, weight, onProgress = () => {}} = {}) {
     let done = 0, added = 0;
     const skipped = [];
     const progress = () => onProgress({done, total});
+    // a ride whose .fit can't be read stays on the calendar with its duration
+    const keep = async (s, unreadable) => {
+        if(unreadable) skipped.push(s.id);
+        await idb.put(SUMMARIES, s);
+        have.set(s.id, s);
+        added++;
+    };
 
     for(const record of local) {
-        const s = await summaryFromFit(record.blob, {...record.summary, id: record.id}, {ftp, weight});
-        if(s) { await idb.put(SUMMARIES, s); have.set(s.id, s); added++; } else { skipped.push(record.id); }
+        const meta = {...record.summary, id: record.id};
+        const s = await summaryFromFit(record.blob, meta, {ftp, weight});
+        await keep(s ?? durationOnly(meta, {ftp, weight}), !s);
         done++; progress();
     }
     for(const ride of remoteOnly) {
@@ -116,7 +134,7 @@ async function backfill({ftp, weight, onProgress = () => {}} = {}) {
         } catch(e) {
             s = null;
         }
-        if(s) { await idb.put(SUMMARIES, s); have.set(s.id, s); added++; } else { skipped.push(ride.id); }
+        await keep(s ?? durationOnly({...ride, id: ride.id}, {ftp, weight}), !s);
         done++; progress();
     }
     // the server keeps summaries too, for the rider's other devices
@@ -202,7 +220,15 @@ function storable(entry) {
     return data;
 }
 
-async function syncPlan() {
+let syncing = null;
+
+// one sync at a time (the debounced push and the account sync both call it)
+function syncPlan() {
+    syncing = (syncing ?? Promise.resolve()).then(syncPlanOnce, syncPlanOnce);
+    return syncing;
+}
+
+async function syncPlanOnce() {
     if(!remote.linked() || !remote.api) return;
     const since = remote.planSince.get() ?? 0;
     const pulled = await remote.api.get(`/me/plan?since=${since}`);
@@ -223,7 +249,9 @@ async function syncPlan() {
         if(!e.dirty) continue;
         if(e.deleted) await remote.api.delete(`/me/plan/${encodeURIComponent(e.id)}`);
         else await remote.api.put(`/me/plan/${encodeURIComponent(e.id)}`, {data: storable(e)});
-        await idb.put(PLAN, {...e, dirty: false});
+        // changed again while it was being sent: keep it dirty for the next push
+        const now = await idb.get(PLAN, e.id);
+        if(now && now.updatedAt === e.updatedAt) await idb.put(PLAN, {...now, dirty: false});
     }
     if(Number.isFinite(pulled.now)) remote.planSince.set(pulled.now);
     if(any) changed();

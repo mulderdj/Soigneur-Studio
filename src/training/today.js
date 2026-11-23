@@ -14,4 +14,28 @@ async function selectTodaysWorkout({today, watchStatus, handPickedDay, select}) 
     return workout;
 }
 
-export { selectTodaysWorkout };
+// checks again whenever asked (start, plan changes, every minute) until
+// today's planned workout has been selected once; after that the rider's
+// own choices for the day are left alone
+function todayChecker({getToday, getWatchStatus, getHandPicked, select}) {
+    let selectedDay = null;
+    let running = null;
+
+    async function run() {
+        const today = getToday();
+        if(selectedDay === today) return;
+        const workout = await selectTodaysWorkout({
+            today, watchStatus: getWatchStatus(), handPickedDay: getHandPicked(), select,
+        });
+        if(workout) selectedDay = today;
+    }
+
+    return {
+        check() {
+            running = (running ?? Promise.resolve()).then(run, run);
+            return running;
+        },
+    };
+}
+
+export { selectTodaysWorkout, todayChecker };

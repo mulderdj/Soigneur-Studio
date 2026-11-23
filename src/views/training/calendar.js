@@ -73,7 +73,7 @@ class TrainingCalendar extends HTMLElement {
         const matched = new Set(entries.map(e => e.rideId).filter(Boolean));
         const planHtml = entries.map(e => {
             const status = planStatus(e, today);
-            const planned = Math.round(plannedTss(e.workout));
+            const planned = Math.round(plannedTss(e.workout, this._data.ftp));
             const ride = e.rideId ? summaries.find(s => s.id === e.rideId) : null;
             const detail = status === 'done' && ride ?
                   `planned ${planned} / actual ${fmtTss(ride.tss)} TSS` :

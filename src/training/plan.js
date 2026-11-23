@@ -9,14 +9,17 @@
 
 const SLOPE_ONLY_POWER = 0.65; // relative power assumed for steps without a power target
 
-// workout steps carry power relative to FTP, so TSS needs no FTP:
-// TSS = Σ duration × IF² / 3600 × 100
-function plannedTss(workout) {
+const WATTS_FROM = 10; // like models.ftp.toAbsolute: 10 and up is watts, below is relative to FTP
+
+// TSS = Σ duration × IF² / 3600 × 100. Most workouts store power relative
+// to FTP; .erg files without an FTP header store watts, which need the FTP.
+function plannedTss(workout, ftp = 250) {
     let tss = 0;
     for(const interval of workout?.intervals ?? []) {
         for(const s of interval.steps ?? []) {
             const duration = Number.isFinite(s.duration) ? s.duration : (interval.duration ?? 0);
-            const p = Number.isFinite(s.power) ? s.power : SLOPE_ONLY_POWER;
+            let p = Number.isFinite(s.power) ? s.power : SLOPE_ONLY_POWER;
+            if(p >= WATTS_FROM) p = ftp > 0 ? p / ftp : 0;
             tss += duration * p * p / 36;
         }
     }

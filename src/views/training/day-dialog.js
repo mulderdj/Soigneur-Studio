@@ -70,7 +70,7 @@ class DayDialog extends HTMLElement {
                     <div class="list-row__meta">${fmtDuration(r.duration)} · ${fmtTss(r.tss)} TSS${Number.isFinite(r.np) ? ` · NP ${Math.round(r.np)} W` : ''}</div></div></li>`).join('')}</ul>` : ''}
             ${entries.length ? `<h3 class="dd-sub">Planned</h3><ul class="dd-list">${entries.map(e => `
                 <li class="list-row"><div class="list-row__main"><div class="list-row__title">${esc(e.workout?.meta?.name ?? 'Workout')}</div>
-                    <div class="list-row__meta"><span class="badge">${planStatus(e, today)}</span> ${Math.round(plannedTss(e.workout))} TSS</div></div>
+                    <div class="list-row__meta"><span class="badge">${planStatus(e, today)}</span> ${Math.round(plannedTss(e.workout, this.data.ftp))} TSS</div></div>
                     <label class="field dd-move">Move to<input type="date" class="input" data-move="${esc(e.id)}" value="${esc(e.day)}"></label>
                     <button type="button" class="btn btn--danger" data-remove="${esc(e.id)}">Remove</button></li>`).join('')}</ul>` : ''}
             <h3 class="dd-sub">Plan a workout</h3>

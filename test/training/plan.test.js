@@ -65,3 +65,13 @@ describe('auto-select today\'s workout', () => {
         expect(autoSelectWorkout({entries: done, today: '2026-11-23', watchStatus: 'stopped', handPickedDay: null})).toBeNull();
     });
 });
+
+describe('planned TSS for workouts in watts', () => {
+    test('an hour at 200 W with FTP 200 is 100', () => {
+        expect(plannedTss(workout([{duration: 3600, steps: [step(3600, 200)]}]), 200)).toBeCloseTo(100);
+    });
+    test('relative and absolute steps mix', () => {
+        const w = workout([{duration: 1800, steps: [step(1800, 0.5)]}, {duration: 1800, steps: [step(1800, 250)]}]);
+        expect(plannedTss(w, 250)).toBeCloseTo(12.5 + 50);
+    });
+});

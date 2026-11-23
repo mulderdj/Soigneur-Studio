@@ -46,3 +46,21 @@ describe('today\'s planned workout on start', () => {
         expect(select).not.toHaveBeenCalled();
     });
 });
+
+import { todayChecker } from '../../src/training/today.js';
+
+describe('today\'s plan arriving after start (another device)', () => {
+    test('is selected once it syncs in, and only once', async () => {
+        const select = jest.fn();
+        const checker = todayChecker({
+            getToday: () => today, getWatchStatus: () => 'stopped', getHandPicked: () => null, select,
+        });
+        await checker.check();                       // start: nothing planned yet on this device
+        expect(select).not.toHaveBeenCalled();
+        await history.addPlanEntry(today, workout);  // the plan syncs in
+        await checker.check();
+        expect(select).toHaveBeenCalledTimes(1);
+        await checker.check();                       // already picked today: leave the rider's choice alone
+        expect(select).toHaveBeenCalledTimes(1);
+    });
+});

@@ -13,7 +13,7 @@ import { fmtDay } from './format.js';
 const PAST_DAYS = 90;
 const AHEAD_DAYS = 28;
 
-function formModel({today, summaries = [], plan = []}) {
+function formModel({today, summaries = [], plan = [], ftp}) {
     const byDay = dailyTss(summaries);
     const first = summaries.length ? summaries.reduce((a, s) => (s.day < a ? s.day : a), today) : today;
     const rows = pmc(byDay, first < today ? first : today, today);
@@ -22,7 +22,7 @@ function formModel({today, summaries = [], plan = []}) {
     const planned = new Map();
     for(const e of plan) {
         if(e.deleted || e.day <= today || planStatus(e, today) !== 'planned') continue;
-        planned.set(e.day, (planned.get(e.day) ?? 0) + plannedTss(e.workout));
+        planned.set(e.day, (planned.get(e.day) ?? 0) + plannedTss(e.workout, ftp));
     }
     const ahead = forecast(now, planned, today, AHEAD_DAYS);
     const past = rows.slice(-PAST_DAYS);

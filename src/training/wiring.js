@@ -11,7 +11,7 @@ import { api } from '../account/api.js';
 import { session } from '../views/training-dashboard.js';
 import { history } from './history.js';
 import { today } from './dates.js';
-import { selectTodaysWorkout } from './today.js';
+import { todayChecker } from './today.js';
 
 history.connect({
     api,
@@ -51,26 +51,21 @@ xf.sub('ui:workout:select', () => {
     try { localStorage.setItem(handPickedKey(), today()); } catch(e) {}
 });
 
-let checkedDay = null;
+const checker = todayChecker({
+    getToday: today,
+    getWatchStatus: () => db.watchStatus,
+    getHandPicked: () => { try { return localStorage.getItem(handPickedKey()); } catch(e) { return null; } },
+    select: workout => xf.dispatch('workout', workout),
+});
 
-async function checkToday() {
-    const day = today();
-    if(day === checkedDay) return;
-    checkedDay = day;
-    let handPickedDay = null;
-    try { handPickedDay = localStorage.getItem(handPickedKey()); } catch(e) {}
-    try {
-        await selectTodaysWorkout({
-            today: day, watchStatus: db.watchStatus, handPickedDay,
-            select: workout => xf.dispatch('workout', workout),
-        });
-    } catch(e) {
-        console.warn(':training :today', e);
-    }
+function checkToday() {
+    checker.check().catch(e => console.warn(':training :today', e));
 }
 
 // the rider's database is open once their activities are restored
 xf.sub('activity:restore', () => {
     checkToday();
     setInterval(checkToday, 60 * 1000);
+    // a plan made on another device arrives with the first sync
+    xf.sub('training:changed', checkToday);
 });
