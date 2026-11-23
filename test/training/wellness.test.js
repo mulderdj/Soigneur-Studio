@@ -41,3 +41,18 @@ describe('the latest night and resting heart rate', () => {
         expect(restingTrend([])).toBeNull();
     });
 });
+
+describe('the HRV range of each night (charts over months)', () => {
+    const { hrvRangeOn } = require('../../src/training/wellness.js');
+    test('Garmin\'s baseline stored with that night', () => {
+        const days = [{day: '2026-05-01', hrv: 50, hrvBaseline: {low: 44, high: 58}}, {day: '2026-11-20', hrv: 40, hrvBaseline: {low: 38, high: 52}}];
+        expect(hrvRangeOn('2026-05-01', days)).toEqual({low: 44, high: 58, source: 'garmin'});
+    });
+    test('else the 60 days before that night (not after), from 14 nights', () => {
+        const before = series(20, i => ({hrv: i % 2 ? 50 : 60}));                         // ends at day(0) = 2026-11-23
+        const after = [{day: '2026-11-25', hrv: 90}, {day: '2026-11-26', hrv: 90}];
+        const target = {day: '2026-11-24', hrv: 45};
+        expect(hrvRangeOn('2026-11-24', [...before, target, ...after])).toEqual({low: 50, high: 60, source: 'own'});
+        expect(hrvRangeOn('2026-11-24', [...before.slice(-13), target])).toBeNull();
+    });
+});

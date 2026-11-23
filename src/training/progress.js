@@ -48,19 +48,23 @@ function weekCompare(summaries, today) {
     };
 }
 
+// the best per window, and the ride that set it (an equal best keeps the
+// earlier ride)
 function bests(list) {
     const watts = WINDOWS.map(() => null);
     const wkg = WINDOWS.map(() => null);
+    const from = WINDOWS.map(() => null);
     for(const s of list) {
         WINDOWS.forEach((w, i) => {
             const b = s.best?.[w];
             if(Number.isFinite(b) && b > 0 && (watts[i] === null || b > watts[i])) {
                 watts[i] = b;
                 wkg[i] = s.weight > 0 ? b / s.weight : null;
+                from[i] = {id: s.id, day: s.day, name: s.name ?? null};
             }
         });
     }
-    return {watts, wkg};
+    return {watts, wkg, from};
 }
 
 function powerCurve(all, today) {
@@ -72,19 +76,28 @@ function powerCurve(all, today) {
     };
 }
 
+// FTP from the best 20 minutes (× 0.95) or 60 minutes, whichever is
+// higher, with the effort that decided it
+function ftpEstimateDetail(list) {
+    const {watts, from} = bests(list);
+    const i20 = WINDOWS.indexOf(1200), i60 = WINDOWS.indexOf(3600);
+    const b20 = watts[i20], b60 = watts[i60];
+    if(b20 === null && b60 === null) return {ftp: null, from: null, factor: null};
+    const by20 = b20 === null ? 0 : 0.95 * b20;
+    const use60 = b60 !== null && b60 >= by20;
+    const [seconds, i, factor] = use60 ? [3600, i60, 1] : [1200, i20, 0.95];
+    return {ftp: use60 ? b60 : by20, factor, from: {seconds, watts: watts[i], ...from[i]}};
+}
+
 function ftpEstimate(list) {
-    const {watts} = bests(list);
-    const b20 = watts[WINDOWS.indexOf(1200)];
-    const b60 = watts[WINDOWS.indexOf(3600)];
-    if(b20 === null && b60 === null) return null;
-    return Math.max(b20 === null ? 0 : 0.95 * b20, b60 ?? 0);
+    return ftpEstimateDetail(list).ftp;
 }
 
 function ftpEstimates(all, today, weeks = 12) {
     const summaries = all.filter(isCycling);
     return weekStarts(today, weeks).map(week => {
         const end = addDays(week, 6) < today ? addDays(week, 6) : today;
-        return {week, ftp: ftpEstimate(between(summaries, addDays(end, -(RECENT_DAYS - 1)), end))};
+        return {week, ...ftpEstimateDetail(between(summaries, addDays(end, -(RECENT_DAYS - 1)), end))};
     });
 }
 

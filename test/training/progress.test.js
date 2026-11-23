@@ -91,3 +91,41 @@ describe('other sports', () => {
         expect(ftpEstimates(withRun, today, 2)).toEqual(ftpEstimates(rides, today, 2));
     });
 });
+
+describe('where the numbers come from (chart read-outs)', () => {
+    const r = (id, day, b, weight = 75, name = id) => ({id, day, name, start: 0, duration: 3600, tss: 50, kj: 500, zoneSeconds: z(), best: b, weight, ftp: 250, version: 1});
+
+    test('each best names the ride and day that set it; an equal best keeps the earlier ride', () => {
+        const list = [
+            r('a', '2026-11-02', best(500, 350, 280, 260, 240), 75, 'Sweet spot'),
+            r('b', '2026-11-10', best(520, 350, 270, 268, 230), 75, 'Threshold'),
+        ];
+        const c = powerCurve(list, today);
+        expect(c.allTime.from[3]).toEqual({id: 'b', day: '2026-11-10', name: 'Threshold'});   // 20 min
+        expect(c.allTime.from[1]).toEqual({id: 'a', day: '2026-11-02', name: 'Sweet spot'});  // 1 min, equal: earlier
+        expect(c.recent.from[0].id).toBe('b');
+    });
+
+    test('W/kg is null when the ride has no weight', () => {
+        const c = powerCurve([r('a', '2026-11-20', best(500, 350, 280, 260, 240), null)], today);
+        expect(c.allTime.watts[3]).toBe(260);
+        expect(c.allTime.wkg[3]).toBeNull();
+    });
+
+    test('an FTP estimate says which effort decided it', () => {
+        const est = ftpEstimates([r('a', '2026-11-18', best(500, 350, 280, 268, 240), 75, 'Sweet spot')], today, 1)[0];
+        expect(est.ftp).toBeCloseTo(254.6, 1);
+        expect(est.factor).toBe(0.95);
+        expect(est.from).toEqual({seconds: 1200, watts: 268, day: '2026-11-18', name: 'Sweet spot', id: 'a'});
+        const long = ftpEstimates([r('b', '2026-11-19', best(500, 350, 280, 262, 255), 75, 'Long')], today, 1)[0];
+        expect(long.ftp).toBe(255);
+        expect(long.factor).toBe(1);
+        expect(long.from).toMatchObject({seconds: 3600, watts: 255, day: '2026-11-19'});
+        const none = ftpEstimates([], today, 1)[0];
+        expect([none.ftp, none.from, none.factor]).toEqual([null, null, null]);
+    });
+
+    test('a year of weekly volume', () => {
+        expect(weeklyVolume(rides, today, 52)).toHaveLength(52);
+    });
+});

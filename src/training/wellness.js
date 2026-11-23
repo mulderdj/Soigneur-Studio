@@ -43,6 +43,22 @@ function hrvRange(days) {
     return {low: Math.round(mean - sd), high: Math.round(mean + sd), source: 'own'};
 }
 
+// the normal range of one night: Garmin's baseline stored with it, else
+// mean ± 1 SD over the 60 days before it (at least 14 nights); so a night
+// months ago is judged against the range it had then, not today's
+function hrvRangeOn(day, days) {
+    const list = sorted(days);
+    const night = list.find(d => d.day === day);
+    const b = night?.hrvBaseline;
+    if(has(b?.low) && has(b?.high)) return {low: b.low, high: b.high, source: 'garmin'};
+    const from = minus(day, OWN_DAYS);
+    const values = list.filter(d => d.day >= from && d.day < day && has(d.hrv)).map(d => d.hrv);
+    if(values.length < MIN_NIGHTS) return null;
+    const mean = values.reduce((a, x) => a + x, 0) / values.length;
+    const sd = Math.sqrt(values.reduce((a, x) => a + (x - mean) ** 2, 0) / values.length);
+    return {low: Math.round(mean - sd), high: Math.round(mean + sd), source: 'own'};
+}
+
 function hrvState(value, range) {
     if(!has(value) || !range) return null;
     if(value < range.low) return 'below';
@@ -63,4 +79,4 @@ function restingTrend(days) {
     };
 }
 
-export { hrvRange, hrvState, latestNight, restingTrend, sorted as sortedDays };
+export { hrvRange, hrvRangeOn, hrvState, latestNight, restingTrend, sorted as sortedDays };
