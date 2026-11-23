@@ -9,6 +9,7 @@ Status: proposal. Each subproject gets its own spec (brainstorm, written spec, p
   - 1+2: responsive UI and style system
   - 3a: Training page with form, calendar, plan and progress
 - **Built, waiting for the live check:** 3b, intervals.icu history and the two-way plan, on branch `intervals-3b`.
+- **Built, waiting for review:** 12a, the identity (Soigneur Studio: name, icon, About, privacy, README, NOTICE, Docker names) and a fully passing test suite (upstream's 50 failing tests fixed, updated or removed), on branch `soigneur-12a` (on top of `garmin-4`).
 - **Built, waiting for the live check:** 4, Garmin health data and activities, plus a load for every workout (power, HR, RPE, estimate), on branch `garmin-4` (on top of `intervals-3b`).
 - **Docs:** walkthrough with screenshots and screencast (`docs/walkthrough/`).
 
@@ -150,7 +151,8 @@ The rider rides a **Tacx trainer with Garmin sensors** and has an ANT+ stick, bu
   - **Fallback:** upstream's FE-C over Bluetooth stays as the fallback for older Tacx firmware.
   - **Stability is the goal:** reconnecting after dropouts, and a connection log.
   - **Testing:** a packet recorder turns the rider's real devices into test fixtures; the final check is a session on the rider's own trainer.
-- **12c: FIT.** Garmin's official FIT JavaScript SDK (reads and writes FIT) is **ruled out**. Its FIT Protocol License §2(d) forbids distributing it under a licence that requires source disclosure or the right to modify, which AGPL does. MIT alternatives (fit-file-parser) carry Garmin's profile tables too. So upstream's FIT code stays for now, later trimmed to the messages we use.
+  - **Tests to write:** upstream's power and speed/cadence parser tests were removed in 12a (written for an older API); 12b writes new ones for those services.
+- **12c: FIT.** Noted in 12a: every exported record carries latitude/longitude 0,0 and zero values for absent sensors (altitude, grade, Moxy, core temperature) instead of FIT's "invalid" value; some apps may place the ride off the coast of Africa. Exports are otherwise valid (checked with an independent decoder). Garmin's official FIT JavaScript SDK (reads and writes FIT) is **ruled out**. Its FIT Protocol License §2(d) forbids distributing it under a licence that requires source disclosure or the right to modify, which AGPL does. MIT alternatives (fit-file-parser) carry Garmin's profile tables too. So upstream's FIT code stays for now, later trimmed to the messages we use.
 - **12d: ANT+ stays upstream's,** as a backup for the rider's stick, with no development. Garmin's ANT+ terms limit sharing the network key.
 
 After 12b, upstream's share drops to roughly 30–35 %.
