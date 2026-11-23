@@ -1,4 +1,4 @@
-@import "uplot/dist/uPlot.min.css"; /* the chart engine's own layout (overlay, cursor, selection) */
+@import "npm:uplot/dist/uPlot.min.css"; /* the chart engine's own layout (overlay, cursor, selection) */
 
 /*
  * Training page layout: form, this week, calendar, progress.
