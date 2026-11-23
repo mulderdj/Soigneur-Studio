@@ -51,7 +51,8 @@ function IDB(args = {}) {
                 case 1: update(storeNames);
                 case 2: update(storeNames);
                 case 3: createStores(storeNames); // v4: rideSummaries, plan
-                case 4: latest(storeNames);
+                case 4: createStores(storeNames); // v5: externalRides
+                case 5: latest(storeNames);
                 }
             };
             openReq.onerror = function() {

@@ -72,3 +72,22 @@ describe('time in zones', () => {
         ]);
     });
 });
+
+describe('other sports', () => {
+    const run = {...ride('2026-11-24', 7200, 80, 900, z(0, 7200), best(1200, 800, 600, 500, 450)), id: 'run', sport: 'run'};
+    const withRun = [...rides, run];
+
+    test('a 2 h run adds to weekly hours and TSS', () => {
+        const week = weeklyVolume(withRun, today, 1)[0];
+        const without = weeklyVolume(rides, today, 1)[0];
+        expect(week.hours).toBeCloseTo(without.hours + 2);
+        expect(week.tss).toBe(without.tss + 80);
+        expect(weekCompare(withRun, today).current.tss).toBe(weekCompare(rides, today).current.tss + 80);
+    });
+
+    test('but not to zones, power curve or FTP estimates', () => {
+        expect(zoneTotals(withRun, today, 'week', 1)).toEqual(zoneTotals(rides, today, 'week', 1));
+        expect(powerCurve(withRun, today)).toEqual(powerCurve(rides, today));
+        expect(ftpEstimates(withRun, today, 2)).toEqual(ftpEstimates(rides, today, 2));
+    });
+});

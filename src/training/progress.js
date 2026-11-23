@@ -4,6 +4,9 @@
 //
 
 import { addDays, daysBetween, weekStart, monthStart } from './dates.js';
+import { isCycling } from './merge.js';
+
+// volume counts every sport; power curve, FTP and zones only cycling
 
 const WINDOWS = [5, 60, 300, 1200, 3600];
 const RECENT_DAYS = 42;
@@ -60,7 +63,8 @@ function bests(list) {
     return {watts, wkg};
 }
 
-function powerCurve(summaries, today) {
+function powerCurve(all, today) {
+    const summaries = all.filter(isCycling);
     return {
         windows: WINDOWS,
         recent: bests(between(summaries, addDays(today, -(RECENT_DAYS - 1)), today)),
@@ -76,7 +80,8 @@ function ftpEstimate(list) {
     return Math.max(b20 === null ? 0 : 0.95 * b20, b60 ?? 0);
 }
 
-function ftpEstimates(summaries, today, weeks = 12) {
+function ftpEstimates(all, today, weeks = 12) {
+    const summaries = all.filter(isCycling);
     return weekStarts(today, weeks).map(week => {
         const end = addDays(week, 6) < today ? addDays(week, 6) : today;
         return {week, ftp: ftpEstimate(between(summaries, addDays(end, -(RECENT_DAYS - 1)), end))};
@@ -89,7 +94,8 @@ function sumZones(list) {
     return seconds;
 }
 
-function zoneTotals(summaries, today, by = 'week', count = 12) {
+function zoneTotals(all, today, by = 'week', count = 12) {
+    const summaries = all.filter(isCycling);
     if(by === 'month') {
         const months = [monthStart(today)];
         while(months.length < count) months.unshift(monthStart(addDays(months[0], -1)));

@@ -7,6 +7,8 @@
 //   rideSummaries  one summary per ride; never trimmed, unlike the
 //                  'activity' store that keeps only the last 7 .fit files
 //   plan           PlanEntry {id, day, workout, rideId, updatedAt, deleted, dirty}
+//   externalRides  ride summaries from intervals.icu, synced by the account
+//                  server; summaries() merges them in without duplicates
 //
 // The account connection is injected with connect({api, linked}) so this
 // module stays free of the app's start-up code.
@@ -18,11 +20,17 @@ import { uuid } from '../storage/uuid.js';
 import { rideSummary, SUMMARY_VERSION } from './summary.js';
 import { fitToSamples } from './fit-records.js';
 import { matchRide } from './plan.js';
+import { mergeRides } from './merge.js';
 
 const SUMMARIES = 'rideSummaries';
 const PLAN = 'plan';
+const EXTERNAL = 'externalRides';
 
-let remote = {api: null, linked: () => false, planSince: {get: () => 0, set: () => {}}};
+let remote = {
+    api: null, linked: () => false,
+    planSince: {get: () => 0, set: () => {}},
+    externalSince: {get: () => 0, set: () => {}},
+};
 
 function connect(options = {}) {
     remote = {...remote, ...options};
@@ -34,9 +42,36 @@ function changed() {
 
 // --- ride summaries ---------------------------------------------------------
 
-async function summaries() {
+async function ownSummaries() {
     const all = (await idb.getAll(SUMMARIES)) ?? [];
     return all.sort((a, b) => (a.start ?? 0) - (b.start ?? 0));
+}
+
+async function externalRides() {
+    try { return (await idb.getAll(EXTERNAL)) ?? []; } catch(e) { return []; }
+}
+
+// every ride: Auuki's own and intervals.icu's, each counted once
+async function summaries() {
+    return mergeRides(await ownSummaries(), await externalRides());
+}
+
+// rides intervals.icu has, through the account server (changed since the cursor)
+async function pullExternal() {
+    if(!remote.linked() || !remote.api) return 0;
+    const since = remote.externalSince.get() ?? 0;
+    const res = await remote.api.get(`/me/external-rides?since=${since}`);
+    const rides = (res?.rides ?? []).filter(r => r?.id);
+    for(const r of rides) await idb.put(EXTERNAL, r);
+    if(Number.isFinite(res?.now)) remote.externalSince.set(res.now);
+    if(rides.length > 0) changed();
+    return rides.length;
+}
+
+// ask the account server to sync intervals.icu now (no-op when not connected)
+async function requestIntervalsSync() {
+    if(!remote.linked() || !remote.api) return false;
+    try { await remote.api.post('/me/intervals/sync', {}); return true; } catch(e) { return false; }
 }
 
 async function saveSummary(summary) {
@@ -86,7 +121,7 @@ function durationOnly(meta, {ftp, weight}) {
 // summaries for rides that have none of the current version yet: first the
 // .fit files on this device, then (signed in) rides only on the server
 async function backfill({ftp, weight, onProgress = () => {}} = {}) {
-    const have = new Map((await summaries()).map(s => [s.id, s]));
+    const have = new Map((await ownSummaries()).map(s => [s.id, s]));
     const isCurrent = id => have.get(id)?.version === SUMMARY_VERSION;
     const local = ((await idb.getAll('activity')) ?? []).filter(r => r?.id && !isCurrent(r.id));
 
@@ -264,6 +299,8 @@ async function summaryFor(id) {
 const history = Object.freeze({
     connect,
     summaries,
+    pullExternal,
+    requestIntervalsSync,
     saveSummary,
     summaryFor,
     backfill,

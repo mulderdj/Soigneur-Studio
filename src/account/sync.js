@@ -238,6 +238,7 @@ async function syncNow() {
         await pullProfile();
         await syncWorkouts();
         await history.syncPlan();
+        await history.pullExternal().catch(e => console.warn(':sync :external-rides', e)); // never blocks the rest
         const ridesOk = await flushRides();
         if(ridesOk) setState('ok', `Synced ${new Date().toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'})}`);
     } catch(e) {

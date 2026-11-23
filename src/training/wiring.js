@@ -16,10 +16,28 @@ import { todayChecker } from './today.js';
 history.connect({
     api,
     linked: () => !!riders.current()?.account?.token,
-    planSince: {
-        get: () => { try { return Number(localStorage.getItem(riders.key('training:planSince')) ?? 0) || 0; } catch(e) { return 0; } },
-        set: (v) => { try { localStorage.setItem(riders.key('training:planSince'), String(v)); } catch(e) {} },
-    },
+    planSince: cursor('training:planSince'),
+    externalSince: cursor('training:externalSince'),
+});
+
+function cursor(name) {
+    return {
+        get: () => { try { return Number(localStorage.getItem(riders.key(name)) ?? 0) || 0; } catch(e) { return 0; } },
+        set: (v) => { try { localStorage.setItem(riders.key(name), String(v)); } catch(e) {} },
+    };
+}
+
+// intervals.icu: ask the account server to sync when the app opens, and
+// fetch what it found once it has had time to run
+async function pullIntervals() {
+    await history.syncPlan().catch(() => {});
+    await history.pullExternal().catch(e => console.warn(':training :intervals', e));
+}
+
+xf.sub('activity:restore', async () => {
+    if(!(await history.requestIntervalsSync())) return;
+    setTimeout(pullIntervals, 30 * 1000);
+    setTimeout(pullIntervals, 3 * 60 * 1000);
 });
 
 // 'activity:add' fires as the ride is saved; the session still holds the

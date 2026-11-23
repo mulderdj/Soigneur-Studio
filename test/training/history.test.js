@@ -6,11 +6,11 @@ import { idb } from '../../src/storage/idb.js';
 import { history } from '../../src/training/history.js';
 import { fit } from '../../src/fit/fit.js';
 
-const STORES = ['session', 'workouts', 'activity', 'rideSummaries', 'plan'];
+const STORES = ['session', 'workouts', 'activity', 'rideSummaries', 'plan', 'externalRides'];
 let n = 0;
 
 beforeEach(async () => {
-    await idb.start(`test-history-${n++}`, 4, STORES);
+    await idb.start(`test-history-${n++}`, 5, STORES);
 });
 
 const summary = (id, day, start) => ({version: 1, id, day, start, duration: 3600, tss: 50, zoneSeconds: Array(7).fill(0), best: {}});
@@ -96,6 +96,14 @@ describe('upgrading an existing database', () => {
     });
 });
 
+test('a version 4 database gains the externalRides store', async () => {
+    await idb.start('upgrade-from-4', 4, ['session', 'workouts', 'activity', 'rideSummaries', 'plan']);
+    await history.saveSummary(summary('mine', '2026-11-20', 1));
+    await idb.start('upgrade-from-4', 5, STORES);
+    await idb.put('externalRides', {...summary('icu-9', '2026-11-22', 2 * 86400000), source: 'intervals'});
+    expect((await history.summaries()).map(s => s.id)).toEqual(['mine', 'icu-9']);
+});
+
 describe('plan sync', () => {
     test('an edit made while its upload is in flight is not lost', async () => {
         const e = await history.addPlanEntry('2026-11-24', {id: 'w1', meta: {name: 'A'}, intervals: []});
@@ -132,5 +140,31 @@ describe('an unreadable ride', () => {
         expect(s.tss).toBeNull();
         expect(s.day).toBe('2026-11-18');
         expect((await history.backfill({ftp: 250, weight: 75})).skipped).toEqual([]); // not retried
+    });
+});
+
+describe('intervals.icu rides', () => {
+    test('are pulled with a cursor and merged into the summaries', async () => {
+        const t = new Date(2026, 10, 20, 18, 0).getTime();
+        await history.saveSummary(summary('r1', '2026-11-20', t));
+        const calls = [];
+        let cursor = 0;
+        const pages = [
+            {rides: [{...summary('icu-1', '2026-11-20', t + 60000), source: 'intervals'},      // the same ride
+                     {...summary('icu-2', '2026-11-19', t - 86400000), source: 'intervals', sport: 'run'}], now: 500},
+            {rides: [{...summary('icu-3', '2026-11-21', t + 86400000), source: 'intervals'}], now: 900},
+        ];
+        const api = {get: async (path) => { calls.push(path); return pages.shift(); }};
+        history.connect({api, linked: () => true, externalSince: {get: () => cursor, set: v => { cursor = v; }}});
+        try {
+            await history.pullExternal();
+            expect((await history.summaries()).map(s => s.id)).toEqual(['icu-2', 'r1']);
+            await history.pullExternal();
+            expect(calls).toEqual(['/me/external-rides?since=0', '/me/external-rides?since=500']);
+            expect((await history.summaries()).map(s => s.id)).toEqual(['icu-2', 'r1', 'icu-3']);
+            expect(cursor).toBe(900);
+        } finally {
+            history.connect({api: null, linked: () => false});
+        }
     });
 });
