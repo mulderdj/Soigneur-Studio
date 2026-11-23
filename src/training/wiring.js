@@ -10,6 +10,8 @@ import { riders } from '../riders.js';
 import { api } from '../account/api.js';
 import { session } from '../views/training-dashboard.js';
 import { history } from './history.js';
+import { today } from './dates.js';
+import { selectTodaysWorkout } from './today.js';
 
 history.connect({
     api,
@@ -39,4 +41,36 @@ xf.sub('activity:add', (saved) => {
         distance: Number.isFinite(db.distance) ? db.distance : null,
     };
     history.recordRide(meta, samples).catch(e => console.warn(':training :record', e));
+});
+
+// today's planned workout: selected on start and when the day changes,
+// never over a workout the rider picked by hand today or during a ride
+const handPickedKey = () => riders.key('training:handPicked');
+
+xf.sub('ui:workout:select', () => {
+    try { localStorage.setItem(handPickedKey(), today()); } catch(e) {}
+});
+
+let checkedDay = null;
+
+async function checkToday() {
+    const day = today();
+    if(day === checkedDay) return;
+    checkedDay = day;
+    let handPickedDay = null;
+    try { handPickedDay = localStorage.getItem(handPickedKey()); } catch(e) {}
+    try {
+        await selectTodaysWorkout({
+            today: day, watchStatus: db.watchStatus, handPickedDay,
+            select: workout => xf.dispatch('workout', workout),
+        });
+    } catch(e) {
+        console.warn(':training :today', e);
+    }
+}
+
+// the rider's database is open once their activities are restored
+xf.sub('activity:restore', () => {
+    checkToday();
+    setInterval(checkToday, 60 * 1000);
 });
