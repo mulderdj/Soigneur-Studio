@@ -8,6 +8,10 @@
 	# plain http://localhost:8080 must serve the app; without this Caddy
 	# redirects it to https://localhost/ (port 443, i.e. some other server)
 	auto_https disable_redirects
+	# a browser opening https://<IP address>:8443 sends no server name, and
+	# inside Docker the address the connection arrives on is the container's
+	# own: without this Caddy finds no certificate (ERR_SSL_PROTOCOL_ERROR)
+	default_sni {$SOIGNEUR_HOST:localhost}
 }
 
 (app) {
