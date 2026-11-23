@@ -9,6 +9,8 @@
 //   plan           PlanEntry {id, day, workout, rideId, updatedAt, deleted, dirty}
 //   externalRides  ride summaries from intervals.icu, synced by the account
 //                  server; summaries() merges them in without duplicates
+//   hiddenRides    {id, hidden, dirty}: rides the rider hid (still listed in
+//                  the day dialog, marked hidden: true; see countable())
 //
 // The account connection is injected with connect({api, linked}) so this
 // module stays free of the app's start-up code.
@@ -25,6 +27,7 @@ import { mergeRides } from './merge.js';
 const SUMMARIES = 'rideSummaries';
 const PLAN = 'plan';
 const EXTERNAL = 'externalRides';
+const HIDDEN = 'hiddenRides';
 
 let remote = {
     api: null, linked: () => false,
@@ -51,9 +54,54 @@ async function externalRides() {
     try { return (await idb.getAll(EXTERNAL)) ?? []; } catch(e) { return []; }
 }
 
-// every ride: Auuki's own and intervals.icu's, each counted once
+// every ride: Auuki's own and intervals.icu's, each counted once; hidden
+// rides are marked hidden: true
 async function summaries() {
-    return mergeRides(await ownSummaries(), await externalRides());
+    const hidden = await hiddenIds();
+    const all = mergeRides(await ownSummaries(), await externalRides());
+    return hidden.size ? all.map(s => hidden.has(s.id) ? {...s, hidden: true} : s) : all;
+}
+
+// --- hidden rides ------------------------------------------------------------
+
+async function hiddenRecords() {
+    try { return (await idb.getAll(HIDDEN)) ?? []; } catch(e) { return []; }
+}
+
+async function hiddenIds() {
+    return new Set((await hiddenRecords()).filter(r => r.hidden).map(r => r.id));
+}
+
+async function setHidden(id, hidden) {
+    await idb.put(HIDDEN, {id, hidden, dirty: true});
+    changed();
+    schedulePush();
+}
+
+const hideRide = (id) => setHidden(id, true);
+const showRide = (id) => setHidden(id, false);
+
+// push this device's changes, then take the server's list
+async function syncHidden() {
+    for(const r of await hiddenRecords()) {
+        if(!r.dirty) continue;
+        const path = `/me/hidden-rides/${encodeURIComponent(r.id)}`;
+        if(r.hidden) await remote.api.put(path, {});
+        else await remote.api.delete(path);
+        const now = await idb.get(HIDDEN, r.id);
+        if(now && now.hidden === r.hidden) await idb.put(HIDDEN, {...now, dirty: false});
+    }
+    const res = await remote.api.get('/me/hidden-rides');
+    if(!Array.isArray(res?.ids)) return;
+    const server = new Set(res.ids);
+    let any = false;
+    for(const r of await hiddenRecords()) {
+        if(r.dirty) continue;
+        if(!server.has(r.id)) { await idb.remove(HIDDEN, r.id); any = any || r.hidden; }
+        server.delete(r.id);
+    }
+    for(const id of server) { await idb.put(HIDDEN, {id, hidden: true, dirty: false}); any = true; }
+    if(any) changed();
 }
 
 // rides intervals.icu has, through the account server (changed since the cursor)
@@ -290,6 +338,8 @@ async function syncPlanOnce() {
     }
     if(Number.isFinite(pulled.now)) remote.planSince.set(pulled.now);
     if(any) changed();
+    // hidden rides ride along with the plan; an older server without them is fine
+    await syncHidden().catch(e => console.warn(':training :hidden', e));
 }
 
 async function summaryFor(id) {
@@ -299,6 +349,9 @@ async function summaryFor(id) {
 const history = Object.freeze({
     connect,
     summaries,
+    hideRide,
+    showRide,
+    hiddenIds,
     pullExternal,
     requestIntervalsSync,
     saveSummary,

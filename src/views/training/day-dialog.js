@@ -1,6 +1,8 @@
 //
 // <day-dialog>: one day of the calendar. Its rides, its plan entries (move
-// to another day, remove) and "Plan a workout" from the library.
+// to another day, remove) and "Plan a workout" from the library. A ride can
+// be hidden ("Hide this ride", e.g. a duplicate) and shown again; hidden
+// rides stay listed here, greyed, and count nowhere else.
 //
 // open(day, data) with data = {today, summaries, plan, workouts};
 // `actions` defaults to the training history (tests swap it).
@@ -46,6 +48,10 @@ class DayDialog extends HTMLElement {
             if(workout) { await this.actions.addPlanEntry(this.day, workout); this.close(); }
             return;
         }
+        const hide = e.target.closest('[data-hide]');
+        if(hide) { this.actions.hideRide(hide.dataset.hide); this.close(); return; }
+        const show = e.target.closest('[data-show]');
+        if(show) { this.actions.showRide(show.dataset.show); this.close(); return; }
         const remove = e.target.closest('[data-remove]');
         if(remove) { this.actions.removePlanEntry(remove.dataset.remove); this.close(); return; }
         if(e.target.closest('[data-close]')) this.close();
@@ -57,8 +63,8 @@ class DayDialog extends HTMLElement {
     }
 
     render() {
-        const {summaries = [], plan = [], today} = this.data;
-        const rides = summaries.filter(s => s.day === this.day);
+        const {summaries = [], allSummaries, plan = [], today} = this.data;
+        const rides = (allSummaries ?? summaries).filter(s => s.day === this.day);
         const entries = plan.filter(e => !e.deleted && e.day === this.day);
         this.$dialog.innerHTML = `
             <div class="dd-head">
@@ -66,8 +72,11 @@ class DayDialog extends HTMLElement {
                 <button type="button" class="btn btn--icon" data-close aria-label="Close">×</button>
             </div>
             ${rides.length ? `<h3 class="dd-sub">Rides</h3><ul class="dd-list">${rides.map(r => `
-                <li class="list-row"><div class="list-row__main"><div class="list-row__title">${esc(r.name)}</div>
-                    <div class="list-row__meta">${fmtDuration(r.duration)} · ${fmtTss(r.tss)} TSS${Number.isFinite(r.np) ? ` · NP ${Math.round(r.np)} W` : ''}</div></div></li>`).join('')}</ul>` : ''}
+                <li class="list-row dd-ride${r.hidden ? ' is-hidden' : ''}"><div class="list-row__main"><div class="list-row__title">${esc(r.name)}</div>
+                    <div class="list-row__meta">${fmtDuration(r.duration)} · ${fmtTss(r.tss)} TSS${Number.isFinite(r.np) ? ` · NP ${Math.round(r.np)} W` : ''}${r.hidden ? ' · hidden' : ''}</div></div>
+                    ${r.hidden ?
+                      `<button type="button" class="btn" data-show="${esc(r.id)}">Show</button>` :
+                      `<button type="button" class="btn" data-hide="${esc(r.id)}">Hide this ride</button>`}</li>`).join('')}</ul>` : ''}
             ${entries.length ? `<h3 class="dd-sub">Planned</h3><ul class="dd-list">${entries.map(e => `
                 <li class="list-row"><div class="list-row__main"><div class="list-row__title">${esc(e.workout?.meta?.name ?? 'Workout')}</div>
                     <div class="list-row__meta"><span class="badge">${planStatus(e, today)}</span> ${Math.round(plannedTss(e.workout, this.data.ftp))} TSS</div></div>

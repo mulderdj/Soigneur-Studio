@@ -197,6 +197,26 @@ test('training plan syncs per user, incrementally, with deletions', async () => 
     }
 });
 
+test('hidden rides are stored, listed and removed per user', async () => {
+    const {call, stop} = await start({allowSignup: true});
+    try {
+        const a = (await call('POST', '/api/auth/register', {body: {username: 'dj', password: 'password123'}})).json.token;
+        const b = (await call('POST', '/api/auth/register', {body: {username: 'ane', password: 'password123'}})).json.token;
+        assert.deepEqual((await call('GET', '/api/me/hidden-rides', {token: a})).json, {ids: []});
+        assert.equal((await call('PUT', '/api/me/hidden-rides/icu-1', {token: a, body: {}})).status, 200);
+        await call('PUT', '/api/me/hidden-rides/icu-1', {token: a, body: {}}); // twice is fine
+        await call('PUT', '/api/me/hidden-rides/r2', {token: a, body: {}});
+        assert.deepEqual((await call('GET', '/api/me/hidden-rides', {token: a})).json.ids.sort(), ['icu-1', 'r2']);
+        assert.deepEqual((await call('GET', '/api/me/hidden-rides', {token: b})).json.ids, []);
+        await call('DELETE', '/api/me/hidden-rides/icu-1', {token: a});
+        assert.deepEqual((await call('GET', '/api/me/hidden-rides', {token: a})).json.ids, ['r2']);
+        assert.equal((await call('PUT', '/api/me/hidden-rides/bad%20id', {token: a, body: {}})).status, 400);
+        assert.equal((await call('GET', '/api/me/hidden-rides')).status, 401);
+    } finally {
+        stop();
+    }
+});
+
 test('ride summaries can be added to rides already on the server', async () => {
     const {call, stop} = await start({allowSignup: true});
     try {

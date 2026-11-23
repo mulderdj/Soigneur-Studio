@@ -7,6 +7,7 @@
 import { xf } from '../../functions.js';
 import { history } from '../../training/history.js';
 import { today } from '../../training/dates.js';
+import { countable } from '../../training/merge.js';
 import './calendar.js';
 import './day-dialog.js';
 import './form-card.js';
@@ -52,8 +53,11 @@ class TrainingPage extends HTMLElement {
         this.abort?.abort();
     }
 
+    // the cards and the calendar count only rides that aren't hidden; the
+    // day dialog lists every ride (allSummaries) so a hidden one can be shown
     data() {
-        return {...this.state, today: today()};
+        const all = this.state.summaries ?? [];
+        return {...this.state, summaries: countable(all), allSummaries: all, today: today()};
     }
 
     async onShow() {
@@ -87,7 +91,7 @@ class TrainingPage extends HTMLElement {
             return; // database not open yet
         }
         const d = this.data();
-        const empty = d.summaries.length === 0 && d.plan.length === 0;
+        const empty = d.allSummaries.length === 0 && d.plan.length === 0;
         this.$empty.hidden = !empty;
         for(const el of this.querySelectorAll('.training > *')) el.data = d;
     }

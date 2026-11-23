@@ -317,6 +317,11 @@
     padding-right: 0;
 }
 
+/* a hidden ride: still listed, greyed, counts nowhere else */
+.dd-ride.is-hidden .list-row__main {
+    opacity: 0.55;
+}
+
 .dd-move {
     flex-direction: row;
     align-items: center;

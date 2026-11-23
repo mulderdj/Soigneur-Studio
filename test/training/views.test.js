@@ -87,6 +87,20 @@ describe('day dialog', () => {
         expect(el.actions.addPlanEntry).toHaveBeenCalledWith('2026-11-27', data.workouts[0]);
     });
 
+    test('a ride can be hidden, and a hidden ride shown again', () => {
+        document.body.innerHTML = '<day-dialog></day-dialog>';
+        const el = document.querySelector('day-dialog');
+        el.actions = {hideRide: jest.fn(async () => {}), showRide: jest.fn(async () => {})};
+        el.open('2026-11-24', {...data, summaries: [...data.summaries,
+            {id: 'icu-7', day: '2026-11-24', name: 'Commute', duration: 1200, tss: 15, start: 5, hidden: true}]});
+        const rows = [...el.querySelectorAll('.dd-ride')];
+        expect(rows.map(r => r.classList.contains('is-hidden'))).toEqual([false, true]);
+        el.querySelector('[data-hide="r1"]').click();
+        expect(el.actions.hideRide).toHaveBeenCalledWith('r1');
+        el.querySelector('[data-show="icu-7"]').click();
+        expect(el.actions.showRide).toHaveBeenCalledWith('icu-7');
+    });
+
     test('a planned entry can be removed', () => {
         const el = dialog();
         el.querySelector('[data-remove="p3"]').click();

@@ -33,4 +33,9 @@ function isCycling(summary) {
     return !summary?.sport || summary.sport === 'cycling';
 }
 
-export { mergeRides, isCycling, sameRide };
+// rides that count for form and progress: all but the ones the rider hid
+function countable(summaries = []) {
+    return summaries.filter(s => !s.hidden);
+}
+
+export { mergeRides, isCycling, sameRide, countable };

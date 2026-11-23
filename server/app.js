@@ -176,6 +176,11 @@ function openDatabase(path) {
             updated_at INTEGER NOT NULL,
             PRIMARY KEY (user_id, id)
         );
+        CREATE TABLE IF NOT EXISTS hidden_rides (
+            user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+            ride_id TEXT NOT NULL,
+            PRIMARY KEY (user_id, ride_id)
+        );
         CREATE TABLE IF NOT EXISTS plan (
             user_id    TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
             id         TEXT NOT NULL,
@@ -243,6 +248,9 @@ function createApp(options = {}) {
                                                            'intervalsUpdated', json_extract(data, '$.intervalsUpdated')) END
                                    WHERE user_id = ? AND id = ?`),
         planData:      db.prepare('SELECT data, deleted FROM plan WHERE user_id = ? AND id = ?'),
+        hiddenRides:   db.prepare('SELECT ride_id FROM hidden_rides WHERE user_id = ? ORDER BY ride_id'),
+        hideRide:      db.prepare('INSERT OR IGNORE INTO hidden_rides (user_id, ride_id) VALUES (?, ?)'),
+        showRide:      db.prepare('DELETE FROM hidden_rides WHERE user_id = ? AND ride_id = ?'),
         insertActivity: db.prepare(`INSERT INTO activities (user_id, id, summary, fit, created_at) VALUES (?, ?, ?, ?, ?)
                                     ON CONFLICT(user_id, id) DO NOTHING`),
         deleteActivity: db.prepare('DELETE FROM activities WHERE user_id = ? AND id = ?'),
@@ -433,6 +441,20 @@ function createApp(options = {}) {
 
     route('DELETE', '/api/me/plan/:id', ({auth, params}) => {
         q.deletePlan.run(now(), auth.user.id, validId(params.id));
+        return {ok: true};
+    }, {auth: true});
+
+    // rides the rider hid on the Training page (duplicates the matching missed)
+    route('GET', '/api/me/hidden-rides', ({auth}) =>
+        ({ids: q.hiddenRides.all(auth.user.id).map(r => r.ride_id)}), {auth: true});
+
+    route('PUT', '/api/me/hidden-rides/:id', ({auth, params}) => {
+        q.hideRide.run(auth.user.id, validId(params.id));
+        return {ok: true};
+    }, {auth: true});
+
+    route('DELETE', '/api/me/hidden-rides/:id', ({auth, params}) => {
+        q.showRide.run(auth.user.id, validId(params.id));
         return {ok: true};
     }, {auth: true});
 

@@ -5,8 +5,9 @@ import './fake-idb.js';
 import { idb } from '../../src/storage/idb.js';
 import { history } from '../../src/training/history.js';
 import { fit } from '../../src/fit/fit.js';
+import { countable } from '../../src/training/merge.js';
 
-const STORES = ['session', 'workouts', 'activity', 'rideSummaries', 'plan', 'externalRides'];
+const STORES = ['session', 'workouts', 'activity', 'rideSummaries', 'plan', 'externalRides', 'hiddenRides'];
 let n = 0;
 
 beforeEach(async () => {
@@ -163,6 +164,45 @@ describe('intervals.icu rides', () => {
             expect(calls).toEqual(['/me/external-rides?since=0', '/me/external-rides?since=500']);
             expect((await history.summaries()).map(s => s.id)).toEqual(['icu-2', 'r1', 'icu-3']);
             expect(cursor).toBe(900);
+        } finally {
+            history.connect({api: null, linked: () => false});
+        }
+    });
+});
+
+describe('hiding a ride', () => {
+    test('a hidden ride stays listed but no longer counts; Show brings it back', async () => {
+        await history.saveSummary(summary('a', '2026-11-20', 1));
+        await history.saveSummary(summary('b', '2026-11-21', 2 * 86400000));
+        await history.hideRide('b');
+        const all = await history.summaries();
+        expect(all.map(s => [s.id, !!s.hidden])).toEqual([['a', false], ['b', true]]);
+        expect(countable(all).map(s => s.id)).toEqual(['a']);
+        expect([...await history.hiddenIds()]).toEqual(['b']);
+        await history.showRide('b');
+        expect(countable(await history.summaries()).map(s => s.id)).toEqual(['a', 'b']);
+    });
+
+    test('hidden ids sync through the account: pushed, and pulled on another device', async () => {
+        await history.saveSummary(summary('a', '2026-11-20', 1));
+        await history.saveSummary(summary('b', '2026-11-21', 2 * 86400000));
+        const server = new Set(['a']); // hidden on another device
+        const calls = [];
+        const api = {
+            get: async (path) => path === '/me/hidden-rides' ? {ids: [...server]} : {entries: [], now: Date.now()},
+            put: async (path) => { calls.push(['PUT', path]); if(path.startsWith('/me/hidden-rides/')) server.add(decodeURIComponent(path.split('/').pop())); return {}; },
+            delete: async (path) => { calls.push(['DELETE', path]); server.delete(decodeURIComponent(path.split('/').pop())); return {}; },
+        };
+        history.connect({api, linked: () => true});
+        try {
+            await history.hideRide('b');
+            await history.syncPlan();
+            expect(server.has('b')).toBe(true);
+            expect([...await history.hiddenIds()].sort()).toEqual(['a', 'b']);
+            await history.showRide('a');
+            await history.syncPlan();
+            expect(server.has('a')).toBe(false);
+            expect(countable(await history.summaries()).map(s => s.id)).toEqual(['a']);
         } finally {
             history.connect({api: null, linked: () => false});
         }
