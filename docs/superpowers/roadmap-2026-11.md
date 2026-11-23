@@ -139,7 +139,8 @@ Measured on 2026-11-23 against upstream (dvmarinoff/Auuki, last commit 2026-11-0
 The rider rides a **Tacx trainer with Garmin sensors** and has an ANT+ stick, but prefers Bluetooth.
 
 - **12a: Identity.**
-  - A new name, manifest, icon, About and privacy pages.
+  - The new name is **Soigneur Studio** (chosen by the rider on 2026-11-23; technical name `soigneur-studio`, short name "Soigneur"). "Studio" is the same word in English, French, Dutch, German and Italian; the rider lives in France and wanted an international name.
+  - The manifest, icon, About and privacy pages carry the new name.
   - The README rewritten as this project's own, with a "based on Auuki by dvmarinoff" credit and a NOTICE file.
   - The AGPL licence and upstream's copyright notice stay.
   - The 50 failing engine tests are fixed or removed.
