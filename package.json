@@ -10,7 +10,7 @@
         "starttls": "parcel --cert ./dev_cert/cert.pem --key ./dev_cert/key.pem",
         "build": "parcel build",
         "server": "node server/index.js",
-        "test:server": "node --test server/app.spec.mjs server/connections.spec.mjs",
+        "test:server": "node --test server/app.spec.mjs server/connections.spec.mjs server/intervals.spec.mjs",
         "check:visual": "node test/visual/check.js"
     },
     "devDependencies": {
