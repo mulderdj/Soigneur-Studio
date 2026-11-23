@@ -39,6 +39,9 @@ services:
       PUBLIC_URL: ${PUBLIC_URL:-}
       STRAVA_CLIENT_ID: ${STRAVA_CLIENT_ID:-}
       STRAVA_CLIENT_SECRET: ${STRAVA_CLIENT_SECRET:-}
+      # "true": intervals.icu activities and planned workouts come in, but
+      # nothing is written back (no uploads, no plan changes on intervals.icu).
+      INTERVALS_READ_ONLY: ${INTERVALS_READ_ONLY:-false}
     volumes:
       - api-data:/data     # SQLite database: accounts, profiles, workouts, rides
 

@@ -2,7 +2,8 @@
 # node:sqlite needs Node 22.13 or newer.
 FROM node:22-slim
 WORKDIR /app
-COPY app.js connections.js index.js ./
+# every server module (the tests are *.spec.mjs and stay out)
+COPY *.js ./
 RUN mkdir -p /data && chown node:node /data
 USER node
 ENV PORT=3000 DATA_DIR=/data
