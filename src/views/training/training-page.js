@@ -8,6 +8,7 @@ import { xf } from '../../functions.js';
 import { history } from '../../training/history.js';
 import { today } from '../../training/dates.js';
 import { countable } from '../../training/merge.js';
+import { importFitFiles, importMessage } from '../../training/fit-import.js';
 import './calendar.js';
 import './day-dialog.js';
 import './form-card.js';
@@ -18,6 +19,10 @@ class TrainingPage extends HTMLElement {
     connectedCallback() {
         this.state = {ftp: 250, weight: 75, workouts: []};
         this.innerHTML = `
+            <div class="tp-tools">
+                <button type="button" class="btn" data-import-fit>Import .fit files</button>
+                <input type="file" class="tp-file" accept=".fit,application/vnd.ant.fit" multiple hidden>
+            </div>
             <p class="tp-status card__note" hidden></p>
             <div class="tp-empty empty" hidden>
                 <h2 class="empty__title">No rides yet</h2>
@@ -37,6 +42,9 @@ class TrainingPage extends HTMLElement {
         this.$status = this.querySelector('.tp-status');
         this.$empty = this.querySelector('.tp-empty');
         this.$dialog = this.querySelector('day-dialog');
+        this.$file = this.querySelector('.tp-file');
+        this.querySelector('[data-import-fit]').addEventListener('click', () => this.$file.click());
+        this.$file.addEventListener('change', () => this.importFiles());
 
         this.abort = new AbortController();
         const signal = {signal: this.abort.signal};
@@ -79,6 +87,23 @@ class TrainingPage extends HTMLElement {
             }
         } catch(e) {
             console.warn(':training :backfill', e);
+        }
+        this.refresh();
+    }
+
+    // rides from other devices or apps (e.g. a Garmin export), as .fit files
+    async importFiles() {
+        const files = [...(this.$file.files ?? [])];
+        this.$file.value = '';
+        if(files.length === 0) return;
+        this.$status.hidden = false;
+        this.$status.textContent = `Reading ${files.length} file${files.length === 1 ? '' : 's'}…`;
+        try {
+            const result = await importFitFiles(files, {ftp: this.state.ftp, weight: this.state.weight});
+            this.$status.textContent = importMessage(result);
+        } catch(e) {
+            console.warn(':training :import', e);
+            this.$status.textContent = 'The files could not be imported.';
         }
         this.refresh();
     }

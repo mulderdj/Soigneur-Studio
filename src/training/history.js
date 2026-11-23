@@ -118,6 +118,24 @@ async function pullExternal() {
     return rides.length;
 }
 
+// a ride imported from a .fit file: kept with the external rides and sent
+// to the account (pendingUpload until the server has it)
+async function saveImported(summary) {
+    await idb.put(EXTERNAL, {...summary, pendingUpload: true});
+    changed();
+    await pushImported().catch(() => {}); // retried on the next sync
+}
+
+async function pushImported() {
+    if(!remote.linked() || !remote.api) return;
+    for(const r of await externalRides()) {
+        if(!r.pendingUpload) continue;
+        const {pendingUpload, ...summary} = r;
+        await remote.api.put(`/me/external-rides/${encodeURIComponent(r.id)}`, {summary});
+        await idb.put(EXTERNAL, summary);
+    }
+}
+
 // ask the account server to sync intervals.icu now (no-op when not connected)
 async function requestIntervalsSync() {
     if(!remote.linked() || !remote.api) return false;
@@ -365,6 +383,7 @@ async function syncPlanOnce() {
     if(any) changed();
     // hidden rides ride along with the plan; an older server without them is fine
     await syncHidden().catch(e => console.warn(':training :hidden', e));
+    await pushImported().catch(e => console.warn(':training :imported', e));
 }
 
 async function summaryFor(id) {
@@ -379,6 +398,7 @@ const history = Object.freeze({
     hiddenIds,
     pullExternal,
     requestIntervalsSync,
+    saveImported,
     saveSummary,
     summaryFor,
     backfill,
@@ -391,4 +411,4 @@ const history = Object.freeze({
     syncPlan,
 });
 
-export { history };
+export { history, toDataView };

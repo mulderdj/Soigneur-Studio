@@ -422,3 +422,19 @@ test('plan: readOnly pulls but never writes to intervals.icu', async () => {
         assert.equal((await planRows(call, token)).length, 2);
     } finally { app.close(); fake.server.closeAllConnections(); fake.server.close(); }
 });
+
+test('imported .fit rides are stored per user', async () => {
+    const {call, token, stop} = await setup();
+    try {
+        const summary = {version: 1, id: 'fit-1', source: 'fit', day: '2026-11-18', start: 1, duration: 120, tss: 3};
+        assert.equal((await call('PUT', '/api/me/external-rides/fit-1', {token, body: {summary}})).status, 200);
+        const rides = (await call('GET', '/api/me/external-rides', {token})).json.rides;
+        assert.deepEqual(rides.map(r => [r.id, r.source]), [['fit-1', 'fit']]);
+        assert.equal((await call('PUT', '/api/me/external-rides/icu-1', {token, body: {summary: {...summary, id: 'icu-1'}}})).status, 400);
+        assert.equal((await call('PUT', '/api/me/external-rides/fit-2', {token, body: {summary: {...summary, source: 'intervals'}}})).status, 400);
+        assert.equal((await call('PUT', '/api/me/external-rides/fit-2', {token, body: {nope: 1}})).status, 400);
+        await call('POST', '/api/users', {token, body: {username: 'ane', password: 'password123', role: 'rider'}});
+        const other = (await call('POST', '/api/auth/login', {body: {username: 'ane', password: 'password123'}})).json.token;
+        assert.deepEqual((await call('GET', '/api/me/external-rides', {token: other})).json.rides, []);
+    } finally { stop(); }
+});

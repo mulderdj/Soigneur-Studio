@@ -349,11 +349,23 @@ function createIntervalsSync({db, options = {}}) {
         timer = null;
     }
 
-    function routes(route, {fail}) {
+    function routes(route, {fail, validId}) {
         route('GET', '/api/me/external-rides', ({auth, url}) => {
             const since = Number(url.searchParams.get('since') ?? 0) || 0;
             const t = now();
             return {rides: q.rides.all(auth.user.id, since).map(r => JSON.parse(r.summary)), now: t};
+        }, {auth: true});
+
+        // a ride imported from a .fit file on one device, for the rider's others
+        route('PUT', '/api/me/external-rides/:id', ({auth, body, params}) => {
+            const id = validId(params.id);
+            if(!id.startsWith('fit-')) fail(400, 'Only imported rides (fit-…) can be stored here.');
+            const s = body?.summary;
+            if(typeof s !== 'object' || s === null || s.source !== 'fit' || typeof s.day !== 'string' ||
+               !/^\d{4}-\d{2}-\d{2}$/.test(s.day)) fail(400, 'Expected {summary: {source: "fit", day, ...}}.');
+            const summary = {...s, id};
+            q.upsertRide.run(auth.user.id, id, JSON.stringify(summary), summary.day, null, now());
+            return {ok: true};
         }, {auth: true});
 
         route('POST', '/api/me/intervals/sync', ({auth}) => {
