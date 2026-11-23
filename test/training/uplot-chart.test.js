@@ -67,3 +67,13 @@ describe('the chart base', () => {
         expect(el.querySelectorAll('.uc-plot > div')).toHaveLength(1);
     });
 });
+
+describe('bars keep room at the edges', () => {
+    test('half a step on both sides of the window', () => {
+        const { padForBars } = require('../../src/views/training/uplot-chart.js');
+        const W = 7 * 86400;
+        const xs = [0, W, 2 * W, 3 * W];
+        expect(padForBars([W, 3 * W], xs)).toEqual([W / 2, 3.5 * W]);
+        expect(padForBars([0, 0], [0])).toEqual([-43200, 43200]);
+    });
+});

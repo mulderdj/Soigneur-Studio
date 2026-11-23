@@ -55,6 +55,14 @@ function tipLeft(cursorX, tipWidth, cardWidth) {
     return Math.max(8, Math.min(x, cardWidth - tipWidth - 8));
 }
 
+// bars are centred on their x: widen the window by half a step on each side
+// so the first and last bars aren't cut in half
+function padForBars([lo, hi], xs) {
+    const steps = xs.slice(1).map((x, i) => x - xs[i]).filter(d => d > 0).sort((a, b) => a - b);
+    const half = (steps[Math.floor(steps.length / 2)] ?? DAY) / 2;
+    return [lo - half, hi + half];
+}
+
 const touchDevice = () => typeof matchMedia === 'function' && matchMedia('(hover: none)').matches;
 
 class UPlotCard extends HTMLElement {
@@ -148,7 +156,8 @@ class UPlotCard extends HTMLElement {
             points: {show: !!s.points, size: 6, fill: s.color, stroke: s.color},
             spanGaps: false,
         }))];
-        const window = rangeWindow(model.x, this.range ?? 'all', model.today ?? model.x[model.x.length - 1]);
+        const span = rangeWindow(model.x, this.range ?? 'all', model.today ?? model.x[model.x.length - 1]);
+        const window = span && model.series.some(s => s.kind === 'bars') ? padForBars(span, model.x) : span;
         const marks = model.marks ?? {};
         const opts = {
             ...this.size(),
@@ -233,8 +242,10 @@ class UPlotCard extends HTMLElement {
         const plot = this.$plot.getBoundingClientRect(), card = this.getBoundingClientRect();
         const x = plot.left - card.left + (u.over?.offsetLeft ?? 0) + u.cursor.left;
         this.$tip.style.left = `${tipLeft(x, this.$tip.offsetWidth, card.width)}px`;
-        this.$tip.style.top = `${plot.top - card.top + 8}px`;
+        // below the header when it fits, else moved up: always inside the card
+        const top = plot.top - card.top + 8;
+        this.$tip.style.top = `${Math.max(8, Math.min(top, card.height - this.$tip.offsetHeight - 8))}px`;
     }
 }
 
-export { UPlotCard, rangeWindow, tipLeft, token };
+export { UPlotCard, rangeWindow, tipLeft, padForBars, token };

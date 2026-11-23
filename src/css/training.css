@@ -586,7 +586,7 @@
 
 /* ---------- interactive charts (uPlot) ---------- */
 
-uplot-card, .uc-card { position: relative; }
+uplot-card, .uc-card { position: relative; overflow: visible; } /* a tall read-out may reach past the card */
 .uc-head {
     display: flex;
     flex-wrap: wrap;

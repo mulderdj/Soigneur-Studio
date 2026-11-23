@@ -98,3 +98,64 @@ describe('health chart', () => {
         expect(b - a).toBeGreaterThanOrEqual(DAY);
     });
 });
+
+describe('weekly volume and time in zones', () => {
+    const { volumeChart, zonesChart } = require('../../src/views/training/chart-models.js');
+    const r = (day, hours, tss, kj, zones) => ({id: day, day, name: day, start: Date.parse(day), duration: hours * 3600, tss, kj, zoneSeconds: zones});
+    const data = {today: '2026-11-25', summaries: [
+        r('2026-11-23', 1, 60, 700, [600, 1800, 1200, 0, 0, 0, 0]),
+        r('2026-11-25', 1.5, 40, 400, [0, 0, 3600, 1800, 0, 0, 0]),
+        r('2026-11-10', 2, 90, 1100, [0, 7200, 0, 0, 0, 0, 0]),
+    ]};
+
+    test('volume: bars of the chosen metric over 52 weeks, opening on 12', () => {
+        const {model} = volumeChart(data, 'hours', {accent: '#00f'});
+        expect(model.x).toHaveLength(52);
+        expect(model.series).toHaveLength(1);
+        expect(model.series[0].kind).toBe('bars');
+        expect(model.series[0].values.at(-1)).toBeCloseTo(2.5);
+        expect(model.ranges.map(x => x[0])).toEqual(['12w', '1y']);
+        expect(model.defaultRange).toBe('12w');
+        expect(volumeChart(data, 'tss', {}).model.series[0].values.at(-1)).toBe(100);
+    });
+
+    test('volume read-out: the week, hours, TSS, kJ and rides; no day to open', () => {
+        const {model, readout} = volumeChart(data, 'hours', {});
+        const o = readout(model.x.length - 1);
+        expect(o.title).toMatch(/23/);
+        expect(o.title).toMatch(/29/);
+        expect(o.rows.map(x => [x.label, x.value])).toEqual([['Hours', '2:30'], ['TSS', '100'], ['kJ', '1100'], ['Rides', '2']]);
+        expect(o.day).toBeUndefined();
+    });
+
+    test('zones: stacked per week, 52 weeks or 12 months', () => {
+        const {model} = zonesChart(data, 'week', {zones: ['z1', 'z2', 'z3', 'z4', 'z5', 'z6', 'z7']});
+        expect(model.x).toHaveLength(52);
+        expect(model.series).toHaveLength(7);
+        // stacked: the top series holds the total of the week (hours), the bottom one zone 1
+        expect(model.series[0].values.at(-1)).toBeCloseTo(2.5);
+        expect(model.series[6].values.at(-1)).toBeCloseTo(600 / 3600);
+        expect(model.ranges.map(x => x[0])).toEqual(['12w', '52w']);
+        expect(zonesChart(data, 'month', {zones: []}).model.x).toHaveLength(12);
+        expect(zonesChart(data, 'month', {zones: []}).model.ranges ?? []).toEqual([]);
+    });
+
+    test('zones read-out: only zones with time, then the total', () => {
+        const {model, readout} = zonesChart(data, 'week', {zones: ['a', 'b', 'c', 'd', 'e', 'f', 'g']});
+        const o = readout(model.x.length - 1);
+        expect(o.rows.map(x => [x.label, x.value])).toEqual([
+            ['Recovery', '0:10'], ['Endurance', '0:30'], ['Tempo', '1:20'], ['Sweet Spot', '0:30'], ['Total', '2:30'],
+        ]);
+        expect(o.rows[0].color).toBe('a');
+        expect(o.day).toBeUndefined();
+    });
+});
+
+describe('period titles', () => {
+    const { weekTitle } = require('../../src/views/training/chart-models.js');
+    test('a week inside one month, and one across two months', () => {
+        expect(weekTitle('2026-11-23', 'en-GB')).toMatch(/^23\s?–\s?29 Nov 2026$/);
+        expect(weekTitle('2026-10-26', 'en-GB')).toMatch(/^26 Oct\s?–\s?1 Nov 2026$/);
+        expect(weekTitle('2026-12-28', 'en-GB')).toMatch(/^28 Dec 2026\s?–\s?3 Jan 2027$/);
+    });
+});

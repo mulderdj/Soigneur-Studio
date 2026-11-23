@@ -9,6 +9,9 @@
 import { dailyTss, pmc, forecast, formLabel } from '../../training/load.js';
 import { planStatus, plannedTss } from '../../training/plan.js';
 import { hrvRangeOn, sortedDays } from '../../training/wellness.js';
+import { weeklyVolume, zoneTotals } from '../../training/progress.js';
+import { addDays } from '../../training/dates.js';
+import { ZONES } from '../../analytics.js';
 import { fmtDay, fmtDuration } from './format.js';
 
 const PAST_DAYS = 90;
@@ -124,4 +127,77 @@ function healthChart(data, colors = {}) {
     return {model, readout};
 }
 
-export { formModel, formChart, healthChart, PAST_DAYS, AHEAD_DAYS, daySec, longDay };
+// "23–29 Nov 2026", "26 Oct – 1 Nov 2026": the browser's own date-range
+// format, in the rider's language
+function weekTitle(week, locale = undefined) {
+    const f = new Intl.DateTimeFormat(locale, {day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC'});
+    return f.formatRange(new Date(daySec(week) * 1000), new Date(daySec(addDays(week, 6)) * 1000));
+}
+const monthTitle = (month) => fmtDay(month, {month: 'long', year: 'numeric'});
+const shortDay = (day) => fmtDay(day, {day: 'numeric', month: 'short'});
+
+// weekly hours, TSS or kJ as bars, a year of weeks, opening on 12
+function volumeChart(data, metric = 'hours', colors = {}) {
+    const weeks = weeklyVolume(data.summaries ?? [], data.today, 52);
+    const model = {
+        x: weeks.map(w => daySec(w.week)),
+        series: [{label: metric, color: colors.accent, kind: 'bars', values: weeks.map(w => w[metric] ?? 0)}],
+        ranges: [['12w', '12 weeks'], ['1y', '1 year']],
+        defaultRange: '12w',
+        today: daySec(data.today),
+        xFormat: (t) => shortDay(new Date(t * 1000).toISOString().slice(0, 10)),
+    };
+    const readout = (i) => {
+        const w = weeks[i];
+        if(!w) return null;
+        return {
+            title: weekTitle(w.week),
+            rows: [
+                {label: 'Hours', value: fmtDuration(w.hours * 3600)},
+                {label: 'TSS', value: String(Math.round(w.tss))},
+                {label: 'kJ', value: String(Math.round(w.kj))},
+                {label: 'Rides', value: String(w.rides)},
+            ],
+            more: [],
+        };
+    };
+    return {model, readout};
+}
+
+// time in each zone as stacked bars: 52 weeks (opening on 12) or 12 months.
+// Stacking: each series holds the running total from zone 1 up, the top
+// one first, so the bars drawn later (lower zones) sit in front.
+function zonesChart(data, by = 'week', colors = {}) {
+    const periods = zoneTotals(data.summaries ?? [], data.today, by, by === 'month' ? 12 : 52);
+    const hours = periods.map(p => p.seconds.map(s => s / 3600));
+    const cumulative = (z) => hours.map(h => h.slice(0, z + 1).reduce((a, x) => a + x, 0));
+    const model = {
+        x: periods.map(p => daySec(p.period)),
+        series: [6, 5, 4, 3, 2, 1, 0].map(z => ({label: ZONES[z].name, color: colors.zones?.[z], kind: 'bars', values: cumulative(z)})),
+        ranges: by === 'month' ? [] : [['12w', '12 weeks'], ['52w', '1 year']],
+        defaultRange: by === 'month' ? 'all' : '12w',
+        today: daySec(data.today),
+        xFormat: (t) => {
+            const d = new Date(t * 1000).toISOString().slice(0, 10);
+            return by === 'month' ? fmtDay(d, {month: 'short'}) : shortDay(d);
+        },
+        yFormat: (v) => `${v}h`,
+    };
+    const readout = (i) => {
+        const p = periods[i];
+        if(!p) return null;
+        const total = p.seconds.reduce((a, s) => a + s, 0);
+        return {
+            title: by === 'month' ? monthTitle(p.period) : weekTitle(p.period),
+            rows: [
+                ...p.seconds.map((s, z) => ({label: ZONES[z].name, color: colors.zones?.[z], value: fmtDuration(s), s})).filter(r => r.s > 0)
+                    .map(({s, ...r}) => r),
+                {label: 'Total', value: fmtDuration(total)},
+            ],
+            more: [],
+        };
+    };
+    return {model, readout};
+}
+
+export { formModel, formChart, healthChart, volumeChart, zonesChart, PAST_DAYS, AHEAD_DAYS, daySec, longDay, weekTitle, shortDay };

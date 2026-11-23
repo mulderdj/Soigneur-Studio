@@ -7,6 +7,8 @@
 import { xf } from '../../functions.js';
 import { weeklyVolume, powerCurve, ftpEstimates, zoneTotals } from '../../training/progress.js';
 import { ChartElement, token, drawBars, drawLines } from './chart.js';
+import { UPlotCard } from './uplot-chart.js';
+import { volumeChart, zonesChart } from './chart-models.js';
 import { fmtDay } from './format.js';
 
 const NUDGE = 0.05;
@@ -58,17 +60,24 @@ class ProgressCard extends ChartElement {
     }
 }
 
-class VolumeCard extends ProgressCard {
+// a uPlot card with a toggle in its header (data-opt), e.g. the metric
+class ToggleCard extends UPlotCard {
+    head() {
+        this.option = this.option ?? this.defaultOption;
+        return `<h2 class="card__title">${this.title}</h2>${segmented(this.title, this.options, this.option)}`;
+    }
+
+    onHeadClick(e) {
+        const opt = e.target.closest('[data-opt]');
+        if(opt) { this.option = opt.dataset.opt; this.range = null; this.rebuild(); }
+    }
+}
+
+class VolumeCard extends ToggleCard {
     get title() { return 'Weekly volume'; }
     get defaultOption() { return 'hours'; }
     get options() { return [['hours', 'Hours'], ['tss', 'TSS'], ['kj', 'kJ']]; }
-    draw(ctx, w, h) {
-        const weeks = weeklyVolume(this._data.summaries, this._data.today, 12);
-        drawBars(ctx, this, w, h, {
-            labels: weeks.map(x => weekLabel(x.week)), every: 3, highlightLast: true,
-            series: [{values: weeks.map(x => x[this.option]), color: token(this, '--accent')}],
-        });
-    }
+    chart() { return volumeChart(this.data, this.option, {accent: token(this, '--accent')}); }
 }
 
 class CurveCard extends ProgressCard {
@@ -112,20 +121,11 @@ class FtpCard extends ProgressCard {
     }
 }
 
-class ZonesCard extends ProgressCard {
+class ZonesCard extends ToggleCard {
     get title() { return 'Time in zones'; }
     get defaultOption() { return 'week'; }
     get options() { return [['week', 'Weeks'], ['month', 'Months']]; }
-    draw(ctx, w, h) {
-        const periods = zoneTotals(this._data.summaries, this._data.today, this.option, 12);
-        const colors = zoneColors(this);
-        drawBars(ctx, this, w, h, {
-            labels: periods.map(p => (this.option === 'month' ?
-                fmtDay(p.period, {month: 'short'}) : weekLabel(p.period))),
-            every: this.option === 'month' ? 2 : 3, stacked: true, unit: 'h',
-            series: colors.map((color, z) => ({values: periods.map(p => p.seconds[z] / 3600), color})),
-        });
-    }
+    chart() { return zonesChart(this.data, this.option, {zones: zoneColors(this)}); }
 }
 
 customElements.define('volume-card', VolumeCard);
