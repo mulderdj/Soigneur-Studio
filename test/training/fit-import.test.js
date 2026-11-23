@@ -10,7 +10,7 @@ import { fit } from '../../src/fit/fit.js';
 const STORES = ['session', 'workouts', 'activity', 'rideSummaries', 'plan', 'externalRides', 'hiddenRides', 'wellness', 'rideRatings'];
 let n = 0;
 beforeEach(async () => {
-    await idb.start(`fit-import-${n++}`, 5, STORES);
+    await idb.start(`fit-import-${n++}`, 6, STORES);
     history.connect({api: null, linked: () => false});
 });
 

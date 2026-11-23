@@ -67,6 +67,22 @@ describe('several outside sources', () => {
     });
 });
 
+describe('the kept copy keeps the best load (review)', () => {
+    test('a Garmin ride without a load takes the intervals.icu copy\'s', () => {
+        const garmin = {...ext('garmin-1', T, 60, {source: 'garmin', tss: null}), np: null};
+        const icu = ext('icu-1', T + 30000, 60, {tss: 71, np: 215, if: 0.86});
+        const out = mergeRides([], [icu, garmin]);
+        expect(out.map(s => [s.id, s.tss, s.np, s.if])).toEqual([['garmin-1', 71, 215, 0.86]]);
+        expect(garmin.tss).toBeNull(); // the inputs are not changed
+    });
+
+    test('an Auuki ride without power takes the outside copy\'s load; one with power keeps its own', () => {
+        const out = mergeRides([{...own('r1', T, 60), tss: null}, {...own('r2', T + 5 * 3600000, 60), tss: 50}],
+                               [ext('icu-1', T, 60, {tss: 64}), ext('icu-2', T + 5 * 3600000, 60, {tss: 99})]);
+        expect(out.map(s => [s.id, s.tss])).toEqual([['r1', 64], ['r2', 50]]);
+    });
+});
+
 describe('isCycling', () => {
     test('Auuki rides and cycling count, other sports not', () => {
         expect(isCycling({})).toBe(true);

@@ -37,20 +37,33 @@ function mergeRides(own = [], external = []) {
         if(!byDay.has(b)) byDay.set(b, []);
         byDay.get(b).push(s);
     };
-    const duplicate = (x) => {
+    const duplicateOf = (x) => {
         const b = bucket(x);
-        for(const k of [b - 1, b, b + 1]) for(const s of byDay.get(k) ?? []) if(sameRide(s, x)) return true;
-        return false;
+        for(const k of [b - 1, b, b + 1]) for(const s of byDay.get(k) ?? []) if(sameRide(s, x)) return s;
+        return null;
     };
-    own.forEach(keep);
+    // the kept copy without a load takes the dropped copy's (e.g. Garmin's
+    // list without TSS, intervals.icu's with its power load)
+    const lend = (kept, x) => {
+        if(kept && !Number.isFinite(kept.tss) && Number.isFinite(x.tss)) {
+            kept.tss = x.tss;
+            if(!Number.isFinite(kept.np) && Number.isFinite(x.np)) kept.np = x.np;
+            if(!Number.isFinite(kept.if) && Number.isFinite(x.if)) kept.if = x.if;
+        }
+    };
+    const mine = own.map(s => ({...s}));   // copies: the inputs stay as they are
+    const byId = new Map(mine.map(s => [s.id, s]));
+    mine.forEach(keep);
     const kept = [];
     for(const x of [...external].sort((a, b) => rank(a) - rank(b))) {
-        if(x.auukiRideId && ids.has(x.auukiRideId)) continue;
-        if(duplicate(x)) continue;
-        keep(x);
-        kept.push(x);
+        if(x.auukiRideId && ids.has(x.auukiRideId)) { lend(byId.get(x.auukiRideId), x); continue; }
+        const dup = duplicateOf(x);
+        if(dup) { lend(dup, x); continue; }
+        const copy = {...x};
+        keep(copy);
+        kept.push(copy);
     }
-    return [...own, ...kept].sort((a, b) => (a.start ?? 0) - (b.start ?? 0));
+    return [...mine, ...kept].sort((a, b) => (a.start ?? 0) - (b.start ?? 0));
 }
 
 // rides recorded in Auuki have no sport: they are cycling

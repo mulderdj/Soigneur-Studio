@@ -22,6 +22,7 @@ function fakeGarmin() {
     const log = [];
     const state = {
         tokenTtl: 86400, tokens: new Set(), revoked: false, rateLimitNext: 0, sleep404: false,
+        keys: new Set([KEY]), tokenKey: new Map(), forbidden: null, delayMs: 0,
         hrv: [], daily: [], sleep: [], bodyBattery: [], stress: [], weight: [], vo2: [], zones: [], activities: [],
     };
     const inRange = (day, a, b) => day >= a && day <= b;
@@ -33,14 +34,18 @@ function fakeGarmin() {
         const json = (status, obj, headers = {}) => { res.writeHead(status, {'Content-Type': 'application/json', ...headers}); res.end(JSON.stringify(obj)); };
 
         if(url.pathname === '/personalapitoken-service/personal-api/personal-api-key/token' && req.method === 'POST') {
-            if(state.revoked || req.headers.authorization !== `ApiKey ${KEY}`) return json(401, {error: 'invalid key'});
-            const t = jwt(Math.floor(Date.now() / 1000) + state.tokenTtl);
+            const key = (req.headers.authorization ?? '').replace(/^ApiKey /, '');
+            if(state.revoked || !state.keys.has(key)) return json(401, {error: 'invalid key'});
+            const t = jwt(Math.floor(Date.now() / 1000) + state.tokenTtl) + '.' + state.tokens.size; // unique
             state.tokens.add(t);
+            state.tokenKey.set(t, key);
             res.writeHead(200, {'Content-Type': 'text/plain'});
             return res.end(t);
         }
         const bearer = (req.headers.authorization ?? '').replace(/^Bearer /, '');
-        if(state.revoked || !state.tokens.has(bearer)) return json(401, {error: 'unauthorized'});
+        if(state.delayMs) await new Promise(r => setTimeout(r, state.delayMs)); // a slow answer, before the check
+        if(state.revoked || !state.tokens.has(bearer) || !state.keys.has(state.tokenKey.get(bearer))) return json(401, {error: 'unauthorized'});
+        if(state.forbidden && url.pathname.startsWith(state.forbidden)) return json(403, {error: 'forbidden'});
         if(state.rateLimitNext > 0) { state.rateLimitNext--; return json(429, {}, {'Retry-After': '0'}); }
 
         let m;
@@ -272,5 +277,39 @@ test('routes: per user; sync needs a connection; disconnect keeps the data', asy
         assert.equal((await call('GET', '/api/me/connections', {token})).json.garmin.connected, false);
         assert.equal((await call('GET', '/api/me/wellness', {token})).json.days.length, 1);
         assert.equal((await call('GET', '/api/me/wellness')).status, 401);
+    } finally { stop(); }
+});
+
+test('one endpoint refused for this key keeps the connection; only a refused key disconnects (review)', async () => {
+    const {app, call, token, userId, fake, stop} = await setup();
+    try {
+        fake.state.forbidden = '/weight-service/';
+        fake.state.hrv = [{calendarDate: daysAgo(2), lastNightAvg: 55}];
+        fake.state.activities = [activity(1, 3)];
+        await connect(call, token);
+        const out = await app.garminSync.run(userId);
+        assert.equal(out.error, null);
+        assert.equal((await call('GET', '/api/me/connections', {token})).json.garmin.connected, true);
+        assert.equal((await call('GET', '/api/me/wellness', {token})).json.days.length, 1);
+        assert.equal((await call('GET', '/api/me/external-rides', {token})).json.rides.length, 1);
+    } finally { stop(); }
+});
+
+test('a run with an old key never removes a newly pasted key (review)', async () => {
+    const {app, call, token, userId, fake, stop} = await setup();
+    try {
+        const NEW = 'gpk_test_new_key_0123456789';
+        await connect(call, token);
+        await app.garminSync.run(userId);
+        fake.state.keys = new Set([NEW]);   // the old key is deleted on Garmin Connect
+        fake.state.delayMs = 40;
+        const running = app.garminSync.run(userId);   // still uses the old key
+        await new Promise(r => setTimeout(r, 10));
+        fake.state.delayMs = 0;
+        assert.equal((await call('PUT', '/api/me/connections/garmin', {token, body: {apiKey: NEW}})).status, 200);
+        const out = await running;
+        assert.match(out.error ?? '', /no longer accepts/);
+        assert.equal((await call('GET', '/api/me/connections', {token})).json.garmin.connected, true);
+        assert.equal((await app.garminSync.run(userId)).error, null);  // the new key works
     } finally { stop(); }
 });

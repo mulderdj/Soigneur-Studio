@@ -11,7 +11,7 @@ const STORES = ['session', 'workouts', 'activity', 'rideSummaries', 'plan', 'ext
 let n = 0;
 
 beforeEach(async () => {
-    await idb.start(`test-history-${n++}`, 5, STORES);
+    await idb.start(`test-history-${n++}`, 6, STORES);
 });
 
 const summary = (id, day, start) => ({version: 1, id, day, start, duration: 3600, tss: 50, zoneSeconds: Array(7).fill(0), best: {}});
@@ -105,6 +105,17 @@ test('a version 4 database gains the externalRides store', async () => {
     await idb.start('upgrade-from-4', 5, STORES);
     await idb.put('externalRides', {...summary('icu-9', '2026-11-22', 2 * 86400000), source: 'intervals'});
     expect((await history.summaries()).map(s => s.id)).toEqual(['mine', 'icu-9']);
+});
+
+test('a version 5 database gains the health and rating stores (review)', async () => {
+    await idb.start('upgrade-from-5', 5, ['session', 'workouts', 'activity', 'rideSummaries', 'plan', 'externalRides', 'hiddenRides']);
+    await idb.put('externalRides', {...summary('icu-1', '2026-11-22', 9), source: 'intervals'});
+    await idb.start('upgrade-from-5', 6, STORES);
+    await idb.put('wellness', {id: '2026-11-22', day: '2026-11-22', hrv: 60});
+    await history.rateRide('icu-1', 4);
+    expect((await history.wellnessDays()).map(d => d.hrv)).toEqual([60]);
+    expect((await history.ratings()).get('icu-1')).toBe(4);
+    expect((await history.summaries()).map(s => s.id)).toEqual(['icu-1']);
 });
 
 describe('plan sync', () => {

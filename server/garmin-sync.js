@@ -150,8 +150,11 @@ function createGarminSync({db, options = {}}) {
                 last = Date.now();
                 const res = await fetchImpl(base + path, {headers: {Accept: 'application/json', Authorization: `Bearer ${await token()}`}});
                 if(res.status === 401 || res.status === 403) {
-                    // a token can stop working before it expires: renew once, then the key itself is refused
-                    if(renewed) throw new GarminError(REVOKED, {revoked: true, status: res.status});
+                    // a token can stop working before it expires: renew it once. Only the
+                    // token endpoint refusing the key means the key is gone (newToken
+                    // throws that); an endpoint still refused after a good renewal is
+                    // just that endpoint, and optional() skips it
+                    if(renewed) throw new GarminError(`Garmin refused this request (${res.status}).`, {status: res.status});
                     renewed = true;
                     await token(true);
                     continue;
@@ -246,7 +249,9 @@ function createGarminSync({db, options = {}}) {
             await syncActivities(userId, get);
         } catch(e) {
             error = String(e.message ?? e).slice(0, 300);
-            if(e.revoked) {
+            // only if the key that failed is still the stored one: the rider may
+            // have pasted a new key while this run was going
+            if(e.revoked && connection(userId)?.apiKey === conn.apiKey) {
                 q.removeConn.run(userId);
                 q.setToken.run(null, null, userId);
             }
