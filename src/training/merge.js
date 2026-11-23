@@ -1,9 +1,11 @@
 //
-// Auuki's own ride summaries together with rides from intervals.icu,
-// without counting a ride twice. An external ride is left out when it is
-// one of Auuki's own uploads (auukiRideId), or when it and an Auuki ride
-// overlap for at least 80 % of the shorter one's duration (the same ride
-// recorded by a head unit that started earlier or stopped later).
+// Auuki's own ride summaries together with rides from outside (Garmin,
+// imported .fit files, intervals.icu), without counting a ride twice. An
+// outside ride is left out when it is one of Auuki's own uploads
+// (auukiRideId), or when it and a ride already kept overlap for at least
+// 80 % of the shorter one's duration (the same ride recorded by a head unit
+// that started earlier or stopped later). Auuki's own rides are kept first,
+// then outside ones by source: Garmin, imported .fit, intervals.icu.
 //
 
 const OVERLAP = 0.8;
@@ -21,10 +23,33 @@ function sameRide(a, b) {
     return Math.min(a1, b1) - Math.max(a0, b0) >= OVERLAP * shorter;
 }
 
+// when one ride comes from several outside sources, the most complete wins
+const PRIORITY = {garmin: 0, fit: 1, intervals: 2};
+const rank = (s) => PRIORITY[s.source] ?? 3;
+const bucket = (s) => Math.floor((Number(s.start) || 0) / 86400000);
+
 function mergeRides(own = [], external = []) {
     const ids = new Set(own.map(s => s.id));
-    const kept = external.filter(x =>
-        !(x.auukiRideId && ids.has(x.auukiRideId)) && !own.some(s => sameRide(s, x)));
+    // kept rides by day bucket: a duplicate starts within a day of the other
+    const byDay = new Map();
+    const keep = (s) => {
+        const b = bucket(s);
+        if(!byDay.has(b)) byDay.set(b, []);
+        byDay.get(b).push(s);
+    };
+    const duplicate = (x) => {
+        const b = bucket(x);
+        for(const k of [b - 1, b, b + 1]) for(const s of byDay.get(k) ?? []) if(sameRide(s, x)) return true;
+        return false;
+    };
+    own.forEach(keep);
+    const kept = [];
+    for(const x of [...external].sort((a, b) => rank(a) - rank(b))) {
+        if(x.auukiRideId && ids.has(x.auukiRideId)) continue;
+        if(duplicate(x)) continue;
+        keep(x);
+        kept.push(x);
+    }
     return [...own, ...kept].sort((a, b) => (a.start ?? 0) - (b.start ?? 0));
 }
 

@@ -158,7 +158,11 @@ describe('intervals.icu rides', () => {
                      {...summary('icu-2', '2026-11-19', t - 86400000), source: 'intervals', sport: 'run'}], now: 500},
             {rides: [{...summary('icu-3', '2026-11-21', t + 86400000), source: 'intervals'}], now: 900},
         ];
-        const api = {get: async (path) => { calls.push(path); return pages.shift(); }};
+        const api = {get: async (path) => {
+            if(path.startsWith('/me/wellness')) return {days: [], now: 1};
+            calls.push(path);
+            return pages.shift();
+        }};
         history.connect({api, linked: () => true, externalSince: {get: () => cursor, set: v => { cursor = v; }}});
         try {
             await history.pullExternal();
@@ -297,5 +301,29 @@ describe('a load for every workout', () => {
         await history.rateRide('other', null);
         await history.syncPlan();
         expect(server.has('other')).toBe(false);
+    });
+});
+
+describe('health data', () => {
+    test('pulled with a cursor, stored per day, sorted', async () => {
+        let cursor = 0;
+        const calls = [];
+        const pages = {
+            '/me/wellness?since=0': {days: [{day: '2026-11-21', hrv: 48}, {day: '2026-11-20', hrv: 62, restingHr: 46}], now: 700},
+            '/me/wellness?since=700': {days: [{day: '2026-11-21', hrv: 50, sleepScore: 70}], now: 900},
+        };
+        const api = {get: async (path) => { calls.push(path); return pages[path] ?? {rides: [], now: 1}; }};
+        history.connect({api, linked: () => true, wellnessSince: {get: () => cursor, set: v => { cursor = v; }}});
+        try {
+            await history.pullWellness();
+            await history.pullWellness();
+            expect(calls).toEqual(['/me/wellness?since=0', '/me/wellness?since=700']);
+            const days = await history.wellnessDays();
+            expect(days.map(d => [d.day, d.hrv])).toEqual([['2026-11-20', 62], ['2026-11-21', 50]]);
+            expect(days[1].sleepScore).toBe(70);
+            expect(cursor).toBe(900);
+        } finally {
+            history.connect({api: null, linked: () => false});
+        }
     });
 });

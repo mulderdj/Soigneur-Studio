@@ -36,6 +36,7 @@ let remote = {
     api: null, linked: () => false,
     planSince: {get: () => 0, set: () => {}},
     externalSince: {get: () => 0, set: () => {}},
+    wellnessSince: {get: () => 0, set: () => {}},
     parseWorkout: null, // .zwo text -> workout (models.workout.parse)
     toZwo: null,        // workout -> .zwo text, for intervals.icu
     thresholds: () => ({cycling: null, running: null}), // threshold heart rate per sport
@@ -82,6 +83,18 @@ async function summaries() {
 
 async function wellnessDays() {
     try { return ((await idb.getAll(WELLNESS)) ?? []).sort((a, b) => (a.day < b.day ? -1 : a.day > b.day ? 1 : 0)); } catch(e) { return []; }
+}
+
+// health days from the account server (changed since the cursor)
+async function pullWellness() {
+    if(!remote.linked() || !remote.api) return 0;
+    const since = remote.wellnessSince.get() ?? 0;
+    const res = await remote.api.get(`/me/wellness?since=${since}`);
+    const days = (res?.days ?? []).filter(d => typeof d?.day === 'string');
+    for(const d of days) await idb.put(WELLNESS, {...d, id: d.day});
+    if(Number.isFinite(res?.now)) remote.wellnessSince.set(res.now);
+    if(days.length > 0) changed();
+    return days.length;
 }
 
 async function wellnessMap() {
@@ -187,7 +200,14 @@ async function pullExternal() {
     for(const r of rides) await idb.put(EXTERNAL, r);
     if(Number.isFinite(res?.now)) remote.externalSince.set(res.now);
     if(rides.length > 0) changed();
+    await pullWellness().catch(e => console.warn(':training :wellness', e));
     return rides.length;
+}
+
+// ask the account server to sync Garmin now (no-op when not connected)
+async function requestGarminSync() {
+    if(!remote.linked() || !remote.api) return false;
+    try { await remote.api.post('/me/garmin/sync', {}); return true; } catch(e) { return false; }
 }
 
 // a ride imported from a .fit file: kept with the external rides and sent
@@ -472,6 +492,8 @@ const history = Object.freeze({
     rateRide,
     ratings,
     wellnessDays,
+    pullWellness,
+    requestGarminSync,
     pullExternal,
     requestIntervalsSync,
     saveImported,

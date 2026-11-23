@@ -14,12 +14,15 @@ import { today } from './dates.js';
 import { todayChecker } from './today.js';
 import { models } from '../models/models.js';
 import { zwo } from '../workouts/zwo.js';
+import { thresholds } from './rider-thresholds.js';
 
 history.connect({
     api,
     linked: () => !!riders.current()?.account?.token,
     planSince: cursor('training:planSince'),
     externalSince: cursor('training:externalSince'),
+    wellnessSince: cursor('training:wellnessSince'),
+    thresholds: () => thresholds.effective(), // the rider's own, else Garmin's
     // workouts planned on intervals.icu arrive as .zwo, Auuki's go out as .zwo
     parseWorkout: text => models.workout.parse(text),
     toZwo: workout => zwo.write(zwo.fromInterval(workout)),
@@ -32,18 +35,34 @@ function cursor(name) {
     };
 }
 
-// intervals.icu: ask the account server to sync when the app opens, and
-// fetch what it found once it has had time to run
-async function pullIntervals() {
+// intervals.icu and Garmin: ask the account server to sync when the app
+// opens, and fetch what it found once it has had time to run
+async function pullOutside() {
     await history.syncPlan().catch(() => {});
-    await history.pullExternal().catch(e => console.warn(':training :intervals', e));
+    await history.pullExternal().catch(e => console.warn(':training :outside', e));
+    await refreshGarminThresholds();
+}
+
+// Garmin's threshold heart rates, from the account's Garmin connection
+async function refreshGarminThresholds() {
+    if(!riders.current()?.account?.token) return;
+    try {
+        const g = (await api.get('/me/connections'))?.garmin;
+        if(g?.thresholds) { thresholds.setGarmin(g.thresholds); xf.dispatch('training:changed', Date.now()); }
+    } catch(e) { /* offline or an older server */ }
 }
 
 xf.sub('activity:restore', async () => {
-    if(!(await history.requestIntervalsSync())) return;
-    setTimeout(pullIntervals, 30 * 1000);
-    setTimeout(pullIntervals, 3 * 60 * 1000);
+    const intervals = await history.requestIntervalsSync();
+    const garmin = await history.requestGarminSync();
+    refreshGarminThresholds();
+    if(!intervals && !garmin) return;
+    setTimeout(pullOutside, 30 * 1000);
+    setTimeout(pullOutside, 3 * 60 * 1000);
 });
+
+// the rider changed their threshold heart rate: loads change
+xf.sub('training:thresholds', () => xf.dispatch('training:changed', Date.now()));
 
 // 'activity:add' fires as the ride is saved; the session still holds the
 // ride's samples at that moment (it is reset right after), so copy them now
