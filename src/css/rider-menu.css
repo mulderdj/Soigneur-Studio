@@ -467,5 +467,5 @@ a.rm--sent:hover {
 }
 
 /* intervals.icu sync status on its account card */
-.rm--sync { display: block; }
-.rm--sync.rm--error { color: var(--danger); }
+.rm--icu-sync { display: block; }
+.rm--icu-sync.rm--error { color: var(--danger); }

@@ -67,7 +67,7 @@ function intervalsSync(sync) {
           `Synced ${new Date(sync.lastRun).toLocaleString([], {day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit'})}: ${syncCounts(sync)}.` :
           'First sync on its way.';
     const plan = sync.planSkipped > 0 ? ` ${sync.planSkipped} planned workout${sync.planSkipped === 1 ? '' : 's'} couldn't be sent (no .zwo).` : '';
-    return `<small class="rm--sync">${esc(when + plan)}</small>${sync.error ? `<small class="rm--sync rm--error">${esc(sync.error)}</small>` : ''}`;
+    return `<small class="rm--icu-sync">${esc(when + plan)}</small>${sync.error ? `<small class="rm--icu-sync rm--error">${esc(sync.error)}</small>` : ''}`;
 }
 
 class RiderMenu extends HTMLElement {
