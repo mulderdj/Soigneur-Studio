@@ -1,4 +1,7 @@
 {
+    "name": "soigneur-studio",
+    "description": "Indoor cycling and training, on your own server. Based on Auuki by Dimitar Marinov.",
+    "license": "AGPL-3.0-only",
     "private": true,
     "engines": {
         "node": ">=22.18.0"

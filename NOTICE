@@ -1,0 +1,23 @@
+Soigneur Studio
+Indoor cycling and training, on your own server.
+
+Soigneur Studio is based on Auuki by Dimitar Marinov (dvmarinoff):
+https://github.com/dvmarinoff/Auuki, licensed under the GNU Affero General
+Public License, version 3 (AGPL-3.0). It was imported from Auuki in November
+2026 and has been developed separately since; it is not made or supported by
+the Auuki project.
+
+Parts that come from Auuki, largely unchanged: the trainer and sensor engine
+(src/ble, src/ant), the FIT file format (src/fit), the data models and
+storage (src/models, src/storage, src/db.js) and parts of the views and the
+workout library. Parts written for Soigneur Studio: the interface and design
+system (src/css, the pages and src/views/training), the Training page and its
+logic (src/training), the account server (server/) and its connections to
+Strava, intervals.icu and Garmin.
+
+The whole program, including the changes, is licensed under the AGPL-3.0
+(see LICENSE.txt). If you run a modified version on a server that others use
+over a network, offer them its source code (AGPL-3.0, section 13).
+
+"Auuki" is the name of the original project; Soigneur Studio uses it only to
+credit its origin.

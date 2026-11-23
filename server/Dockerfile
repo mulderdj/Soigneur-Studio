@@ -1,4 +1,4 @@
-# Auuki Desktop account server: Node built-ins only (http, sqlite, crypto).
+# Soigneur Studio account server: Node built-ins only (http, sqlite, crypto).
 # node:sqlite needs Node 22.13 or newer.
 FROM node:22-slim
 WORKDIR /app

@@ -10,7 +10,7 @@
 	auto_https disable_redirects
 }
 
-(auuki) {
+(app) {
 	# account server (docker compose service "api"); without it the app
 	# simply works without accounts
 	handle /api/* {
@@ -31,14 +31,14 @@
 # Plain HTTP: fine on the same machine (http://localhost:8080 is a secure
 # context, so Bluetooth and ANT+ work there).
 :8080 {
-	import auuki
+	import app
 }
 
-# HTTPS for other devices on your network. Set AUUKI_HOST to the name or IP
-# address the other devices use, e.g. AUUKI_HOST=192.168.1.20 or
-# AUUKI_HOST=auuki.local. Trust Caddy's root certificate on those devices
-# (see README) so the browser treats the page as secure.
-{$AUUKI_HOST:localhost}:8443 {
+# HTTPS for other devices on your network. Set SOIGNEUR_HOST to the name or
+# IP address the other devices use, e.g. SOIGNEUR_HOST=192.168.1.20 or
+# SOIGNEUR_HOST=soigneur.local. Trust Caddy's root certificate on those
+# devices (see README) so the browser treats the page as secure.
+{$SOIGNEUR_HOST:localhost}:8443 {
 	tls internal
-	import auuki
+	import app
 }

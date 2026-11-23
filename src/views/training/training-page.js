@@ -28,7 +28,7 @@ class TrainingPage extends HTMLElement {
             <p class="tp-status card__note" hidden></p>
             <div class="tp-empty empty" hidden>
                 <h2 class="empty__title">No rides yet</h2>
-                <p>Ride with Auuki and your rides, plan, form and progress show up here.
+                <p>Ride with Soigneur and your rides, plan, form and progress show up here.
                    Signed in? Rides saved to your account appear too.</p>
             </div>
             <div class="training">

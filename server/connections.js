@@ -134,10 +134,10 @@ function createConnections({db, fail, options = {}}) {
         const token = await stravaAccess(userId);
         const summary = JSON.parse(ride.summary);
         const form = new FormData();
-        form.append('file', new Blob([ride.fit]), `auuki-${rideId}.fit`);
+        form.append('file', new Blob([ride.fit]), `soigneur-${rideId}.fit`);
         form.append('data_type', 'fit');
         form.append('name', summary.name ?? 'Indoor ride');
-        form.append('description', 'Recorded with Auuki Desktop');
+        form.append('description', 'Recorded with Soigneur Studio');
         form.append('trainer', '1');
         form.append('external_id', `auuki-${rideId}.fit`);
 
@@ -187,8 +187,8 @@ function createConnections({db, fail, options = {}}) {
         const {apiKey} = JSON.parse(row.data);
         const summary = JSON.parse(ride.summary);
         const form = new FormData();
-        form.append('file', new Blob([ride.fit]), `auuki-${rideId}.fit`);
-        const qs = new URLSearchParams({name: summary.name ?? 'Indoor ride', description: 'Recorded with Auuki Desktop'});
+        form.append('file', new Blob([ride.fit]), `soigneur-${rideId}.fit`);
+        const qs = new URLSearchParams({name: summary.name ?? 'Indoor ride', description: 'Recorded with Soigneur Studio'});
         const res = await fetchImpl(`${intervalsBase}/api/v1/athlete/0/activities?${qs}`, {
             method: 'POST', headers: {Authorization: intervalsAuth(apiKey)}, body: form,
         });

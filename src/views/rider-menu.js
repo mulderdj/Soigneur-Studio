@@ -237,7 +237,7 @@ class RiderMenu extends HTMLElement {
         if(!this.server.available) {
             this.$body.innerHTML = `
                 <p class="rm--lead">No account server found at this address.</p>
-                <p class="rm--note">Riders still work on this device. To sync riders across devices, run Auuki Desktop with Docker Compose, which starts the account server next to the app.</p>`;
+                <p class="rm--note">Riders still work on this device. To sync riders across devices, run Soigneur Studio with Docker Compose, which starts the account server next to the app.</p>`;
             return;
         }
         if(r.account?.token) {

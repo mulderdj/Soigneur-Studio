@@ -1,25 +1,32 @@
+# The project name is fixed so the data volumes (auuki-desktop_api-data,
+# auuki-desktop_caddy-data) stay the same whatever the folder is called.
+name: auuki-desktop
+
 services:
+  # the app; the service keeps its old name so an update replaces the
+  # running container instead of starting a second one on the same ports
   auuki:
     build: .
-    image: auuki-desktop
-    container_name: auuki
+    image: soigneur-studio
+    container_name: soigneur-studio
     restart: unless-stopped
     depends_on:
       - api
     environment:
       # the hostname or IP other devices use to reach this machine
-      AUUKI_HOST: ${AUUKI_HOST:-localhost}
+      # (AUUKI_HOST, the name before the rename, still works)
+      SOIGNEUR_HOST: ${SOIGNEUR_HOST:-${AUUKI_HOST:-localhost}}
     ports:
       - "8080:8080"   # http://localhost:8080 on this machine
-      - "8443:8443"   # https://<AUUKI_HOST>:8443 from other devices
+      - "8443:8443"   # https://<SOIGNEUR_HOST>:8443 from other devices
     volumes:
       - caddy-data:/data   # keeps the local certificate authority across restarts
 
   # accounts, user management and sync; reached by the app at /api through Caddy
   api:
     build: ./server
-    image: auuki-desktop-api
-    container_name: auuki-api
+    image: soigneur-studio-api
+    container_name: soigneur-studio-api
     restart: unless-stopped
     environment:
       # "true" lets anyone who can open the app create a rider account.

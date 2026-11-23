@@ -1,5 +1,5 @@
 //
-// Auuki Desktop account server
+// Soigneur Studio account server
 //
 // Accounts, roles and sync for profiles, workouts and rides. No dependencies:
 // node:http + node:sqlite (Node 22.13+) + node:crypto.

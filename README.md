@@ -1,12 +1,16 @@
-# Auuki Desktop (fork)
+<img src="src/images/logo/logo-192.png" alt="" width="72" height="72">
 
-A fork of [dvmarinoff/Auuki](https://github.com/dvmarinoff/Auuki) with one interface for every screen: phone (portrait or on the handlebars in landscape), tablet, laptop, PC and TV. Every page uses the same design system, in dark and light.
+# Soigneur Studio
+
+Indoor cycling and training, on your own server. Ride structured workouts on a smart trainer in the browser, over Bluetooth or ANT+, and keep your training, health data and plan together, for you and your household. One interface for every screen (phone, portrait or on the handlebars in landscape, tablet, laptop, PC and TV), in dark and light.
+
+Soigneur Studio is based on [Auuki](https://github.com/dvmarinoff/Auuki) by Dimitar Marinov, which provides the trainer and sensor engine; see [Credits and licence](#credits-and-licence).
 
 **Walkthrough**: [a tour of every page with screenshots](docs/walkthrough/README.md) and a [44-second screencast](docs/walkthrough/walkthrough.mp4).
 
 <a href="docs/walkthrough/README.md"><img src="docs/walkthrough/img/walkthrough.gif" alt="Riding a workout, then the Training page: form, calendar, planning, progress" width="560"></a>
 
-**What's new on the Ride page**
+**The Ride page**
 * **One layout from phone to TV**: power as a large tile that takes the colour of your current power zone (with zone name and live W/kg), the other metrics in a compact grid, connections in a slim header and one bottom bar for the ride controls and the pages (Ride, Training, Workouts, Settings).
   * *Phone, portrait*: everything on one screen while riding; the statistics panels below are swiped one at a time. While a ride runs, the bottom bar shows only the ride controls; the pages are behind the menu button.
   * *Phone, landscape* (on the handlebars; replaces the old dock mode): power, target and six metrics, the chart and the ERG / resistance / slope controls.
@@ -31,9 +35,9 @@ A fork of [dvmarinoff/Auuki](https://github.com/dvmarinoff/Auuki) with one inter
 * *Riding the plan*: on a day with a planned workout, the Ride page selects it when the app opens (not over a workout you picked yourself that day, and never during a ride). A saved ride is matched to that day's plan.
 * *Progress*: weekly volume (hours, TSS, kJ), power curve (last 6 weeks vs. all time, W or W/kg), FTP trend (estimated from your best 20 and 60 minutes, with a button to update your FTP when it's more than 5 % off) and time in zones per week or month.
 * Every saved ride keeps a small summary, also when the device trims old `.fit` files. Rides from before this version are read back from their `.fit` the first time you open Training, from this device or from your account. Signed in, the plan and summaries sync through your account server.
-* *intervals.icu*: with intervals.icu connected, the account server brings in your activities from there (the last 2 years, then every 15 minutes): outdoor rides, rides from other apps, and other sports. All sports count for form and weekly volume and show on the calendar with their sport; power curve, FTP and zones use cycling only. A ride recorded in Auuki and also on intervals.icu (Auuki's own upload, or a head unit that recorded the same ride) counts once. Missed one? *Hide this ride* in the day dialog (undo with *Show*) on any ride.
-* *Plan, both ways*: workouts planned on intervals.icu appear on the calendar (tagged *intervals.icu*) and can be ridden; workouts planned in Auuki appear on intervals.icu. Moving or removing on either side follows on the other; when both changed, the newer change wins.
-* *Garmin*: with your own Garmin Personal API key (Garmin Connect on the web, Settings, Personal API Key), the account server brings in your health data every 15 minutes: overnight HRV, resting heart rate, sleep, Body Battery, stress, weight and VO2max, 90 days back at first. Your Garmin activities come in too (2 years back), as a second source next to intervals.icu; a ride that arrives from several sources counts once (Auuki's own recording first, then Garmin, then imported `.fit`, then intervals.icu).
+* *intervals.icu*: with intervals.icu connected, the account server brings in your activities from there (the last 2 years, then every 15 minutes): outdoor rides, rides from other apps, and other sports. All sports count for form and weekly volume and show on the calendar with their sport; power curve, FTP and zones use cycling only. A ride recorded in Soigneur and also on intervals.icu (Soigneur's own upload, or a head unit that recorded the same ride) counts once. Missed one? *Hide this ride* in the day dialog (undo with *Show*) on any ride.
+* *Plan, both ways*: workouts planned on intervals.icu appear on the calendar (tagged *intervals.icu*) and can be ridden; workouts planned in Soigneur appear on intervals.icu. Moving or removing on either side follows on the other; when both changed, the newer change wins.
+* *Garmin*: with your own Garmin Personal API key (Garmin Connect on the web, Settings, Personal API Key), the account server brings in your health data every 15 minutes: overnight HRV, resting heart rate, sleep, Body Battery, stress, weight and VO2max, 90 days back at first. Your Garmin activities come in too (2 years back), as a second source next to intervals.icu; a ride that arrives from several sources counts once (Soigneur's own recording first, then Garmin, then imported `.fit`, then intervals.icu).
 * *Health card*: last night's HRV against your normal range (Garmin's baseline, or your own 60 days), resting heart rate against its 30-day average, sleep and Body Battery, with 60 days of HRV and resting heart rate.
 * *A load for every workout*: power when there is power; otherwise heart rate against your threshold heart rate for the sport (set it under Settings, or Garmin's is used); otherwise how hard you said it was (tap 1–10 in the day dialog); otherwise an estimate from the sport and duration. The calendar marks loads that aren't from power with **HR**, **RPE** or **est.**
 * Not available through intervals.icu: activities that came from Strava (intervals.icu's API returns them empty; the account card counts them), and possibly Garmin's (intervals.icu expects to block API access to them). *Import .fit files* on the Training page adds such rides from their `.fit` files (several at once; files already there are skipped).
@@ -51,7 +55,7 @@ New files: `src/analytics.js` (the statistics, tested in `test/analytics.test.js
 
 **Design system** (`src/css/`): `tokens.css` (every colour, size and font, dark and light), `base.css` (page shell, bottom bar), `components.css` (buttons, cards, tiles, tabs, fields, dialogs, the workout graph) and one layout file per page: `ride.css`, `training.css`, `workouts.css`, `settings.css`, `rider-menu.css`. Page files only arrange components and use tokens. `npm run check:visual` (with `npm start` running; set `CHROME_PATH` if Playwright's own Chromium isn't installed) opens every page at phone, tablet and desktop sizes in both themes and fails on sideways scrolling, tap targets under 44 px on phones, text overflowing its tile and console errors; screenshots go to `test/visual/out/`.
 
-**Removed from upstream**: the original layout and its stylesheet, dock mode, the auuki.com account and its Settings connections (intervals.icu, Strava, TrainingPeaks through upstream's server), the intervals.icu planned list and the Ride Report tab. Accounts and connected services are in the rider menu, through your own server. Rides recorded on a device stay under *Workouts → Your rides* for download.
+**Compared with Auuki**: the original layout and its stylesheet, dock mode, the auuki.com account and its Settings connections (intervals.icu, Strava, TrainingPeaks through Auuki's server), the intervals.icu planned list and the Ride Report tab are gone. Accounts and connected services are in the rider menu, through your own server. Rides recorded on a device stay under *Workouts → Your rides* for download.
 
 Run it locally with `npm install` then `npm start`, and open the printed address in Chrome or Edge. Web Bluetooth needs `localhost` or HTTPS. For accounts in development, run `npm run server` in a second terminal; the Parcel dev server forwards `/api` to it (`.proxyrc.json`). Server tests: `npm run test:server`.
 
@@ -77,126 +81,29 @@ The container only serves the web page. Bluetooth and ANT+ still run in Chrome o
 docker compose up -d --build
 ```
 
-This starts two containers: `auuki` (Caddy serving the app) and `api` (the account server, data in the `api-data` volume). Open the app, click the rider pill, and create the first account under *Account*; it becomes the admin. Set `ALLOW_SIGNUP=true` to let riders create their own accounts.
+This starts two containers: `soigneur-studio` (Caddy serving the app; compose service `auuki`) and `soigneur-studio-api` (the account server; service `api`, data in the `api-data` volume). Open the app, click the rider pill, and create the first account under *Account*; it becomes the admin. Set `ALLOW_SIGNUP=true` to let riders create their own accounts.
 
 * **Riding on the same machine:** open `http://localhost:8080`. No certificate needed.
 * **Riding on another device** (Docker on a notebook or NAS, riding on a PC or Android phone): start it with the address the other devices use, then open `https://<that address>:8443` there.
 
   ```sh
-  AUUKI_HOST=192.168.1.20 docker compose up -d --build
-  docker compose cp auuki:/data/caddy/pki/authorities/local/root.crt ./auuki-root.crt
+  SOIGNEUR_HOST=192.168.1.20 docker compose up -d --build
+  docker compose cp auuki:/data/caddy/pki/authorities/local/root.crt ./soigneur-root.crt
   ```
 
-  Install `auuki-root.crt` as a trusted root certificate on each riding device. On Windows, import it under *Trusted Root Certification Authorities*. On Android, use *Settings → Security → Install a certificate → CA certificate*. Use the same address in the browser as in `AUUKI_HOST`. The certificate is kept in the `caddy-data` volume, so you only install it once.
+  Install `soigneur-root.crt` as a trusted root certificate on each riding device. On Windows, import it under *Trusted Root Certification Authorities*. On Android, use *Settings → Security → Install a certificate → CA certificate*. Use the same address in the browser as in `SOIGNEUR_HOST` (`AUUKI_HOST`, the name before the rename, still works). The certificate is kept in the `caddy-data` volume, so you only install it once.
 * **Quick test without a certificate**, one PC only: in Chrome open `chrome://flags/#unsafely-treat-insecure-origin-as-secure`, add `http://<host>:8080`, and relaunch Chrome.
 
----
+* **Updating from Auuki Desktop:** `docker compose up -d --build` replaces the containers (now named `soigneur-studio` and `soigneur-studio-api`); accounts, rides and certificates stay, because the data volumes keep their names.
 
-<img alt="Auuki Indoor Cyling app for Structured Training" src="https://github.com/user-attachments/assets/292a3216-2f52-4994-9b15-614446e41912" />
+## Browsers and trainers
 
-# Auuki
-Auuki is a powerful, no-nonsense app built for hammering out **structured workouts** on a smart trainer, right in your browser. No installs, no dependencies, no slow updates taking from precious training time.
+**Browsers.** Bluetooth in the browser needs a Chromium browser: Chrome, Edge, Opera, Samsung Internet or Brave (enable it in Brave's settings first), on Windows, macOS, Linux or Android. Firefox and Safari, and every browser on iOS, have no Web Bluetooth. On Linux, Chrome and Edge may need `chrome://flags/#enable-experimental-web-platform-features` (or `edge://…`). ANT+ uses a USB stick through Web Serial and is experimental.
 
-**Key Features**:
-* Run Zwift **.ZWO workouts**
-* Connect via **Bluetooth** to smart trainers, power meters, heart rate monitors, the moxy monitor, and many more
-* Full control with **ERG mode**, **Grade Simulation**, and **Resistance mode**
-* Workouts with **Slope-based targets** for realistic effort control
-* Record **.FIT activities** in a cross-industry standard
-* Recording of native **RR intervals** in the .FIT file
-* Built-in structured workouts to get you started
-* **Intervals.icu and Strava** integrations for seamless syncing and uploads
+**Trainers.** Smart trainers that speak the Bluetooth Fitness Machine Service (FTMS), Tacx trainers over FE-C on Bluetooth, Wahoo trainers over their own protocol, and ANT+ FE-C trainers through a USB stick. Most smart trainers from 2020 onwards support FTMS. Power meters, heart-rate straps, speed and cadence sensors, Moxy and CoreTemp connect over Bluetooth.
 
-Built as a **progressive web app (PWA)**, Auuki is fully browser-based and runs independently. It makes use of some of the most advanced Browser APIs like: Web Bluetooth, Web Serial, and Web Components. The web version is **free and open-source**, keeping everything on your device.
-Train anywhere, with full control directly in your browser.
+## Credits and licence
 
-_Status_: Currently working on creating a full suite of Apple platform native apps (iOS, iPadOS, tvOS, watchOS).
+Soigneur Studio is based on [Auuki](https://github.com/dvmarinoff/Auuki) by Dimitar Marinov (dvmarinoff), imported in November 2026 and developed separately since. Auuki provides the trainer and sensor engine (Bluetooth, ANT+), the FIT file format and the data models; the interface, the design system, the Training page and the account server were written for Soigneur Studio. It is not made or supported by the Auuki project. See [NOTICE](NOTICE).
 
-# The Web App
-- You can find the web app at [auuki.com](https://auuki.com)
-- There is also a special development version which has the latest features available for preview: [dev.auuki.com](https://dev.auuki.com)
-- [How to create a Profile and Connect Intervals.icu](https://forum.intervals.icu/t/auuki-com-intervals-icu-integration/87105)
-
-## Sponsors 💖
-So, if you’re loving what Auuki’s bringing to the table, consider supporting the project on [GitHub Sponsors](https://github.com/sponsors/dvmarinoff)? Think of it as buying me a coffee or, heck, a whole power meter to keep this thing cranking. Hit that sponsor button and let’s keep the good times rolling!
-
-## Supported Browsers and Platforms
-
-### MacOS, Windows, Andorid 
-
-Please use either Chrome, Edge, Opera, Samsung Internet, or Brave. These browsers include built-in bluetooth.
-
-| Chrome | Edge | Opera | Chrome Android | Samsung Internet | Brave | Firefox | Safari | Safari iOS | Chrome iOS |
-|--------|------|-------|----------------|------------------|-------|---------|--------|------------|------------|
-| yes    | yes  | yes   | yes            | yes              | yes*  | no      | no     | no         | no         |
-
-If using Brave browser, you'll need to [manually enable bluetooth support](https://community.brave.com/t/can-you-enable-web-bluetooth-api-in-brave/522553/2).
-
-### Linux
-On Linux you might need to turn on the experimental platforms feature flag in your browser:
-
-- Chrome: `chrome://flags/#enable-experimental-web-platform-features`
-
-- Edge: `edge://flags/#enable-experimental-web-platform-features`
-
-- Opera: `opera://flags/#enable-experimental-web-platform-features`
-
-### iOS
-Not Supported by the Web version
-
-## Supported Trainers
-
-### FTMS, FE-C over BLE, or WahooCPS
-
-Works with all trainers that implement the bluetooth Fitness Machine Service (FTMS) or the Tacx FE-C over BLE solution.
-
-The following table is copied from [DC Rainmaker Trainer Guide](https://www.dcrainmaker.com/2020/11/smart-cycle-trainer-recommendations-guide-winter.html/#technical-considerations) and shows current protocol support across the industry.
-
-```
-- Elite:    ANT+ FE-C and Bluetooth FTMS on all 2020 smart trainers.
-- Gravat:   ANT+ FE-C and Bluetooth FTMS on all 2020 smart trainers
-- JetBlack: ANT+ FE-C and Bluetooth FTMS on all 2020 smart trainers.
-- Kinetic:  ANT+ FE-C and Bluetooth FTMS on all 2020 smart trainers.
-- Minoura:  ANT+ FE-C and Bluetooth FTMS on all 2020 smart trainers.
-- Saris:    ANT+ FE-C and Bluetooth FTMS on all 2020 smart trainers.
-- STAC:     ANT+ FE-C and Bluetooth FTMS on all 2020 smart trainers.
-- Tacx:     ANT+ FE-C on all ‘Smart’ branded trainers (except Satori). FTMS on all non-NEO models. FEC over BLE on NEO.
-- Wahoo:    ANT+ FE-C on all smart trainers. FTMS on all 2020 smart trainer.
-- 4iiii:    ANT+ FE-C and Bluetooth FTMS on Fliiiight (--Ed)
-- Schwinn:  Bluetooth FTMS on the IC8 / 800IC (--Ed)
-```
-
-### ANT+
-
-Support for ANT+ is experimental at the moment. It is being rewritten right now and the code is moved to [WebANT](https://github.com/dvmarinoff/WebANT), which has a separate demo. When it becomes stable enough will be merged here. It currently has support for Ubuntu(Linux), and partially for MacOS, and Android. Windows 10 may be possible in the future.
-
-
-The current development setup is using Suunto movestick mini, Garmin Fenix 5 watch broadcasting heart rate,
-Tacx Heart Rate monitor, Tacx Flux S trainer, and X240 laptop with Ubuntu 20.04.2 LTS, M1 Mac, and Samsung S9 Android phone.
-
-## Manual
-- [How to create a Profile and Connect Intervals.icu](https://forum.intervals.icu/t/auuki-com-intervals-icu-integration/87105)
-- [How-To: Using the connection settings](https://github.com/dvmarinoff/Auuki/discussions/91)
-- [How-To: Using Auuki and another app concurrently](https://github.com/dvmarinoff/Auuki/discussions/101)
-
-## Backers
-<div>
-    <a href="https://github.com/KlausMu" target="_blank">
-        <img style="display: inline-block;" src="https://avatars.githubusercontent.com/u/14290221?v=4" width="48" height="48" />
-    </a>
-    <a href="https://github.com/TClin76" target="_blank">
-        <img style="display: inline-block;" src="https://avatars.githubusercontent.com/u/96434118?v=4" width="48" height="48" />
-    </a>
-    <a href="https://github.com/fvolcic" target="_blank">
-        <img style="display: inline-block;" src="https://avatars.githubusercontent.com/u/59806465?s=64&v=4" width="48" height="48" />
-    </a>
-    <a href="https://github.com/napfbike" target="_blank">
-        <img style="display: inline-block;" src="https://avatars.githubusercontent.com/u/192727271?v=4" width="48" height="48" />
-    </a>
-    <a href="https://github.com/sharalds" target="_blank">
-        <img style="display: inline-block;" src="https://avatars.githubusercontent.com/u/25537910?v=4" width="48" height="48" />
-    </a>
-    <a href="https://github.com/BenSimpsonAnalytics" target="_blank">
-        <img style="display: inline-block;" src="https://avatars.githubusercontent.com/u/81325092?v=4" width="48" height="48" />
-    </a>
-</div>
+Free software under the [GNU AGPL-3.0](LICENSE.txt). If you run a modified version on a server that others use over a network, offer them its source code.

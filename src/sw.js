@@ -1,13 +1,14 @@
-const cacheName = 'Flux-v008';
+const cacheName = 'soigneur-studio-v009';
 const resources = [
     './',
     'index.html',
     'privacy.html',
 
     'images/connections/garmin-connect.png',
-    'images/logo/logo-192px.png',
-    'images/logo/logo-512px.png',
-    'images/logo/logo-1024px.png',
+    'images/logo/logo-192.png',
+    'images/logo/logo-512.png',
+    'images/logo/logo-maskable-512.png',
+    'images/logo/logo-1024.png',
     'favicon-16.png',
     'favicon-32.png',
     'favicon-64.png',

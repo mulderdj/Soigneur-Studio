@@ -1,4 +1,4 @@
-# Auuki Desktop: a walkthrough
+# Soigneur Studio: a walkthrough
 
 A tour of what the app does, page by page. Click a picture to see it full size. The screenshots and the screencast come from the development build with a simulated rider and four months of generated training (`?simulate&history`), so every number in them is made up.
 
@@ -117,10 +117,10 @@ Connect intervals.icu under *rider menu → Account* with your personal API key 
 - **Brings in your activities**: the last 2 years on the first sync, then every 15 minutes. That covers outdoor rides, rides from other apps, and other sports.
   - All sports count for form, weekly volume and the calendar.
   - Power curve, FTP and zones use cycling only.
-  - A ride recorded in Auuki that is also on intervals.icu counts once. That holds whether it is Auuki's own upload or a head unit that recorded the same ride, which the app recognises when the two overlap for at least 80 %.
+  - A ride recorded in Soigneur that is also on intervals.icu counts once. That holds whether it is Soigneur's own upload or a head unit that recorded the same ride, which the app recognises when the two overlap for at least 80 %.
 - **Keeps the plan the same on both sides.**
   - A workout planned on intervals.icu appears on the Training calendar and can be ridden.
-  - A workout planned in Auuki appears on intervals.icu.
+  - A workout planned in Soigneur appears on intervals.icu.
   - Moving or removing a workout on one side follows on the other. When both sides changed it, the newer change wins.
 
 <a href="img/account.png"><img src="img/account.png" alt="The intervals.icu card in the account panel, with its sync status" width="440"></a>
@@ -134,7 +134,7 @@ The card shows when it last synced, how many activities came in, and how many we
 Connect Garmin under *rider menu → Account* with your Personal API key: Garmin Connect on the web, Settings, Personal API Key. Optionally enter the date the key expires; you get a warning a week before.
 
 - **Health data**: every 15 minutes, 90 days back at first. That covers overnight HRV, resting heart rate, sleep, Body Battery, stress, weight and VO2max.
-- **Activities**: 2 years back at first, then every 15 minutes, as a second source next to intervals.icu. A ride that arrives from several sources counts once: Auuki's own recording, then Garmin, then imported `.fit`, then intervals.icu.
+- **Activities**: 2 years back at first, then every 15 minutes, as a second source next to intervals.icu. A ride that arrives from several sources counts once: Soigneur's own recording, then Garmin, then imported `.fit`, then intervals.icu.
 - **Threshold heart rate** per sport comes from your Garmin heart-rate zones, unless you set your own under *Settings*.
 - The key is for your own data, stays on the server, and only reads: Garmin's personal key can't send workouts to the watch.
 

@@ -1,4 +1,4 @@
-# Auuki Desktop: build the static app, then serve it with Caddy.
+# Soigneur Studio: build the static app, then serve it with Caddy.
 #
 # The container only serves files. Bluetooth (Web Bluetooth) and ANT+ (Web
 # Serial, USB stick) run in the browser on the computer you ride with, so

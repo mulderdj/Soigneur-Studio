@@ -1,6 +1,6 @@
 'use strict';
 
-// Start the Auuki Desktop account server.
+// Start the Soigneur Studio account server.
 //
 //   PORT          default 3000
 //   DATA_DIR      default ./data (the SQLite file lives here)
@@ -19,10 +19,10 @@ const dataDir = process.env.DATA_DIR ?? path.join(__dirname, 'data');
 fs.mkdirSync(dataDir, {recursive: true});
 
 const { server, connections, intervalsSync, garminSync } = createApp({
-    dbPath: path.join(dataDir, 'auuki.db'),
+    dbPath: path.join(dataDir, 'auuki.db'), // the file name from before the rename: keeps existing accounts
     allowSignup: String(process.env.ALLOW_SIGNUP ?? '').toLowerCase() === 'true',
     connections: {
-        // the address riders open the app at, e.g. https://auuki.lan:8443;
+        // the address riders open the app at, e.g. https://soigneur.lan:8443;
         // Strava sends riders back to PUBLIC_URL/api/connect/strava/callback
         publicUrl: process.env.PUBLIC_URL ?? '',
         strava: {
@@ -39,7 +39,7 @@ intervalsSync.start(); // every 15 minutes for each rider with intervals.icu con
 garminSync.start();    // every 15 minutes for each rider with a Garmin key
 
 server.listen(port, () => {
-    console.log(`auuki account server on :${port}, data in ${dataDir}`);
+    console.log(`Soigneur Studio account server on :${port}, data in ${dataDir}`);
 });
 
 for(const signal of ['SIGINT', 'SIGTERM']) {
