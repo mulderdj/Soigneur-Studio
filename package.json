@@ -7,6 +7,12 @@
         "node": ">=22.18.0"
     },
     "source": "src/index.html",
+    "targets": {
+        "default": {
+            "context": "browser",
+            "includeNodeModules": true
+        }
+    },
     "scripts": {
         "test": "jest",
         "start": "parcel",
@@ -35,5 +41,8 @@
         "lmdb": false,
         "msgpackr-extract": false,
         "unrs-resolver": false
+    },
+    "dependencies": {
+        "uplot": "^1.6.32"
     }
 }

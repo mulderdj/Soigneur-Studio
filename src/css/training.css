@@ -1,3 +1,5 @@
+@import "uplot/dist/uPlot.min.css"; /* the chart engine's own layout (overlay, cursor, selection) */
+
 /*
  * Training page layout: form, this week, calendar, progress.
  * Phone: one column. From 600 px: two columns, calendar full width.
@@ -580,3 +582,46 @@
     color: var(--accent);
     box-shadow: inset 0 0 0 1px currentColor;
 }
+
+/* ---------- interactive charts (uPlot) ---------- */
+
+uplot-card, .uc-card { position: relative; }
+.uc-head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-2);
+    margin-bottom: var(--space-2);
+}
+.uc-head .card__title { margin: 0; }
+.uc-plot { width: 100%; min-height: 120px; }
+.uc-plot .uplot { font-family: var(--font-text); }
+.uc-plot .u-select { background: color-mix(in srgb, var(--accent) 18%, transparent); }
+.uc-plot .u-cursor-x { border-right: 1px dashed var(--muted); }
+.uc-empty { padding: var(--space-4) 0; }
+
+.uc-tip {
+    position: absolute;
+    z-index: 3;
+    min-width: 180px;
+    max-width: min(320px, calc(100% - 16px));
+    padding: var(--space-2) var(--space-3);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-s, 8px);
+    background: var(--surface-2);
+    color: var(--ink);
+    box-shadow: 0 6px 20px rgb(0 0 0 / 0.25);
+    font-size: var(--text-s);
+    pointer-events: none;
+}
+.uc-tip.is-touch { pointer-events: auto; }   /* the "Open day" button is tapped */
+.uc-tip__title { font-weight: 700; margin-bottom: var(--space-1); }
+.uc-tip dl { display: grid; gap: 2px; margin: 0; }
+.uc-tip dl div { display: flex; justify-content: space-between; gap: var(--space-3); }
+.uc-tip dt { color: var(--muted); display: flex; align-items: center; gap: 6px; }
+.uc-tip dt i { display: inline-block; width: 10px; height: 3px; border-radius: 2px; }
+.uc-tip dd { margin: 0; font-family: var(--font-num); font-weight: 700; text-align: right; }
+.uc-tip dd small { color: var(--muted); font-weight: 400; font-family: var(--font-text); }
+.uc-tip__more { margin-top: var(--space-1); color: var(--muted); font-size: var(--text-xs); }
+.uc-tip__open { margin-top: var(--space-2); width: 100%; }
