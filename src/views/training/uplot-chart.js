@@ -215,7 +215,9 @@ class UPlotCard extends HTMLElement {
                 const t = e.touches?.[0];
                 if(!t) return;
                 const r = this.plot.over.getBoundingClientRect();
+                this.touching = true;
                 this.plot.setCursor({left: t.clientX - r.left, top: t.clientY - r.top});
+                this.touching = false;
             };
             // a finger sliding sideways moves the read-out; a vertical swipe
             // is left to the page, so it scrolls
@@ -258,7 +260,10 @@ class UPlotCard extends HTMLElement {
         const i = u.cursor?.idx;
         // a day from the shared cursor outside this chart's view: no read-out
         const outside = u.cursor?.left < 0 || u.cursor?.left > (u.over?.clientWidth ?? Infinity);
-        if(i == null || outside) { this.$tip.hidden = true; return; }
+        // only the chart under the mouse or finger shows a read-out; a chart
+        // following the shared cursor (no event of its own) shows just the line
+        const own = this.touching || u.cursor?.event != null || !('event' in (u.cursor ?? {}));
+        if(i == null || outside || !own) { this.$tip.hidden = true; return; }
         const r = this.readout(i);
         if(!r) { this.$tip.hidden = true; return; }
         const touchy = touchDevice();

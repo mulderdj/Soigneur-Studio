@@ -28,6 +28,10 @@ beforeAll(() => {
         }
     }
     customElements.define('zoom-card', ZoomCard);
+    class PlainCard extends ZoomCard {
+        chart() { const c = super.chart(); delete c.model.sync; return c; }
+    }
+    customElements.define('plain-card', PlainCard);
 });
 
 const flush = () => new Promise(r => setTimeout(r, 0));
@@ -118,5 +122,35 @@ describe('the shared cursor', () => {
         const u = {cursor: {idx: 199, left: 900}, over: {clientWidth: 600, offsetLeft: 0}};
         el.showTip(u);
         expect(el.$tip.hidden).toBe(true);
+    });
+});
+
+describe('hovering one chart', () => {
+    async function pair(tag) {
+        document.body.innerHTML = `<${tag}></${tag}><${tag}></${tag}>`;
+        const [a, b] = document.querySelectorAll(tag);
+        a.data = {}; b.data = {};
+        await flush();
+        for(const el of [a, b]) {
+            Object.defineProperty(el.plot.over, 'clientWidth', {value: 600});
+            el.plot.over.getBoundingClientRect = () => ({left: 0, top: 0, right: 600, bottom: 200, width: 600, height: 200, x: 0, y: 0});
+            el.plot.syncRect?.(true);
+        }
+        a.plot.over.dispatchEvent(new MouseEvent('mouseenter', {bubbles: false, clientX: 300, clientY: 20}));
+        a.plot.over.dispatchEvent(new MouseEvent('mousemove', {bubbles: true, clientX: 300, clientY: 20}));
+        await flush();
+        return [a, b];
+    }
+    test('charts without a shared cursor leave each other alone', async () => {
+        const [a, b] = await pair('plain-card');
+        expect(a.$tip.hidden).toBe(false);
+        expect(b.plot.cursor.idx ?? null).toBeNull();
+        expect(b.$tip.hidden).toBe(true);
+    });
+    test('with a shared cursor only the hovered chart shows a read-out', async () => {
+        const [a, b] = await pair('zoom-card');
+        expect(a.$tip.hidden).toBe(false);
+        expect(b.plot.cursor.idx).not.toBeNull();   // the cursor line follows
+        expect(b.$tip.hidden).toBe(true);
     });
 });
