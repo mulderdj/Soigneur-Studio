@@ -135,8 +135,14 @@ of activities stored, number skipped by source, and the last error.
   external rides (fetched with `GET /api/me/external-rides?since=` and kept
   in IndexedDB store `externalRides` for offline use).
 - Duplicates: an external ride is left out when it has an `auukiRideId`
-  that matches an Auuki summary, or when an Auuki summary starts within
-  2 minutes of it with a duration within 10 %. Auuki's summary is kept.
+  that matches an Auuki summary, or when it and an Auuki summary overlap in
+  time for at least 80 % of the shorter one's duration (this also catches a
+  head unit that started earlier or stopped later). Auuki's summary is kept.
+- Hide: any ride can be hidden from the day dialog ("Hide this ride";
+  undo with "Show"). Hidden rides stay listed in the day dialog but don't
+  count anywhere else. Hidden ride ids are stored per rider on the device
+  and, when signed in, on the server (`hidden_rides` table), so every
+  device agrees. This fixes any duplicate the automatic matching misses.
 - Sports: rides with `sport` other than `cycling` count for load (form,
   weekly TSS and hours) and show on the calendar with their sport; power
   curve, FTP estimate and zones use cycling only.
@@ -158,8 +164,10 @@ of activities stored, number skipped by source, and the last error.
   mapped; 429 waits and resumes; plan: event → entry, entry → event (with
   uid, no duplicate on retry), changes and deletions both ways, newer change
   wins; sync status.
-- App (Jest): duplicate matching (by `auukiRideId`, by time and duration, no
-  false match on a different ride the same day); sports in load but not in
+- App (Jest): duplicate matching (by `auukiRideId`, by overlap including a
+  head unit that started 5 minutes earlier, no false match on a different
+  ride the same day); hidden rides left out of form and progress but listed
+  in the day dialog; sports in load but not in
   power curve/FTP/zones; plan entries from intervals.icu parsed and
   auto-selected; `.fit` import adds rides and lists unreadable files.
 - Live check: with the rider's API key, a read-only run first (activities,

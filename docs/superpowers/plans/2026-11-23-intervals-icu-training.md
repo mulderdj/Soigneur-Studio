@@ -20,14 +20,15 @@
 - Activity window: first run 730 days back; later runs from 7 days before the newest stored activity day. Plan window: 14 days back to 90 days ahead.
 - Cycling types: `Ride`, `VirtualRide`, `GravelRide`, `MountainBikeRide`, `EBikeRide`, `TrackRide` → `sport: 'cycling'`; others → `type.toLowerCase()`.
 - External ride id: `icu-<activity id>`; summary `version` 1, `source: 'intervals'`.
-- Duplicate rule (app): drop an external ride if its `auukiRideId` equals an Auuki summary id, or an Auuki summary starts within 120 000 ms and its duration is within 10 % of the external one.
+- Duplicate rule (app): drop an external ride if its `auukiRideId` equals an Auuki summary id, or it and an Auuki summary overlap for at least 80 % of the shorter one's duration (interval `[start, start + duration·1000)`).
+- Hidden rides: ids in IndexedDB store `hiddenRides` and server table `hidden_rides (user_id, ride_id, PRIMARY KEY (user_id, ride_id))`; routes `GET /api/me/hidden-rides` → `{ids}`, `PUT /api/me/hidden-rides/:id`, `DELETE /api/me/hidden-rides/:id`.
 - Plan conflicts: newer change wins — event `updated` (ISO) vs plan row `updated_at`; each entry remembers `intervalsSyncedAt`.
 - Non-cycling rides: count in `dailyTss`, weekly hours/TSS/kJ and the calendar; excluded from `powerCurve`, `ftpEstimates`, `zoneTotals`.
 - Every task ends with the gate: Jest = exactly the 50 inherited failures; `npm run test:server` passes. Server tests must close their servers in `finally`.
 
 ## Review Focus
 
-1. **A ride recorded in Auuki and uploaded to intervals.icu** must show once (Auuki's summary), also when the upload id is unknown on this server (other device). Pinned in Task 4.
+1. **A ride recorded in Auuki and uploaded to intervals.icu, or recorded at the same time on a head unit,** must show once (Auuki's summary), also when the upload id is unknown on this server (other device) or the head unit started earlier. Pinned in Task 4; anything missed can be hidden (Task 4b).
 2. **Retrying an interrupted plan push** (network error after intervals.icu created the event) must not create a second event: create uses `upsertOnUid` with a stable `uid`. Pinned in Task 3.
 3. **The API key is revoked** (401/403) during a sync: the sync stops, the connection is marked "enter the key again" (as uploads do), nothing is deleted locally. Pinned in Task 2.
 4. **A `.zwo` from intervals.icu that the parser can't read**: the plan entry still shows (name, day) and can be removed; riding it is not offered. Pinned in Task 5.
@@ -105,9 +106,20 @@
   - `isCycling(summary) -> boolean` (`!summary.sport || summary.sport === 'cycling'`).
   - `history.summaries()` returns `mergeRides(own, external)`; `history.pullExternal()` fetches `/me/external-rides?since=<cursor>` (cursor in rider storage `training:externalSince`), stores into `externalRides`, dispatches `training:changed`.
   - `powerCurve`, `ftpEstimates`, `zoneTotals` ignore non-cycling summaries; `weeklyVolume`, `weekCompare`, `dailyTss` include them.
-- [ ] **Step 1: Failing tests:** `mergeRides` drops an external with matching `auukiRideId`; drops one starting 90 s later with duration 3% different (Review Focus 1, no upload id); keeps one starting 90 s later but 30 % longer; keeps two different rides on the same day. Progress: a 2 h run adds to weekly hours and TSS but not to zones, power curve or FTP estimates. History: external rides pulled with a fake api appear in `summaries()` merged, and a second pull uses the cursor.
+- [ ] **Step 1: Failing tests:** `mergeRides` drops an external with matching `auukiRideId`; drops one starting 90 s later with duration 3 % different (Review Focus 1, no upload id); drops a head-unit recording that started 5 min earlier and ended 2 min later than the Auuki ride (overlap ≥ 80 % of the shorter); keeps a 20-min ride that overlaps a 2-h ride for only its last 5 min; keeps two different rides on the same day. Progress: a 2 h run adds to weekly hours and TSS but not to zones, power curve or FTP estimates. History: external rides pulled with a fake api appear in `summaries()` merged, and a second pull uses the cursor.
 - [ ] **Step 2: Run** — FAIL. **Step 3: Implement.** **Step 4: Run** — PASS.
 - [ ] **Step 5: Commit** `training: intervals.icu rides on the Training page`
+
+---
+
+### Task 4b: Hide a ride
+
+**Files:** Modify `server/app.js` + `server/app.spec.mjs` (table and routes per Global Constraints), `src/training/history.js` (`hideRide(id)`, `showRide(id)`, `hiddenIds()`; `summaries()` marks hidden ones `hidden: true`; `countable(summaries)` filters them; pull/push hidden ids in `syncPlan`'s account sync), `src/views/training/training-page.js` (cards get countable summaries; calendar and day dialog get all), `src/views/training/day-dialog.js` ("Hide this ride" / "Show" per ride, hidden rides greyed), `src/views/training/calendar.js` (hidden rides left out of the cell), `test/training/history.test.js`, `test/training/views.test.js`
+
+**Interfaces — Produces:** `history.hideRide(id) -> Promise`, `history.showRide(id) -> Promise`, `history.hiddenIds() -> Promise<Set<string>>`, `countable(summaries) -> Summary[]` (exported from `src/training/merge.js`).
+- [ ] **Step 1: Failing tests:** server routes store, list and delete per user; hiding a ride removes it from `countable(await history.summaries())` and from the form/weekly totals, but the day dialog still lists it with "Show"; showing it again restores it; hidden ids pulled from the server apply on another device.
+- [ ] **Step 2: Run** — FAIL. **Step 3: Implement.** **Step 4: Run** — PASS.
+- [ ] **Step 5: Commit** `training: hide a ride`
 
 ---
 
