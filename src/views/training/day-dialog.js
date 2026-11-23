@@ -11,6 +11,20 @@
 import { history } from '../../training/history.js';
 import { planStatus, plannedTss } from '../../training/plan.js';
 import { esc, fmtDuration, fmtDay, fmtTss, sportLabelFor, loadTag, loadTitle } from './format.js';
+import { intervalsToGraph } from '../workout-graph.js';
+
+const GRAPH_HEIGHT = 48;
+const minutes = (s) => `${Math.round(s / 60)} min`;
+const workoutSeconds = (w) => (w?.intervals ?? []).reduce((a, i) => a + (Number(i.duration) || 0), 0);
+
+// a ride's time in each power zone as one thin bar (rides with power only)
+function zoneBar(r) {
+    const zones = (r.zoneSeconds ?? []).map((s, i) => ({zone: i + 1, s: Number(s) || 0})).filter(z => z.s > 0);
+    if(zones.length === 0) return '';
+    const label = 'Time in zones: ' + zones.map(z => `Z${z.zone} ${minutes(z.s)}`).join(', ');
+    return `<div class="dd-zones" role="img" aria-label="${esc(label)}" title="${esc(label)}">${
+        zones.map(z => `<span class="dd-zone" data-zone="${z.zone}" style="flex-grow: ${z.s}"></span>`).join('')}</div>`;
+}
 
 // "How hard was it?" 1–10, for a workout without power or heart rate
 function rating(r) {
@@ -44,6 +58,19 @@ class DayDialog extends HTMLElement {
         this.render();
         if(typeof this.$dialog.showModal === 'function' && !this.$dialog.open) this.$dialog.showModal();
         else this.$dialog.setAttribute('open', '');
+        this.fillGraphs(); // after opening: the profiles take the dialog's width
+    }
+
+    // planned workouts: the same profile as in the Workouts list
+    fillGraphs() {
+        const plan = this.data?.plan ?? [];
+        for(const el of this.$dialog.querySelectorAll('.dd-graph[data-graph]')) {
+            const entry = plan.find(e => String(e.id) === el.dataset.graph);
+            if(!entry?.workout) continue;
+            const w = entry.workout;
+            const workout = {...w, meta: {...w.meta, duration: w.meta?.duration || workoutSeconds(w)}};
+            el.innerHTML = intervalsToGraph(workout, this.data.ftp || 250, {width: el.clientWidth || 320, height: GRAPH_HEIGHT});
+        }
     }
 
     close() {
@@ -93,7 +120,7 @@ class DayDialog extends HTMLElement {
             </div>
             ${rides.length ? `<h3 class="dd-sub">Rides</h3><ul class="dd-list">${rides.map(r => `
                 <li class="list-row dd-ride${r.hidden ? ' is-hidden' : ''}"><div class="list-row__main"><div class="list-row__title">${esc(r.name)}</div>
-                    <div class="list-row__meta">${sportLabelFor(r) ? `${esc(sportLabelFor(r))} · ` : ''}${fmtDuration(r.duration)} · ${fmtTss(r.tss)} TSS${loadTag(r.loadSource) ? ` <span class="badge cal-load" title="${esc(loadTitle(r.loadSource))}">${loadTag(r.loadSource)}</span>` : ''}${Number.isFinite(r.np) ? ` · NP ${Math.round(r.np)} W` : ''}${r.hidden ? ' · hidden' : ''}</div></div>
+                    <div class="list-row__meta">${sportLabelFor(r) ? `${esc(sportLabelFor(r))} · ` : ''}${fmtDuration(r.duration)} · ${fmtTss(r.tss)} TSS${loadTag(r.loadSource) ? ` <span class="badge cal-load" title="${esc(loadTitle(r.loadSource))}">${loadTag(r.loadSource)}</span>` : ''}${Number.isFinite(r.np) ? ` · NP ${Math.round(r.np)} W` : ''}${r.hidden ? ' · hidden' : ''}</div>${zoneBar(r)}</div>
                     ${r.hidden ?
                       `<button type="button" class="btn" data-show="${esc(r.id)}">Show</button>` :
                       `<button type="button" class="btn" data-hide="${esc(r.id)}">Hide this ride</button>`}
@@ -102,7 +129,9 @@ class DayDialog extends HTMLElement {
                 <li class="list-row"><div class="list-row__main"><div class="list-row__title">${esc(e.workout?.meta?.name ?? e.name ?? 'Workout')}</div>
                     <div class="list-row__meta"><span class="badge">${planStatus(e, today)}</span>
                         ${e.workout ? `${Math.round(plannedTss(e.workout, this.data.ftp))} TSS` : 'The workout from intervals.icu could not be read, so it can\'t be ridden here.'}
-                        ${e.origin === 'intervals' ? '<span class="badge badge-icu">intervals.icu</span>' : ''}</div></div>
+                        ${e.origin === 'intervals' ? '<span class="badge badge-icu">intervals.icu</span>' : ''}</div>
+                    ${e.workout?.intervals?.length ? `<div class="dd-graph workout-list--graph-cont" data-graph="${esc(e.id)}" role="img"
+                        aria-label="${esc(`Workout profile, ${minutes(workoutSeconds(e.workout))}`)}"></div>` : ''}</div>
                     <label class="field dd-move">Move to<input type="date" class="input" data-move="${esc(e.id)}" value="${esc(e.day)}"></label>
                     ${e.workout && !e.rideId ? `<button type="button" class="btn btn--primary" data-ride="${esc(e.id)}">Ride this workout</button>` : ''}
                     <button type="button" class="btn btn--danger" data-remove="${esc(e.id)}">Remove</button></li>`).join('')}</ul>` : ''}

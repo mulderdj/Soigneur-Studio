@@ -294,3 +294,43 @@ describe('ride a planned workout', () => {
         expect(el.actions.rideWorkout).toHaveBeenCalledWith('a');
     });
 });
+
+describe('small graphs in the day dialog', () => {
+    function open(day, extra) {
+        document.body.innerHTML = '<day-dialog></day-dialog>';
+        const el = document.querySelector('day-dialog');
+        el.actions = {};
+        el.open(day, {...data, ftp: 250, ...extra});
+        return el;
+    }
+
+    test('a planned workout shows its profile; one that could not be read does not', () => {
+        const two = {id: 'w9', meta: {name: 'Two steps'}, intervals: [
+            {duration: 600, steps: [{duration: 600, power: 0.6}]},
+            {duration: 300, steps: [{duration: 300, power: 1.05}]},
+        ]};
+        const el = open('2026-11-28', {plan: [
+            {id: 'a', day: '2026-11-28', workout: two, rideId: null, deleted: false},
+            {id: 'c', day: '2026-11-28', workout: null, name: 'Odd file', rideId: null, deleted: false, origin: 'intervals'},
+        ]});
+        const graphs = el.querySelectorAll('.dd-graph');
+        expect(graphs).toHaveLength(1);
+        expect(graphs[0].dataset.graph).toBe('a');
+        expect(graphs[0].querySelectorAll('.graph--bar')).toHaveLength(2);
+        expect(graphs[0].getAttribute('role')).toBe('img');
+        expect(graphs[0].getAttribute('aria-label')).toMatch(/15 min/);
+    });
+
+    test('a ride with power shows its time in zones; one without power does not', () => {
+        const el = open('2026-11-24', {summaries: [
+            {id: 'r1', day: '2026-11-24', name: 'Sweet spot', duration: 3600, tss: 70, start: 1, zoneSeconds: [600, 1200, 0, 1800, 0, 0, 0]},
+            {id: 'r2', day: '2026-11-24', name: 'Outdoor', duration: 3600, tss: 50, start: 2, zoneSeconds: [0, 0, 0, 0, 0, 0, 0], loadSource: 'hr'},
+        ]});
+        const bars = el.querySelectorAll('.dd-zones');
+        expect(bars).toHaveLength(1);
+        const parts = [...bars[0].querySelectorAll('.dd-zone')];
+        expect(parts.map(p => p.dataset.zone)).toEqual(['1', '2', '4']);
+        expect(parts.map(p => p.style.flexGrow)).toEqual(['600', '1200', '1800']);
+        expect(bars[0].getAttribute('aria-label')).toBe('Time in zones: Z1 10 min, Z2 20 min, Z4 30 min');
+    });
+});
