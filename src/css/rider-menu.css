@@ -465,3 +465,7 @@ a.rm--sent:hover {
         flex-wrap: wrap;
     }
 }
+
+/* intervals.icu sync status on its account card */
+.rm--sync { display: block; }
+.rm--sync.rm--error { color: var(--danger); }

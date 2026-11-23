@@ -97,7 +97,29 @@ function generateHistory({today, days = 120, ftp = 250, weight = 75, seed = 1} =
         plan.push({id: `seed-plan-${day}`, day, workout: toWorkout('endurance'), rideId: null, deleted: false, updatedAt: 0, dirty: false});
     }
 
-    return {summaries, plan};
+    // intervals.icu: Monday runs over the last weeks, and two planned
+    // workouts from there (one whose .zwo can't be read)
+    const external = [];
+    for(let w = 0; w < 4; w++) {
+        const day = addDays(weekStart(today), -7 * w);
+        if(day > today) continue;
+        const duration = 2400 + Math.round(rnd() * 1800);
+        external.push({
+            version: 1, id: `icu-seed-run-${day}`, source: 'intervals', sport: 'run', day, name: 'Lunch run',
+            start: dayToDate(day).getTime() + 12 * 3600 * 1000, duration, distance: duration * 2.8,
+            tss: Math.round(duration / 3600 * 55), if: null, np: null, avgPower: null, kj: null,
+            zoneSeconds: Array(7).fill(0), best: {5: null, 60: null, 300: null, 1200: null, 3600: null},
+            ftp: null, weight, workoutId: null, remote: {source: 'GARMIN_CONNECT', externalId: null}, auukiRideId: null,
+        });
+    }
+    const icuDay = addDays(today, 2);
+    plan.push({id: 'seed-icu-1', day: icuDay, origin: 'intervals', intervalsEventId: 1, name: 'Threshold 3x10',
+               workout: {...toWorkout('sweetspot'), id: 'icu-ev-1', meta: {name: 'Threshold 3x10', category: 'intervals.icu'}},
+               rideId: null, deleted: false, updatedAt: 0, dirty: false});
+    plan.push({id: 'seed-icu-2', day: addDays(today, 4), origin: 'intervals', intervalsEventId: 2, name: 'Strength circuit',
+               workout: null, rideId: null, deleted: false, updatedAt: 0, dirty: false});
+
+    return {summaries, plan, external};
 }
 
 async function seedHistory({ftp, weight} = {}) {
@@ -105,8 +127,9 @@ async function seedHistory({ftp, weight} = {}) {
     const { idb } = await import('../storage/idb.js');
     const { today } = await import('../training/dates.js');
     if((await history.summaries()).length > 0) return false;
-    const {summaries, plan} = generateHistory({today: today(), ftp: ftp || 250, weight: weight || 75});
+    const {summaries, plan, external} = generateHistory({today: today(), ftp: ftp || 250, weight: weight || 75});
     for(const s of summaries) await idb.put('rideSummaries', s);
+    for(const r of external) await idb.put('externalRides', r);
     for(const e of plan) await idb.put('plan', e);
     await history.saveSummary(summaries.at(-1)); // announce the change once
     console.log(`:dev :history ${summaries.length} rides, ${plan.length} plan entries`);

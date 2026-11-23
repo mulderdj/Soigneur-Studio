@@ -8,6 +8,7 @@ import { riders } from '../riders.js';
 import { sensors } from '../sensors.js';
 import { api, ApiError } from '../account/api.js';
 import { syncNow, status as syncStatus } from '../account/sync.js';
+import { syncCounts } from './training/format.js';
 
 function esc(s) {
     return String(s ?? '').replace(/[&<>"']/g, c => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'}[c]));
@@ -58,6 +59,16 @@ const SYNC_LABEL = {
     offline: 'Offline, will retry',
     error: 'Sync problem',
 };
+
+// the intervals.icu sync status on its account card
+function intervalsSync(sync) {
+    if(!sync) return '';
+    const when = sync.lastRun ?
+          `Synced ${new Date(sync.lastRun).toLocaleString([], {day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit'})}: ${syncCounts(sync)}.` :
+          'First sync on its way.';
+    const plan = sync.planSkipped > 0 ? ` ${sync.planSkipped} planned workout${sync.planSkipped === 1 ? '' : 's'} couldn't be sent (no .zwo).` : '';
+    return `<small class="rm--sync">${esc(when + plan)}</small>${sync.error ? `<small class="rm--sync rm--error">${esc(sync.error)}</small>` : ''}`;
+}
 
 class RiderMenu extends HTMLElement {
     connectedCallback() {
@@ -297,7 +308,7 @@ class RiderMenu extends HTMLElement {
                 <span class="rm--svc rm--svc-intervals" aria-hidden="true">i</span>
                 <div class="rm--svc-body">
                     <b>intervals.icu</b>
-                    ${c.intervals.connected ? `<small>Connected${c.intervals.athlete ? ` as ${esc(c.intervals.athlete)}` : ''}${c.intervals.athleteId ? ` (${esc(c.intervals.athleteId)})` : ''}.</small>${auto('intervals', c.intervals.autoUpload)}` : `
+                    ${c.intervals.connected ? `<small>Connected${c.intervals.athlete ? ` as ${esc(c.intervals.athlete)}` : ''}${c.intervals.athleteId ? ` (${esc(c.intervals.athleteId)})` : ''}.</small>${intervalsSync(c.intervals.sync)}${auto('intervals', c.intervals.autoUpload)}` : `
                     <small>Paste your personal API key: intervals.icu, Settings, Developer Settings near the bottom of the page.</small>
                     <form class="rm--inline" data-form="intervals-key">
                         <input class="input" name="apiKey" autocomplete="off" spellcheck="false" placeholder="API key" aria-label="intervals.icu API key" required>
@@ -305,7 +316,8 @@ class RiderMenu extends HTMLElement {
                     </form>`}
                 </div>
                 <div class="rm--svc-actions">
-                    ${c.intervals.connected ? '<button type="button" class="btn rm--btn rm--quiet btn--quiet" data-act="disconnect" data-id="intervals">Disconnect</button>' : ''}
+                    ${c.intervals.connected ? `<button type="button" class="btn rm--btn" data-act="sync-intervals">Sync now</button>
+                        <button type="button" class="btn rm--btn rm--quiet btn--quiet" data-act="disconnect" data-id="intervals">Disconnect</button>` : ''}
                 </div>
             </div>
             <div class="rm--service">
@@ -486,6 +498,11 @@ class RiderMenu extends HTMLElement {
             case 'sync':
                 await syncNow();
                 this.render();
+                break;
+            case 'sync-intervals':
+                await api.post('/me/intervals/sync', {});
+                this.say('intervals.icu sync started. New rides and workouts show up on the Training page in a minute.');
+                setTimeout(() => syncNow().then(() => this.render()).catch(() => {}), 30 * 1000);
                 break;
             case 'signout': {
                 const r = riders.current();

@@ -30,6 +30,20 @@ describe('generated training history', () => {
         expect(a.plan.some(e => e.day > today)).toBe(true);
         expect(statuses).toContain('done');
         expect(statuses).toContain('missed');
-        for(const e of a.plan) expect(e.workout.intervals.length).toBeGreaterThan(0);
+        for(const e of a.plan.filter(e => e.workout)) expect(e.workout.intervals.length).toBeGreaterThan(0);
+    });
+
+    test('runs from intervals.icu, and intervals.icu plan entries (one unreadable)', () => {
+        expect(a.external.length).toBeGreaterThanOrEqual(3);
+        for(const r of a.external) {
+            expect(r.source).toBe('intervals');
+            expect(r.sport).toBe('run');
+            expect(r.id).toMatch(/^icu-/);
+            expect(r.day <= today).toBe(true);
+            expect(r.tss).toBeGreaterThan(0);
+        }
+        const icu = a.plan.filter(e => e.origin === 'intervals');
+        expect(icu.some(e => e.workout?.intervals.length > 0 && e.day > today)).toBe(true);
+        expect(icu.some(e => e.workout === null && e.name)).toBe(true);
     });
 });

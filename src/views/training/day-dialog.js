@@ -10,7 +10,7 @@
 
 import { history } from '../../training/history.js';
 import { planStatus, plannedTss } from '../../training/plan.js';
-import { esc, fmtDuration, fmtDay, fmtTss } from './format.js';
+import { esc, fmtDuration, fmtDay, fmtTss, sportLabel } from './format.js';
 
 class DayDialog extends HTMLElement {
     constructor() {
@@ -73,7 +73,7 @@ class DayDialog extends HTMLElement {
             </div>
             ${rides.length ? `<h3 class="dd-sub">Rides</h3><ul class="dd-list">${rides.map(r => `
                 <li class="list-row dd-ride${r.hidden ? ' is-hidden' : ''}"><div class="list-row__main"><div class="list-row__title">${esc(r.name)}</div>
-                    <div class="list-row__meta">${fmtDuration(r.duration)} · ${fmtTss(r.tss)} TSS${Number.isFinite(r.np) ? ` · NP ${Math.round(r.np)} W` : ''}${r.hidden ? ' · hidden' : ''}</div></div>
+                    <div class="list-row__meta">${sportLabel(r.sport) ? `${esc(sportLabel(r.sport))} · ` : ''}${fmtDuration(r.duration)} · ${fmtTss(r.tss)} TSS${Number.isFinite(r.np) ? ` · NP ${Math.round(r.np)} W` : ''}${r.hidden ? ' · hidden' : ''}</div></div>
                     ${r.hidden ?
                       `<button type="button" class="btn" data-show="${esc(r.id)}">Show</button>` :
                       `<button type="button" class="btn" data-hide="${esc(r.id)}">Hide this ride</button>`}</li>`).join('')}</ul>` : ''}

@@ -27,7 +27,10 @@ A fork of [dvmarinoff/Auuki](https://github.com/dvmarinoff/Auuki) with one inter
 * *Riding the plan*: on a day with a planned workout, the Ride page selects it when the app opens (not over a workout you picked yourself that day, and never during a ride). A saved ride is matched to that day's plan.
 * *Progress*: weekly volume (hours, TSS, kJ), power curve (last 6 weeks vs. all time, W or W/kg), FTP trend (estimated from your best 20 and 60 minutes, with a button to update your FTP when it's more than 5 % off) and time in zones per week or month.
 * Every saved ride keeps a small summary, also when the device trims old `.fit` files. Rides from before this version are read back from their `.fit` the first time you open Training, from this device or from your account. Signed in, the plan and summaries sync through your account server.
-* Development: `?simulate&history` on `npm start` fills a rider with 4 months of generated rides and a plan.
+* *intervals.icu*: with intervals.icu connected, the account server brings in your activities from there (the last 2 years, then every 15 minutes): outdoor rides, rides from other apps, and other sports. All sports count for form and weekly volume and show on the calendar with their sport; power curve, FTP and zones use cycling only. A ride recorded in Auuki and also on intervals.icu (Auuki's own upload, or a head unit that recorded the same ride) counts once. Missed one? *Hide this ride* in the day dialog (undo with *Show*) on any ride.
+* *Plan, both ways*: workouts planned on intervals.icu appear on the calendar (tagged *intervals.icu*) and can be ridden; workouts planned in Auuki appear on intervals.icu. Moving or removing on either side follows on the other; when both changed, the newer change wins.
+* Not available through intervals.icu: activities that came from Strava (intervals.icu's API returns them empty; the account card counts them), and possibly Garmin's (intervals.icu expects to block API access to them). *Import .fit files* on the Training page adds such rides from their `.fit` files (several at once; files already there are skipped).
+* Development: `?simulate&history` on `npm start` fills a rider with 4 months of generated rides, runs from intervals.icu and a plan.
 
 **More workout files.** Load several at once from the Workouts page:
 * `.zwo` Zwift workouts (also when saved as `.xml`)
@@ -54,7 +57,7 @@ No trainer at hand? Open the dev server with `?simulate` (e.g. `http://localhost
 * *Ride history*: all rides on your account, with `.fit` download, upload status per service, and *Send to Strava / intervals.icu / Garmin*.
 * *Connected services* (under *Account*), per rider:
   * **Strava**: *Connect with Strava*; new rides upload automatically to the rider's own Strava. Needs one Strava API app for the server (`PUBLIC_URL`, `STRAVA_CLIENT_ID`, `STRAVA_CLIENT_SECRET`; see `.env.example`). New Strava apps start with a limit of 1 connected athlete until Strava raises it.
-  * **intervals.icu**: paste the personal API key; new rides upload automatically.
+  * **intervals.icu**: paste the personal API key; new rides upload automatically, and activities and planned workouts sync with the Training page (status and *Sync now* on the card).
   * **Garmin Connect**: Garmin's upload API is for approved businesses only, so *Send to Garmin* downloads the `.fit` and opens Garmin's import page.
   * Uploads retry after 30 s, 5 min and 30 min; tokens and keys stay on the server.
 * *Users* (admins): create accounts, reset passwords, change roles, disable or delete accounts.

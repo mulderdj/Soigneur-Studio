@@ -2,6 +2,7 @@
  * @jest-environment jsdom
  */
 import { ftpNudge } from '../../src/views/training/progress-cards.js';
+import { syncCounts, sportLabel } from '../../src/views/training/format.js';
 import '../../src/views/training/calendar.js';
 import '../../src/views/training/day-dialog.js';
 
@@ -145,5 +146,42 @@ describe('FTP nudge', () => {
         expect(ftpNudge(268.4, 250)).toBe(268);
         expect(ftpNudge(230, 250)).toBe(230);
         expect(ftpNudge(null, 250)).toBeNull();
+    });
+});
+
+describe('other sports and intervals.icu status', () => {
+    test('a run on the calendar shows "Run" and its duration', () => {
+        document.body.innerHTML = '<training-calendar layout="desktop"></training-calendar>';
+        const el = document.querySelector('training-calendar');
+        el.data = {...data, summaries: [...data.summaries,
+            {id: 'icu-run', day: '2026-11-26', name: 'Lunch run', sport: 'run', duration: 2700, tss: 40, start: 9}]};
+        const item = [...el.querySelectorAll('.cal-ride')].find(i => i.textContent.includes('Lunch run'));
+        expect(item.textContent).toContain('Run');
+        expect(item.textContent).toContain('0:45');
+        const ride = [...el.querySelectorAll('.cal-item')].find(i => i.textContent.includes('Sweet spot'));
+        expect(ride.querySelector('.cal-sport')).toBeNull();
+    });
+
+    test('the day dialog names the sport of a run', () => {
+        document.body.innerHTML = '<day-dialog></day-dialog>';
+        const el = document.querySelector('day-dialog');
+        el.open('2026-11-26', {...data, summaries: [{id: 'icu-run', day: '2026-11-26', name: 'Lunch run', sport: 'run', duration: 2700, tss: 40, start: 9}]});
+        expect(el.querySelector('.dd-ride .list-row__meta').textContent).toMatch(/^\s*Run · 0:45/);
+    });
+
+    test('sport names', () => {
+        expect(sportLabel('run')).toBe('Run');
+        expect(sportLabel('weighttraining')).toBe('Strength');
+        expect(sportLabel('nordicski')).toBe('Nordicski');
+        expect(sportLabel('cycling')).toBe('');
+        expect(sportLabel(undefined)).toBe('');
+    });
+
+    test('the account card counts what the sync found', () => {
+        expect(syncCounts({lastRun: 1, stored: 412, skipped: {STRAVA: 12}})).toBe('412 activities · 12 from Strava weren\'t available');
+        expect(syncCounts({stored: 1, skipped: {}})).toBe('1 activity');
+        expect(syncCounts({stored: 3, skipped: {STRAVA: 1, GARMIN_CONNECT: 2}}))
+            .toBe('3 activities · 1 from Strava, 2 from Garmin weren\'t available');
+        expect(syncCounts(null)).toBe('');
     });
 });

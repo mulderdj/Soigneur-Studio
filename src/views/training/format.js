@@ -29,4 +29,26 @@ function fmtTss(x) {
     return Number.isFinite(x) ? String(Math.round(x)) : '–';
 }
 
-export { esc, fmtDuration, fmtHours, fmtDay, fmtMonth, fmtTss };
+// a ride's sport from intervals.icu; '' for cycling (the default)
+const SPORTS = {weighttraining: 'Strength', virtualrun: 'Virtual run', alpineski: 'Ski', backcountryski: 'Ski touring'};
+
+function sportLabel(sport) {
+    if(!sport || sport === 'cycling') return '';
+    const s = String(sport).toLowerCase();
+    return SPORTS[s] ?? s.charAt(0).toUpperCase() + s.slice(1);
+}
+
+// the intervals.icu sync status: "412 activities · 12 from Strava weren't available"
+const SOURCES = {STRAVA: 'Strava', GARMIN_CONNECT: 'Garmin', GARMIN: 'Garmin', WAHOO: 'Wahoo', ZWIFT: 'Zwift',
+                 POLAR: 'Polar', SUUNTO: 'Suunto', COROS: 'Coros', UPLOAD: 'uploads', UNKNOWN: 'an unknown source'};
+
+function syncCounts(sync) {
+    if(!sync) return '';
+    const n = Number(sync.stored) || 0;
+    const text = `${n} ${n === 1 ? 'activity' : 'activities'}`;
+    const skipped = Object.entries(sync.skipped ?? {}).filter(([, k]) => k > 0)
+          .map(([src, k]) => `${k} from ${SOURCES[src] ?? src.charAt(0) + src.slice(1).toLowerCase()}`);
+    return skipped.length ? `${text} · ${skipped.join(', ')} weren't available` : text;
+}
+
+export { esc, fmtDuration, fmtHours, fmtDay, fmtMonth, fmtTss, sportLabel, syncCounts };
