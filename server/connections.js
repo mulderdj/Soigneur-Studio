@@ -270,6 +270,8 @@ function createConnections({db, fail, options = {}}) {
 
     let intervalsStatus = () => null;
     function setIntervalsStatus(fn) { intervalsStatus = fn; }
+    let garminStatus = () => ({connected: false});
+    function setGarminStatus(fn) { garminStatus = fn; }
 
     function describe(userId) {
         const rows = Object.fromEntries(q.all.all(userId).map(r => [r.service, r]));
@@ -291,8 +293,9 @@ function createConnections({db, fail, options = {}}) {
                 sync: intervalsStatus(userId),
             },
             garmin: {
-                available: false,
+                available: false, // uploads: Garmin allows them for approved businesses only
                 importUrl: 'https://connect.garmin.com/modern/import-data',
+                ...garminStatus(userId), // the rider's Personal API key: health data and activities
             },
         };
     }
@@ -392,7 +395,7 @@ function createConnections({db, fail, options = {}}) {
         timers.clear();
     }
 
-    return {routes, onRideSaved, uploadsFor, resume, close, stravaConfigured, setIntervalsStatus};
+    return {routes, onRideSaved, uploadsFor, resume, close, stravaConfigured, setIntervalsStatus, setGarminStatus};
 }
 
 module.exports = { createConnections };

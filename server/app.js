@@ -15,6 +15,7 @@ const crypto = require('node:crypto');
 const { DatabaseSync } = require('node:sqlite');
 const { createConnections } = require('./connections.js');
 const { createIntervalsSync } = require('./intervals-sync.js');
+const { createGarminSync } = require('./garmin-sync.js');
 
 const SESSION_DAYS = 90;
 const MAX_JSON_BYTES = 1 * 1024 * 1024;       // profile, workouts, user edits
@@ -210,6 +211,8 @@ function createApp(options = {}) {
     const connections = createConnections({db, fail, options: options.connections});
     const intervalsSync = createIntervalsSync({db, options: options.intervals});
     connections.setIntervalsStatus(userId => intervalsSync.status(userId));
+    const garminSync = createGarminSync({db, options: options.garmin});
+    connections.setGarminStatus(userId => garminSync.status(userId));
 
     const q = {
         userCount:     db.prepare('SELECT COUNT(*) AS n FROM users'),
@@ -511,6 +514,7 @@ function createApp(options = {}) {
         return {ok: true};
     }, {auth: true});
 
+    garminSync.routes(route, {fail, validId}); // before the generic /api/me/connections/:service routes
     connections.routes(route, {validId});
     intervalsSync.routes(route, {fail, validId});
 
@@ -594,8 +598,8 @@ function createApp(options = {}) {
     const server = http.createServer(handle);
 
     return {
-        server, db, connections, intervalsSync,
-        close: () => { connections.close(); intervalsSync.close(); server.closeAllConnections(); server.close(); db.close(); },
+        server, db, connections, intervalsSync, garminSync,
+        close: () => { connections.close(); intervalsSync.close(); garminSync.close(); server.closeAllConnections(); server.close(); db.close(); },
     };
 }
 
