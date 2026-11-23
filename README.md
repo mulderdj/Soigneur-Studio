@@ -2,6 +2,10 @@
 
 A fork of [dvmarinoff/Auuki](https://github.com/dvmarinoff/Auuki) with one interface for every screen: phone (portrait or on the handlebars in landscape), tablet, laptop, PC and TV. Every page uses the same design system, in dark and light.
 
+**Walkthrough**: [a tour of every page with screenshots](docs/walkthrough/README.md) and a [44-second screencast](docs/walkthrough/walkthrough.mp4).
+
+![Riding a workout, then the Training page: form, calendar, planning, progress](docs/walkthrough/img/walkthrough.gif)
+
 **What's new on the Ride page**
 * **One layout from phone to TV**: power as a large tile that takes the colour of your current power zone (with zone name and live W/kg), the other metrics in a compact grid, connections in a slim header and one bottom bar for the ride controls and the pages (Ride, Training, Workouts, Settings).
   * *Phone, portrait*: everything on one screen while riding; the statistics panels below are swiped one at a time. While a ride runs, the bottom bar shows only the ride controls; the pages are behind the menu button.
