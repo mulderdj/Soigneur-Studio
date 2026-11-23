@@ -21,6 +21,9 @@ function IDB(args = {}) {
 
     function setDB(idb) {
         db = idb;
+        // let a newer version (another tab, or a later start()) upgrade
+        // instead of waiting forever on this connection
+        db.onversionchange = () => db.close();
     }
 
     async function start(database = '', version = 1, stores = []) {
@@ -47,7 +50,8 @@ function IDB(args = {}) {
                 case 0: createStores(storeNames);
                 case 1: update(storeNames);
                 case 2: update(storeNames);
-                case 3: latest(storeNames);
+                case 3: createStores(storeNames); // v4: rideSummaries, plan
+                case 4: latest(storeNames);
                 }
             };
             openReq.onerror = function() {

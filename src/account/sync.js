@@ -18,6 +18,7 @@ import { idb } from '../storage/idb.js';
 import { riders } from '../riders.js';
 import { api, ApiError } from './api.js';
 import { session, setWprime } from '../views/training-dashboard.js';
+import { history } from '../training/history.js';
 
 const DEFAULT_WORKOUT_CATEGORY = 'Imported';
 
@@ -194,10 +195,11 @@ async function uploadRide(entry) {
     }
     if(!record?.blob) throw new Error('Ride file not found on this device.');
     const fit = await blobToBase64(record.blob);
+    const training = await history.summaryFor(entry.id).catch(() => undefined);
     await api.post('/me/activities', {
         id: entry.id,
         fit,
-        summary: {...record.summary, stats: entry.stats},
+        summary: {...record.summary, stats: entry.stats, ...(training ? {training} : {})},
     });
 }
 
@@ -235,6 +237,7 @@ async function syncNow() {
     try {
         await pullProfile();
         await syncWorkouts();
+        await history.syncPlan();
         const ridesOk = await flushRides();
         if(ridesOk) setState('ok', `Synced ${new Date().toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'})}`);
     } catch(e) {

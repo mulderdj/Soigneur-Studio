@@ -14,6 +14,7 @@ import './watch.js';
 import './ant-device-scan.js';
 import './keyboard.js';
 import './training-dashboard.js';
+import '../training/wiring.js';
 import '../sensors.js';
 import '../account/sync.js';
 import './rider-menu.js';
