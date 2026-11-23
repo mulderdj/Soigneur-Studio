@@ -44,6 +44,17 @@ start();
 if(typeof module !== 'undefined' && module.hot &&
    new URLSearchParams(location.search).has('simulate')) {
     import('./dev/simulator.js').then(simulator => simulator.start({xf}));
+
+    // ?simulate&history: a generated training history for the Training page,
+    // written once the rider's database is open
+    if(new URLSearchParams(location.search).has('history')) {
+        let ftp = 250, weight = 75;
+        xf.sub('db:ftp', x => { ftp = x; });
+        xf.sub('db:weight', x => { weight = x; });
+        xf.sub('activity:restore', () => {
+            import('./dev/history-seed.js').then(seed => seed.seedHistory({ftp, weight}));
+        });
+    }
 }
 
 export {
