@@ -16,6 +16,8 @@ const DAY_MS = 86400000;
 const FIRST_DAYS = 730;
 const OVERLAP_DAYS = 7;
 const MAX_RATE_LIMITS = 3;
+const PLAN_BACK_DAYS = 14;
+const PLAN_AHEAD_DAYS = 90;
 
 class SyncError extends Error {
     constructor(message, {revoked = false} = {}) {
@@ -35,6 +37,7 @@ function createIntervalsSync({db, options = {}}) {
     const maxWaitMs = options.maxWaitMs ?? 5 * 60 * 1000;
     const syncEveryMs = options.syncEveryMs ?? 15 * 60 * 1000;
     const now = options.now ?? (() => Date.now());
+    const readOnly = options.readOnly === true; // pull only: never write to intervals.icu
 
     db.exec(`
         CREATE TABLE IF NOT EXISTS external_rides (
@@ -55,7 +58,8 @@ function createIntervalsSync({db, options = {}}) {
         CREATE TABLE IF NOT EXISTS intervals_sync (
             user_id    TEXT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
             last_run   INTEGER,
-            last_error TEXT
+            last_error TEXT,
+            plan_skipped INTEGER NOT NULL DEFAULT 0
         );
     `);
 
@@ -74,8 +78,14 @@ function createIntervalsSync({db, options = {}}) {
         skip:       db.prepare('INSERT OR IGNORE INTO intervals_skipped (user_id, id, source) VALUES (?, ?, ?)'),
         skipped:    db.prepare('SELECT source, COUNT(*) AS n FROM intervals_skipped WHERE user_id = ? GROUP BY source'),
         status:     db.prepare('SELECT * FROM intervals_sync WHERE user_id = ?'),
-        setStatus:  db.prepare(`INSERT INTO intervals_sync (user_id, last_run, last_error) VALUES (?, ?, ?)
-                                ON CONFLICT (user_id) DO UPDATE SET last_run = excluded.last_run, last_error = excluded.last_error`),
+        setStatus:  db.prepare(`INSERT INTO intervals_sync (user_id, last_run, last_error, plan_skipped) VALUES (?, ?, ?, ?)
+                                ON CONFLICT (user_id) DO UPDATE SET last_run = excluded.last_run, last_error = excluded.last_error,
+                                plan_skipped = excluded.plan_skipped`),
+        planRows:   db.prepare('SELECT id, data, deleted, updated_at FROM plan WHERE user_id = ?'),
+        planSave:   db.prepare(`INSERT INTO plan (user_id, id, data, deleted, updated_at) VALUES (?, ?, ?, 0, ?)
+                                ON CONFLICT (user_id, id) DO UPDATE SET data = excluded.data, deleted = 0, updated_at = excluded.updated_at`),
+        planGone:   db.prepare(`UPDATE plan SET deleted = 1, data = '{}', updated_at = ? WHERE user_id = ? AND id = ?`),
+        planUnlink: db.prepare(`UPDATE plan SET data = '{}' WHERE user_id = ? AND id = ? AND deleted = 1`),
     };
 
     const running = new Map(); // userId -> Promise
@@ -167,19 +177,142 @@ function createIntervalsSync({db, options = {}}) {
         }
     }
 
+    //
+    // Plan, both ways, for 14 days back to 90 days ahead. Each linked entry
+    // remembers the event's `updated` (intervalsUpdated) and when it was last
+    // in step (intervalsSyncedAt): the event changed when its `updated`
+    // differs, the entry changed when its row is newer than intervalsSyncedAt.
+    // When both changed, the newer change wins.
+    //
+    function eventBody(id, d) {
+        const name = d.workout?.meta?.name || 'Workout';
+        const file = name.replace(/[^A-Za-z0-9 _-]/g, '').trim().slice(0, 60) || 'workout';
+        return {uid: `auuki-${id}`, category: 'WORKOUT', type: 'Ride', name,
+                start_date_local: `${d.day}T00:00:00`, filename: `${file}.zwo`, file_contents: d.zwo};
+    }
+
+    function fromEvent(ev, d = {}) {
+        const zwo = ev.workout_file_base64 ? Buffer.from(ev.workout_file_base64, 'base64').toString('utf8') : null;
+        const workout = d.workout ?? {id: `icu-ev-${ev.id}`, intervals: []};
+        return {
+            rideId: null, origin: 'intervals', ...d,
+            day: String(ev.start_date_local).slice(0, 10),
+            workout: {...workout, meta: {...workout.meta, name: ev.name ?? workout.meta?.name ?? 'Workout'}},
+            zwo: zwo ?? d.zwo ?? null,
+            intervalsEventId: ev.id,
+            intervalsUpdated: ev.updated ?? null,
+        };
+    }
+
+    async function syncPlan(userId, request) {
+        const from = isoDay(now() - PLAN_BACK_DAYS * DAY_MS);
+        const to = isoDay(now() + PLAN_AHEAD_DAYS * DAY_MS);
+        const inWindow = day => typeof day === 'string' && day >= from && day <= to;
+        const events = await request('GET', `/api/v1/athlete/0/events?oldest=${from}&newest=${to}&category=WORKOUT&ext=zwo`);
+
+        const rows = q.planRows.all(userId).map(r => ({id: r.id, deleted: !!r.deleted, updatedAt: r.updated_at, data: JSON.parse(r.data)}));
+        const byId = new Map(rows.map(r => [r.id, r]));
+        const byEvent = new Map(rows.filter(r => r.data.intervalsEventId != null).map(r => [String(r.data.intervalsEventId), r]));
+        const seen = new Set();
+        let error = null;
+        let skipped = 0;
+
+        const save = (row, data) => {
+            const t = now();
+            data.intervalsSyncedAt = t;
+            q.planSave.run(userId, row.id, JSON.stringify(data), t);
+            Object.assign(row, {data, deleted: false, updatedAt: t});
+        };
+        // one write to intervals.icu; an error is kept for the status and the run goes on
+        const write = async (fn) => {
+            if(readOnly) return;
+            try { await fn(); } catch(e) {
+                if(e.revoked || /rate limit/.test(e.message)) throw e;
+                error ??= String(e.message ?? e).slice(0, 300);
+            }
+        };
+
+        for(const ev of Array.isArray(events) ? events : []) {
+            if(ev?.id == null || !ev.start_date_local) continue;
+            const key = String(ev.id);
+            seen.add(key);
+            let row = byEvent.get(key);
+            if(!row && typeof ev.uid === 'string' && ev.uid.startsWith('auuki-')) {
+                // created by an earlier run that failed before it stored the id
+                const own = byId.get(ev.uid.slice('auuki-'.length));
+                if(own && !own.deleted && own.data.intervalsEventId == null) {
+                    save(own, {...own.data, intervalsEventId: ev.id, intervalsUpdated: ev.updated ?? null});
+                    byEvent.set(key, own);
+                    continue;
+                }
+            }
+            if(!row) {
+                const id = `icu-ev-${key}`;
+                if(byId.has(id)) continue; // an entry for this event exists already (deleted and unlinked)
+                const fresh = {id, deleted: false, updatedAt: 0, data: {}};
+                save(fresh, fromEvent(ev));
+                byId.set(id, fresh);
+                byEvent.set(key, fresh);
+                continue;
+            }
+            const d = row.data;
+            const eventChanged = (ev.updated ?? null) !== (d.intervalsUpdated ?? null);
+            const eventNewer = Date.parse(ev.updated) > row.updatedAt;
+            if(row.deleted) {
+                if(eventChanged && eventNewer) { save(row, fromEvent(ev, {origin: 'intervals'})); continue; }
+                await write(async () => {
+                    await request('DELETE', `/api/v1/athlete/0/events/${encodeURIComponent(ev.id)}`);
+                    q.planUnlink.run(userId, row.id);
+                });
+                continue;
+            }
+            const rowChanged = row.updatedAt > (d.intervalsSyncedAt ?? 0);
+            if(eventChanged && (!rowChanged || eventNewer)) {
+                save(row, fromEvent(ev, d));
+            } else if(rowChanged && d.zwo) {
+                await write(async () => {
+                    const out = await request('PUT', `/api/v1/athlete/0/events/${encodeURIComponent(ev.id)}`, eventBody(row.id, d));
+                    save(row, {...d, intervalsUpdated: out?.updated ?? d.intervalsUpdated ?? null});
+                });
+            }
+        }
+
+        for(const row of rows) {
+            const d = row.data;
+            if(d.intervalsEventId != null) {
+                if(seen.has(String(d.intervalsEventId)) || !inWindow(d.day)) continue;
+                // the event is gone from intervals.icu
+                if(row.deleted) q.planUnlink.run(userId, row.id);
+                else q.planGone.run(now(), userId, row.id);
+                continue;
+            }
+            if(row.deleted || d.origin === 'intervals' || !inWindow(d.day)) continue;
+            if(!d.zwo) { skipped++; continue; }
+            await write(async () => {
+                const out = await request('POST', '/api/v1/athlete/0/events?upsertOnUid=true', eventBody(row.id, d));
+                if(out?.id == null) throw new SyncError('intervals.icu did not return the new workout.');
+                save(row, {...d, origin: d.origin ?? 'auuki', intervalsEventId: out.id, intervalsUpdated: out.updated ?? null});
+            });
+        }
+        return {error, skipped};
+    }
+
     async function runOnce(userId) {
         const key = apiKey(userId);
         if(!key) return {error: 'intervals.icu is not connected.'};
         const request = client(key);
         let error = null;
+        let planSkipped = q.status.get(userId)?.plan_skipped ?? 0;
         try {
             await syncActivities(userId, request);
-            if(typeof syncPlan === 'function') await syncPlan(userId, request);
+            const plan = await syncPlan(userId, request);
+            planSkipped = plan.skipped;
+            error = plan.error;
         } catch(e) {
             error = String(e.message ?? e).slice(0, 300);
             if(e.revoked) q.revoke.run(userId);
         }
-        q.setStatus.run(userId, now(), error);
+        q.setStatus.run(userId, now(), error, planSkipped);
         return {...status(userId), error};
     }
 
@@ -199,6 +332,7 @@ function createIntervalsSync({db, options = {}}) {
             error: row?.last_error ?? null,
             stored: q.countRides.get(userId).n,
             skipped,
+            planSkipped: row?.plan_skipped ?? 0,
         };
     }
 
@@ -229,11 +363,7 @@ function createIntervalsSync({db, options = {}}) {
         }, {auth: true});
     }
 
-    // the plan sync is added by the plan part of this module
-    let syncPlan = null;
-    function setPlanSync(fn) { syncPlan = fn; }
-
-    return {run, status, start, close, routes, setPlanSync, apiKey, q, db, now, isoDay};
+    return {run, status, start, close, routes};
 }
 
 module.exports = { createIntervalsSync, SyncError };

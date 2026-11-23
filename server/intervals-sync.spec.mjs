@@ -219,3 +219,206 @@ test('routes: per user, and sync needs a connection', async () => {
         assert.deepEqual((await call('GET', '/api/me/external-rides', {token: other})).json.rides, []);
     } finally { stop(); }
 });
+
+// ---- plan, both ways ----
+
+const ZWO = '<workout_file><name>Sweet spot</name><workout><SteadyState Duration="600" Power="0.9"/></workout></workout_file>';
+const dayFrom = (offset) => new Date(Date.now() + offset * DAY).toISOString().slice(0, 10);
+const planRows = async (call, token) => (await call('GET', '/api/me/plan', {token})).json.entries;
+const putEntry = (call, token, id, data) => call('PUT', `/api/me/plan/${id}`, {token, body: {data}});
+const auukiEntry = (day, extra = {}) => ({day, workout: {id: 'w1', meta: {name: 'Sweet spot'}, intervals: []}, rideId: null, zwo: ZWO, ...extra});
+
+function addEvent(fake, {day, name = 'Threshold', zwo = ZWO, uid = null}) {
+    const id = fake.state.nextEventId++;
+    fake.state.events.set(id, {id, uid, category: 'WORKOUT', type: 'Ride', name, start_date_local: `${day}T00:00:00`,
+                               workout_file_base64: Buffer.from(zwo).toString('base64'), updated: new Date().toISOString()});
+    return id;
+}
+
+test('plan: an intervals.icu workout becomes a plan entry', async () => {
+    const {app, call, token, userId, fake, stop} = await setup();
+    try {
+        await connect(call, token);
+        const evId = addEvent(fake, {day: dayFrom(2), name: 'Threshold'});
+        await app.intervalsSync.run(userId);
+        const list = fake.log.find(l => l.path === '/api/v1/athlete/0/events' && l.method === 'GET');
+        assert.equal(list.query.oldest, dayFrom(-14));
+        assert.equal(list.query.newest, dayFrom(90));
+        assert.equal(list.query.category, 'WORKOUT');
+        assert.equal(list.query.ext, 'zwo');
+        const rows = await planRows(call, token);
+        assert.equal(rows.length, 1);
+        const d = rows[0].data;
+        assert.equal(d.origin, 'intervals');
+        assert.equal(d.intervalsEventId, evId);
+        assert.equal(d.zwo, ZWO);
+        assert.equal(d.day, dayFrom(2));
+        assert.equal(d.workout.meta.name, 'Threshold');
+        // a second run makes no second entry
+        await app.intervalsSync.run(userId);
+        assert.equal((await planRows(call, token)).length, 1);
+    } finally { stop(); }
+});
+
+test('plan: an Auuki entry is created on intervals.icu once, with its uid', async () => {
+    const {app, call, token, userId, fake, stop} = await setup();
+    try {
+        await connect(call, token);
+        await putEntry(call, token, 'p1', auukiEntry(dayFrom(1)));
+        await putEntry(call, token, 'p2', auukiEntry(dayFrom(1), {zwo: null})); // no .zwo: skipped
+        await app.intervalsSync.run(userId);
+        const posts = fake.log.filter(l => l.method === 'POST' && l.path === '/api/v1/athlete/0/events');
+        assert.equal(posts.length, 1);
+        assert.equal(posts[0].query.upsertOnUid, 'true');
+        const b = posts[0].body;
+        assert.equal(b.uid, 'auuki-p1');
+        assert.equal(b.category, 'WORKOUT');
+        assert.equal(b.type, 'Ride');
+        assert.equal(b.name, 'Sweet spot');
+        assert.equal(b.start_date_local, `${dayFrom(1)}T00:00:00`);
+        assert.equal(b.file_contents, ZWO);
+        assert.match(b.filename, /\.zwo$/);
+        const p1 = (await planRows(call, token)).find(r => r.id === 'p1').data;
+        assert.equal(p1.intervalsEventId, posts[0].body && [...fake.state.events.values()][0].id);
+        assert.equal(p1.origin, 'auuki');
+        assert.equal(app.intervalsSync.status(userId).planSkipped, 1);
+        await app.intervalsSync.run(userId);
+        assert.equal(fake.state.events.size, 1);
+    } finally { stop(); }
+});
+
+test('plan: a failed create is retried with the same uid and makes one event', async () => {
+    const {app, call, token, userId, fake, stop} = await setup();
+    try {
+        await connect(call, token);
+        await putEntry(call, token, 'p1', auukiEntry(dayFrom(1)));
+        fake.state.failAfterCreate = 1;
+        const first = await app.intervalsSync.run(userId);
+        assert.ok(first.error);
+        await app.intervalsSync.run(userId);
+        const posts = fake.log.filter(l => l.method === 'POST' && l.path === '/api/v1/athlete/0/events');
+        assert.ok(posts.every(p => p.body.uid === 'auuki-p1'));
+        assert.equal(fake.state.events.size, 1);
+        const p1 = (await planRows(call, token)).find(r => r.id === 'p1').data;
+        assert.equal(p1.intervalsEventId, [...fake.state.events.keys()][0]);
+    } finally { stop(); }
+});
+
+test('plan: moves go both ways', async () => {
+    const {app, call, token, userId, fake, stop} = await setup();
+    try {
+        await connect(call, token);
+        await putEntry(call, token, 'p1', auukiEntry(dayFrom(1)));
+        await app.intervalsSync.run(userId);
+        const evId = (await planRows(call, token))[0].data.intervalsEventId;
+
+        // moved in Auuki (the app sends the entry back with the fields it got)
+        await new Promise(r => setTimeout(r, 5));
+        const data = (await planRows(call, token))[0].data;
+        await putEntry(call, token, 'p1', {...data, day: dayFrom(3)});
+        await app.intervalsSync.run(userId);
+        const put = fake.log.filter(l => l.method === 'PUT' && l.path === `/api/v1/athlete/0/events/${evId}`).at(-1);
+        assert.equal(put.body.start_date_local, `${dayFrom(3)}T00:00:00`);
+
+        // moved on intervals.icu
+        await new Promise(r => setTimeout(r, 5));
+        const ev = fake.state.events.get(evId);
+        fake.state.events.set(evId, {...ev, start_date_local: `${dayFrom(5)}T00:00:00`, name: 'Moved', updated: new Date().toISOString()});
+        await app.intervalsSync.run(userId);
+        const row = (await planRows(call, token))[0].data;
+        assert.equal(row.day, dayFrom(5));
+        assert.equal(row.workout.meta.name, 'Moved');
+    } finally { stop(); }
+});
+
+test('plan: the app keeps the intervals.icu link when it saves an entry without it', async () => {
+    const {app, call, token, userId, stop} = await setup();
+    try {
+        await connect(call, token);
+        await putEntry(call, token, 'p1', auukiEntry(dayFrom(1)));
+        await app.intervalsSync.run(userId);
+        const evId = (await planRows(call, token))[0].data.intervalsEventId;
+        await putEntry(call, token, 'p1', auukiEntry(dayFrom(2))); // an older app that drops unknown fields
+        assert.equal((await planRows(call, token))[0].data.intervalsEventId, evId);
+    } finally { stop(); }
+});
+
+test('plan: deletions go both ways', async () => {
+    const {app, call, token, userId, fake, stop} = await setup();
+    try {
+        await connect(call, token);
+        await putEntry(call, token, 'p1', auukiEntry(dayFrom(1)));
+        const ev2 = addEvent(fake, {day: dayFrom(4)});
+        await app.intervalsSync.run(userId);
+        const ev1 = (await planRows(call, token)).find(r => r.id === 'p1').data.intervalsEventId;
+
+        await call('DELETE', '/api/me/plan/p1', {token});
+        fake.state.events.delete(ev2);
+        await app.intervalsSync.run(userId);
+        assert.ok(fake.log.some(l => l.method === 'DELETE' && l.path === `/api/v1/athlete/0/events/${ev1}`));
+        assert.equal(fake.state.events.size, 0);
+        const rows = await planRows(call, token);
+        assert.ok(rows.every(r => r.deleted));
+        // nothing left to do on the next run
+        const n = fake.log.length;
+        await app.intervalsSync.run(userId);
+        assert.ok(fake.log.slice(n).every(l => l.method === 'GET'));
+    } finally { stop(); }
+});
+
+test('plan: when both sides changed, the newer change wins', async () => {
+    const {app, call, token, userId, fake, stop} = await setup();
+    try {
+        await connect(call, token);
+        await putEntry(call, token, 'p1', auukiEntry(dayFrom(1)));
+        await putEntry(call, token, 'p2', auukiEntry(dayFrom(1)));
+        await app.intervalsSync.run(userId);
+        const ids = Object.fromEntries((await planRows(call, token)).map(r => [r.id, r.data.intervalsEventId]));
+        const rows = Object.fromEntries((await planRows(call, token)).map(r => [r.id, r.data]));
+        await new Promise(r => setTimeout(r, 5));
+
+        // p1: intervals.icu changed first, Auuki later → Auuki wins
+        const e1 = fake.state.events.get(ids.p1);
+        fake.state.events.set(ids.p1, {...e1, start_date_local: `${dayFrom(6)}T00:00:00`, updated: new Date().toISOString()});
+        await new Promise(r => setTimeout(r, 5));
+        await putEntry(call, token, 'p1', {...rows.p1, day: dayFrom(7)});
+
+        // p2: Auuki changed first, intervals.icu later → intervals.icu wins
+        await putEntry(call, token, 'p2', {...rows.p2, day: dayFrom(8)});
+        await new Promise(r => setTimeout(r, 5));
+        const e2 = fake.state.events.get(ids.p2);
+        fake.state.events.set(ids.p2, {...e2, start_date_local: `${dayFrom(9)}T00:00:00`, updated: new Date(Date.now() + 1000).toISOString()});
+
+        await app.intervalsSync.run(userId);
+        const after = Object.fromEntries((await planRows(call, token)).map(r => [r.id, r.data]));
+        assert.equal(after.p1.day, dayFrom(7));
+        assert.equal(fake.state.events.get(ids.p1).start_date_local, `${dayFrom(7)}T00:00:00`);
+        assert.equal(after.p2.day, dayFrom(9));
+        assert.equal(fake.state.events.get(ids.p2).start_date_local, `${dayFrom(9)}T00:00:00`);
+    } finally { stop(); }
+});
+
+test('plan: readOnly pulls but never writes to intervals.icu', async () => {
+    const fake = fakeIntervals();
+    await new Promise(r => fake.server.listen(0, r));
+    const base = `http://127.0.0.1:${fake.server.address().port}`;
+    const app = createApp({connections: {fetch: globalThis.fetch, intervalsBase: base}, intervals: {base, pauseMs: 0, maxWaitMs: 5, readOnly: true}});
+    try {
+        await new Promise(r => app.server.listen(0, r));
+        const api = `http://127.0.0.1:${app.server.address().port}`;
+        const call = async (method, path, {token, body} = {}) => {
+            const res = await fetch(api + path, {method, headers: {...(body !== undefined ? {'Content-Type': 'application/json'} : {}), ...(token ? {Authorization: `Bearer ${token}`} : {})},
+                                                 body: body !== undefined ? JSON.stringify(body) : undefined});
+            const text = await res.text();
+            return {status: res.status, json: text ? JSON.parse(text) : null};
+        };
+        const {token} = (await call('POST', '/api/auth/register', {body: {username: 'dj', password: 'password123'}})).json;
+        const userId = (await call('GET', '/api/me', {token})).json.user.id;
+        await connect(call, token);
+        await putEntry(call, token, 'p1', auukiEntry(dayFrom(1)));
+        addEvent(fake, {day: dayFrom(2)});
+        await app.intervalsSync.run(userId);
+        assert.ok(fake.log.every(l => l.method === 'GET'));
+        assert.equal((await planRows(call, token)).length, 2);
+    } finally { app.close(); fake.server.closeAllConnections(); fake.server.close(); }
+});

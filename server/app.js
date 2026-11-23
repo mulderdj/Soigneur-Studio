@@ -235,7 +235,14 @@ function createApp(options = {}) {
         plan:          db.prepare('SELECT id, data, deleted, updated_at FROM plan WHERE user_id = ? AND updated_at > ? ORDER BY updated_at'),
         upsertPlan:    db.prepare(`INSERT INTO plan (user_id, id, data, deleted, updated_at) VALUES (?, ?, ?, 0, ?)
                                    ON CONFLICT (user_id, id) DO UPDATE SET data = excluded.data, deleted = 0, updated_at = excluded.updated_at`),
-        deletePlan:    db.prepare(`UPDATE plan SET deleted = 1, data = '{}', updated_at = ? WHERE user_id = ? AND id = ?`),
+        // a deleted entry keeps its intervals.icu link until the sync has deleted the event
+        deletePlan:    db.prepare(`UPDATE plan SET deleted = 1, updated_at = ?,
+                                   data = CASE WHEN json_extract(data, '$.intervalsEventId') IS NULL THEN '{}'
+                                          ELSE json_object('day', json_extract(data, '$.day'),
+                                                           'intervalsEventId', json_extract(data, '$.intervalsEventId'),
+                                                           'intervalsUpdated', json_extract(data, '$.intervalsUpdated')) END
+                                   WHERE user_id = ? AND id = ?`),
+        planData:      db.prepare('SELECT data, deleted FROM plan WHERE user_id = ? AND id = ?'),
         insertActivity: db.prepare(`INSERT INTO activities (user_id, id, summary, fit, created_at) VALUES (?, ?, ?, ?, ?)
                                     ON CONFLICT(user_id, id) DO NOTHING`),
         deleteActivity: db.prepare('DELETE FROM activities WHERE user_id = ? AND id = ?'),
@@ -410,8 +417,17 @@ function createApp(options = {}) {
     route('PUT', '/api/me/plan/:id', ({auth, body, params}) => {
         const id = validId(params.id);
         if(typeof body.data !== 'object' || body.data === null) fail(400, 'Expected {data: {...}}.');
+        // keep the intervals.icu link when the app sends the entry without it
+        const data = {...body.data};
+        const prev = q.planData.get(auth.user.id, id);
+        if(prev && !prev.deleted) {
+            const old = JSON.parse(prev.data);
+            for(const k of ['intervalsEventId', 'intervalsUpdated', 'intervalsSyncedAt', 'origin']) {
+                if(!(k in data) && k in old) data[k] = old[k];
+            }
+        }
         const t = now();
-        q.upsertPlan.run(auth.user.id, id, JSON.stringify(body.data), t);
+        q.upsertPlan.run(auth.user.id, id, JSON.stringify(data), t);
         return {updatedAt: t};
     }, {auth: true});
 
