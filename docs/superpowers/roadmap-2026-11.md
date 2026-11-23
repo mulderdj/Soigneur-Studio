@@ -123,6 +123,47 @@ Sources:
 ### 11. Coach
 - A coach role on the account server. Coaches see their athletes' calendars and rides, plan sessions for them, and comment on rides.
 
+### 12. Independence: identity and our own engine
+
+Measured on 2026-11-23 against upstream (dvmarinoff/Auuki, last commit 2026-11-07):
+
+- **Overall:** 74 % of the code lines are still upstream's. Nearly all of that is the engine:
+  - the FIT format (11,851 lines, 100 %)
+  - Bluetooth trainers and sensors (99 %)
+  - ANT+ (100 %)
+  - models and storage (97 %)
+- **Ours:** the interface, the styles (0 % upstream), the account server (0 %) and the Training page.
+- **The 50 failing tests** are upstream's own engine tests (Bluetooth, FIT, storage, helpers).
+- **There is no git link to upstream:** the history starts with one import commit.
+
+The rider rides a **Tacx trainer with Garmin sensors** and has an ANT+ stick, but prefers Bluetooth.
+
+- **12a: Identity.**
+  - A new name, manifest, icon, About and privacy pages.
+  - The README rewritten as this project's own, with a "based on Auuki by dvmarinoff" credit and a NOTICE file.
+  - The AGPL licence and upstream's copyright notice stay.
+  - The 50 failing engine tests are fixed or removed.
+  - A git host for the repository, at the rider's choice.
+- **12b: Our own Bluetooth layer**, behind one interface: connect, stream power, cadence and heart rate, set ERG, resistance or slope, reconnect.
+  - **Services:** FTMS, which Tacx smart trainers support; heart rate, power and speed/cadence, which Garmin sensors use.
+  - **Fallback:** upstream's FE-C over Bluetooth stays as the fallback for older Tacx firmware.
+  - **Stability is the goal:** reconnecting after dropouts, and a connection log.
+  - **Testing:** a packet recorder turns the rider's real devices into test fixtures; the final check is a session on the rider's own trainer.
+- **12c: FIT.** Garmin's official FIT JavaScript SDK (reads and writes FIT) is **ruled out**. Its FIT Protocol License §2(d) forbids distributing it under a licence that requires source disclosure or the right to modify, which AGPL does. MIT alternatives (fit-file-parser) carry Garmin's profile tables too. So upstream's FIT code stays for now, later trimmed to the messages we use.
+- **12d: ANT+ stays upstream's,** as a backup for the rider's stick, with no development. Garmin's ANT+ terms limit sharing the network key.
+
+After 12b, upstream's share drops to roughly 30–35 %.
+
+Other projects looked at:
+- **Browser apps:** Bfree, workin, dundring trainer, Flux. They mostly speak FTMS only.
+- **Native apps:** Ewoc, IndoorCyclingApp, QZ (GPL-3, a bridge app), Incyclist.
+- **Libraries:**
+  - `incyclist-devices` lists no licence and is Node/Electron-only.
+  - `incyclist-ant-plus` is MIT but Node-only.
+  - `pycycling` is Python.
+
+None is a better browser engine than the current one.
+
 ## Why this order
 
 - **3b first:** it's built and only needs the live check.
