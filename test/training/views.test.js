@@ -278,3 +278,19 @@ describe('threshold heart rate in Settings', () => {
         expect(saved).toEqual([{cycling: '158', running: '171'}]);
     });
 });
+
+describe('ride a planned workout', () => {
+    test('the day dialog offers "Ride this workout" for open, readable entries', () => {
+        document.body.innerHTML = '<day-dialog></day-dialog>';
+        const el = document.querySelector('day-dialog');
+        el.actions = {rideWorkout: jest.fn()};
+        el.open('2026-11-24', {...data, plan: [
+            {id: 'a', day: '2026-11-24', workout: workout('wa', 'Open'), rideId: null, deleted: false},
+            {id: 'b', day: '2026-11-24', workout: workout('wb', 'Done'), rideId: 'r1', deleted: false},
+            {id: 'c', day: '2026-11-24', workout: null, name: 'Odd file', rideId: null, deleted: false, origin: 'intervals'},
+        ]});
+        expect([...el.querySelectorAll('[data-ride]')].map(b => b.dataset.ride)).toEqual(['a']);
+        el.querySelector('[data-ride="a"]').click();
+        expect(el.actions.rideWorkout).toHaveBeenCalledWith('a');
+    });
+});

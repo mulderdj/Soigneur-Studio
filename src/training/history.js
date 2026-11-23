@@ -346,15 +346,32 @@ async function backfill({ftp, weight, onProgress = () => {}} = {}) {
     return {added, skipped};
 }
 
-// a ride just saved: summary from the live samples, then match it to the plan
+// a ride just saved: summary from the live samples, then match it to the
+// plan. meta.planEntryId: the planned workout the rider chose to ride
+// ("Ride this workout"), linked and moved to the day it was ridden
 async function recordRide(meta, samples) {
     const s = rideSummary(samples, meta);
     await idb.put(SUMMARIES, s);
-    const entries = await planEntries();
-    const entryId = matchRide(s, entries);
-    if(entryId) await linkRide(entryId, s.id);
+    const chosen = meta.planEntryId ? await idb.get(PLAN, meta.planEntryId) : null;
+    if(chosen && !chosen.deleted && !chosen.rideId) {
+        await putEntry({...chosen, rideId: s.id, day: s.day});
+    } else {
+        const entries = await planEntries();
+        const entryId = matchRide(s, entries);
+        if(entryId) await linkRide(entryId, s.id);
+    }
     changed();
     return s;
+}
+
+// "Ride this workout": announce the planned entry; the wiring loads its
+// workout on the Ride page
+async function rideWorkout(entryId) {
+    const stored = await idb.get(PLAN, entryId);
+    const e = stored && needsSteps(stored) ? readWorkout(stored) : stored;
+    if(!e || e.deleted || !e.workout) return false;
+    xf.dispatch('training:ride-entry', e);
+    return true;
 }
 
 // --- plan --------------------------------------------------------------------
@@ -363,9 +380,14 @@ async function allPlanEntries() {
     return (await idb.getAll(PLAN)) ?? [];
 }
 
+// an intervals.icu entry whose steps weren't read yet (stored before the
+// parser was there, or by an older app) is read from its .zwo now
+const needsSteps = (e) => e.origin === 'intervals' && e.zwo && e.workout && !(e.workout.intervals?.length > 0);
+
 async function planEntries() {
     return (await allPlanEntries())
         .filter(e => !e.deleted)
+        .map(e => (needsSteps(e) ? readWorkout(e) : e))
         .sort((a, b) => (a.day < b.day ? -1 : a.day > b.day ? 1 : (a.updatedAt ?? 0) - (b.updatedAt ?? 0)));
 }
 
@@ -491,6 +513,7 @@ const history = Object.freeze({
     hiddenIds,
     rateRide,
     ratings,
+    rideWorkout,
     wellnessDays,
     pullWellness,
     requestGarminSync,

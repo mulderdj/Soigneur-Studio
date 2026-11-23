@@ -400,6 +400,11 @@
     padding-right: 0;
 }
 
+/* the name and details get the full width; the buttons wrap below them */
+.dd-list .list-row__main {
+    flex: 1 1 100%;
+}
+
 /* "How hard was it?" for a workout without power or heart rate */
 .dd-rating {
     display: flex;

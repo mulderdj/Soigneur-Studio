@@ -58,6 +58,8 @@ class DayDialog extends HTMLElement {
             if(workout) { await this.actions.addPlanEntry(this.day, workout); this.close(); }
             return;
         }
+        const ride = e.target.closest('[data-ride]');
+        if(ride) { this.actions.rideWorkout(ride.dataset.ride); this.close(); return; }
         const rate = e.target.closest('[data-rate]');
         if(rate) {
             const rpe = Number(rate.dataset.rpe);
@@ -102,6 +104,7 @@ class DayDialog extends HTMLElement {
                         ${e.workout ? `${Math.round(plannedTss(e.workout, this.data.ftp))} TSS` : 'The workout from intervals.icu could not be read, so it can\'t be ridden here.'}
                         ${e.origin === 'intervals' ? '<span class="badge badge-icu">intervals.icu</span>' : ''}</div></div>
                     <label class="field dd-move">Move to<input type="date" class="input" data-move="${esc(e.id)}" value="${esc(e.day)}"></label>
+                    ${e.workout && !e.rideId ? `<button type="button" class="btn btn--primary" data-ride="${esc(e.id)}">Ride this workout</button>` : ''}
                     <button type="button" class="btn btn--danger" data-remove="${esc(e.id)}">Remove</button></li>`).join('')}</ul>` : ''}
             <h3 class="dd-sub">Plan a workout</h3>
             <input type="search" class="input dd-search" placeholder="Search your workouts" aria-label="Search your workouts">

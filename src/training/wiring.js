@@ -73,11 +73,14 @@ xf.sub('activity:add', (saved) => {
     for(let i = 0; i < n; i++) {
         samples[i] = {power: session.power[i], heartRate: session.hr[i], cadence: session.cadence[i]};
     }
+    // a planned workout chosen with "Ride this workout" counts for that entry
+    const chosen = readChosen();
     const meta = {
         id: saved.id,
         start: (saved.timestamp ?? Date.now()) - n * 1000,
         name: saved.name,
         workoutId: db.workout?.id ?? null,
+        planEntryId: chosen && chosen.workoutId === (db.workout?.id ?? null) ? chosen.id : null,
         ftp: db.ftp,
         weight: db.weight,
         distance: Number.isFinite(db.distance) ? db.distance : null,
@@ -88,6 +91,23 @@ xf.sub('activity:add', (saved) => {
 // today's planned workout: selected on start and when the day changes,
 // never over a workout the rider picked by hand today or during a ride
 const handPickedKey = () => riders.key('training:handPicked');
+const chosenKey = () => riders.key('training:chosenEntry');
+
+function readChosen() {
+    try { return JSON.parse(localStorage.getItem(chosenKey()) ?? 'null'); } catch(e) { return null; }
+}
+
+// "Ride this workout" from the day dialog: load it on the Ride page; it
+// counts as picked by hand, so today's auto-select leaves it alone
+xf.sub('training:ride-entry', (entry) => {
+    if(!entry?.workout) return;
+    try {
+        localStorage.setItem(chosenKey(), JSON.stringify({id: entry.id, workoutId: entry.workout.id ?? null}));
+        localStorage.setItem(handPickedKey(), today());
+    } catch(e) {}
+    xf.dispatch('workout', entry.workout);
+    xf.dispatch('ui:page-set', 'home');
+});
 
 xf.sub('ui:workout:select', () => {
     try { localStorage.setItem(handPickedKey(), today()); } catch(e) {}

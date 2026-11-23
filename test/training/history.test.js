@@ -5,6 +5,7 @@ import './fake-idb.js';
 import { idb } from '../../src/storage/idb.js';
 import { history } from '../../src/training/history.js';
 import { fit } from '../../src/fit/fit.js';
+import { xf } from '../../src/functions.js';
 import { countable } from '../../src/training/merge.js';
 
 const STORES = ['session', 'workouts', 'activity', 'rideSummaries', 'plan', 'externalRides', 'hiddenRides', 'wellness', 'rideRatings'];
@@ -259,6 +260,16 @@ describe('intervals.icu plan entries', () => {
         expect(await history.planEntries()).toEqual([]);
     });
 
+    test('an entry stored without its steps is read from its .zwo when listed', async () => {
+        await idb.put('plan', {id: 'e9', day: '2026-11-24', origin: 'intervals', zwo: 'GOOD', rideId: null, deleted: false, updatedAt: 1,
+                               workout: {id: 'icu-ev-9', meta: {name: 'VO2max'}, intervals: []}});
+        history.connect({parseWorkout, toZwo});
+        const [e] = await history.planEntries();
+        expect(e.workout.intervals).toHaveLength(1);
+        expect(e.workout.meta.name).toBe('VO2max');
+        expect(e.workout.id).toBe('icu-ev-9');
+    });
+
     test('an entry planned in Auuki stores its .zwo', async () => {
         history.connect({parseWorkout, toZwo});
         const e = await history.addPlanEntry('2026-11-24', {id: 'w1', meta: {name: 'Sweet spot'}, intervals: []});
@@ -336,5 +347,35 @@ describe('health data', () => {
         } finally {
             history.connect({api: null, linked: () => false});
         }
+    });
+});
+
+describe('riding a planned workout from any day', () => {
+    const workout = {id: 'w1', meta: {name: 'Sweet spot'}, intervals: [{duration: 120, steps: [{duration: 120, power: 0.9}]}]};
+    const samples = Array.from({length: 120}, () => ({power: 200, heartRate: 130, cadence: 90}));
+
+    test('the ride is linked to the chosen entry, which moves to the day ridden', async () => {
+        const tomorrow = await history.addPlanEntry('2026-11-24', workout);
+        const today = await history.addPlanEntry('2026-11-23', {...workout, id: 'w2'});
+        const start = new Date(2026, 10, 23, 18, 0).getTime();
+        await history.recordRide({id: 'r1', start, name: 'Sweet spot', workoutId: 'w1', ftp: 250, weight: 75, planEntryId: tomorrow.id}, samples);
+        const entries = Object.fromEntries((await history.planEntries()).map(e => [e.id, e]));
+        expect(entries[tomorrow.id].rideId).toBe('r1');
+        expect(entries[tomorrow.id].day).toBe('2026-11-23');
+        expect(entries[today.id].rideId).toBeNull();   // today's own entry stays open
+    });
+
+    test('without a chosen entry, the ride matches that day\'s plan as before', async () => {
+        const e = await history.addPlanEntry('2026-11-23', workout);
+        await history.recordRide({id: 'r2', start: new Date(2026, 10, 23, 18, 0).getTime(), name: 'x', workoutId: 'w1', ftp: 250, weight: 75}, samples);
+        expect((await history.planEntries()).find(x => x.id === e.id).rideId).toBe('r2');
+    });
+
+    test('rideWorkout announces the entry for the Ride page', async () => {
+        const e = await history.addPlanEntry('2026-11-26', workout);
+        const seen = [];
+        xf.sub('training:ride-entry', x => seen.push(x));
+        await history.rideWorkout(e.id);
+        expect(seen.map(x => [x.id, x.workout.meta.name])).toEqual([[e.id, 'Sweet spot']]);
     });
 });
