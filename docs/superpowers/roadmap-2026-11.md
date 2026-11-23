@@ -8,9 +8,10 @@ Status: proposal. Each subproject gets its own spec (brainstorm, written spec, p
 - **Done:**
   - 1+2: responsive UI and style system
   - 3a: Training page with form, calendar, plan and progress
-- **Built, waiting for the live check:** 3b, intervals.icu history and the two-way plan, on branch `intervals-3b`.
+- **Built, live-checked except the two-way plan write:** 3b, intervals.icu history and the two-way plan, on branch `intervals-3b`.
 - **Built, waiting for review:** 12a, the identity (Soigneur Studio: name, icon, About, privacy, README, NOTICE, Docker names) and a fully passing test suite (upstream's 50 failing tests fixed, updated or removed), on branch `soigneur-12a` (on top of `garmin-4`).
-- **Built, waiting for the live check:** 4, Garmin health data and activities, plus a load for every workout (power, HR, RPE, estimate), on branch `garmin-4` (on top of `intervals-3b`).
+- **Built and live-checked:** 4, Garmin health data and activities, plus a load for every workout (power, HR, RPE, estimate), on branch `garmin-4` (on top of `intervals-3b`).
+- **Built, waiting for review:** interactive charts on the Training page (uPlot: read-outs, zoom, a shared cursor, click to open a day), on branch `charts-uplot` (on top of `soigneur-12a`). The other pages' charts (the ride chart, workout graphs) can move to uPlot later.
 - **Docs:** walkthrough with screenshots and screencast (`docs/walkthrough/`).
 
 ## What a serious athlete misses today

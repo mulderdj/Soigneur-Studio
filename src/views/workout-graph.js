@@ -272,6 +272,9 @@ class WorkoutGraph extends HTMLElement {
         const self = this;
         const progress = `<div id="progress" class="progress"></div><div id="progress-active"></div>`;
 
+        // nothing loaded yet (a resize can come first, e.g. on a phone)
+        if(!exists(this.workout?.intervals) && !exists(this.workout?.points)) return;
+
         if(equals(this.type, 'workout')) {
             this.innerHTML = progress +
                 intervalsToGraph(this.workout, this.ftp, this.viewPort);

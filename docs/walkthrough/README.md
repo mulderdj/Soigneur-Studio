@@ -42,8 +42,19 @@ Without a trainer, `npm start` with `?simulate` in the address gives you a simul
 
 <a href="img/training-form.png"><img src="img/training-form.png" alt="The form chart" width="420"></a>
 
-- **Fitness** (42-day load), **fatigue** (7-day load) and **form** (fitness minus fatigue), over the last 90 days.
+- **Fitness** (42-day load), **fatigue** (7-day load) and **form** (fitness minus fatigue), over the last 3 months, a year or all your history.
 - **The dashed part** is a 4-week forecast from your planned workouts. The line below the chart tells you where your plan takes you, for example "form +23 (fresh) on Mon, Dec 21".
+
+### Reading the charts
+
+<a href="img/training-readout.png"><img src="img/training-readout.png" alt="The form chart with the read-out for one day: fitness, fatigue, form and that day's load" width="420"></a>
+
+Every chart on the Training page answers the mouse (or a finger on a phone):
+
+- **Hover** for a read-out of that day, week or duration: the values, and where they came from (the ride behind a power-curve record, the effort behind an FTP estimate, the planned workout on a forecast day).
+- **Drag** across a chart to zoom in; **double-click** to zoom out. The buttons above a chart pick the period.
+- **Click** a day (on a phone: *Open day* in the read-out) to open it in the day dialog.
+- Form and health share their cursor: hovering a day on one shows the same day on the other.
 
 ### This week
 
@@ -57,7 +68,7 @@ Rides, hours, TSS and kJ so far this week, against the same days of last week.
 - **HRV** against your normal range: Garmin's baseline, or else your own last 60 days. Green when it's in range, orange below, blue above.
 - **Resting heart rate** against its 30-day average.
 - **Sleep** (duration and score) and **Body Battery**.
-- **60 days** of HRV, with the normal range shaded, and resting heart rate.
+- HRV with each night's normal range shaded, and resting heart rate: 1 month, 3 months or all.
 
 ### Calendar
 
@@ -100,10 +111,10 @@ Fitness, fatigue and form need a training load (TSS) for every workout, also one
 | <a href="img/progress-volume.png"><img src="img/progress-volume.png" alt="Weekly volume" width="380"></a> | <a href="img/progress-curve.png"><img src="img/progress-curve.png" alt="Power curve" width="380"></a> |
 | <a href="img/progress-zones.png"><img src="img/progress-zones.png" alt="Time in zones" width="380"></a> | <a href="img/progress-ftp.png"><img src="img/progress-ftp.png" alt="FTP trend" width="380"></a> |
 
-- **Weekly volume**: hours, TSS or kJ for the last 12 weeks.
+- **Weekly volume**: hours, TSS or kJ for the last 12 weeks or the year.
 - **Power curve**: your best 5 s, 1, 5, 20 and 60 min over the last 6 weeks against all time, in W or W/kg.
-- **Time in zones**: per week or per month.
-- **FTP trend**: estimated from your best 20 and 60 minutes. When the estimate is more than 5 % off your FTP, the card offers to update it ("Use 213 W").
+- **Time in zones**: per week or per month, the zones stacked.
+- **FTP trend**: estimated from your best 20 and 60 minutes; the read-out names the effort each estimate comes from. When the estimate is more than 5 % off your FTP, the card offers to update it ("Use 213 W").
 
 ### Import .fit files
 

@@ -30,7 +30,8 @@ Soigneur Studio is based on [Auuki](https://github.com/dvmarinoff/Auuki) by Dimi
 * Light and dark theme, 4K / TV scaling, and statistics rebuilt from the recorded session after a page reload.
 
 **Training page.** Your riding at a glance, on every screen size:
-* *Form*: fitness (42-day), fatigue (7-day) and form, with the last 90 days and a 4-week forecast from your plan.
+* *Form*: fitness (42-day), fatigue (7-day) and form, over 3 months, a year or all your history, and a 4-week forecast from your plan.
+* *Interactive charts* (on [uPlot](https://github.com/leeoniya/uPlot)): hover or touch for a read-out (values, and the ride or effort behind them), drag to zoom, click a day to open it. Form and health share their cursor.
 * *Calendar*: your rides and planned workouts per week (phone) or month. Tap a day to see its rides, plan a workout from your library, or move or remove a planned one. Planned workouts show as planned, done (planned vs. actual TSS) or missed.
 * *Riding the plan*: on a day with a planned workout, the Ride page selects it when the app opens (not over a workout you picked yourself that day, and never during a ride). A saved ride is matched to that day's plan.
 * *Progress*: weekly volume (hours, TSS, kJ), power curve (last 6 weeks vs. all time, W or W/kg), FTP trend (estimated from your best 20 and 60 minutes, with a button to update your FTP when it's more than 5 % off) and time in zones per week or month.

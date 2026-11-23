@@ -125,6 +125,14 @@ async function shots(browser) {
         await page.locator(sel).scrollIntoViewIfNeeded();
         await shotOf(page.locator(sel), name);
     }
+    // a read-out: the mouse over the form chart, 3 weeks back
+    const plot = page.locator('form-card .uc-plot');
+    await plot.scrollIntoViewIfNeeded();
+    const box = await plot.boundingBox();
+    await page.mouse.move(box.x + box.width * 0.62, box.y + box.height * 0.4);
+    await pause(page, 300);
+    await shotOf(page.locator('form-card'), 'training-readout');
+    await page.mouse.move(0, 0);
     // a day with a run from intervals.icu, then planning a workout
     await page.locator('.cal-day.is-today .cal-open').first().click();
     await pause(page, 500);
