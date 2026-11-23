@@ -164,8 +164,11 @@ class UPlotCard extends HTMLElement {
             legend: {show: false},
             series,
             bands: (model.bands ?? []).map(([a, b, fill]) => ({series: [a, b], fill})),
+            // days are UTC days throughout (daySec): put the ticks on them,
+            // not on local midnights
+            tzDate: ts => uPlot.tzDate(new Date(ts * 1e3), 'Etc/UTC'),
             scales: {
-                x: {time, distr: model.log ? 3 : 1, ...(window && !model.log ? {range: () => window} : {})},
+                x: {time, distr: model.log ? 3 : 1},
                 y: model.yRange ? {range: model.yRange} : {},
             },
             axes: [
@@ -178,6 +181,11 @@ class UPlotCard extends HTMLElement {
                 y: false,
                 points: {size: 7, fill: (u, i) => series[i].stroke === 'transparent' ? series[i].fill : series[i].stroke},
                 ...(model.sync ? {sync: {key: model.sync}} : {}),
+                // a double-click goes back to the chosen period, not to all data
+                ...(window && !model.log ? {bind: {dblclick: u => e => {
+                    if(e.button === 0) u.setScale('x', {min: window[0], max: window[1]});
+                    return null;
+                }}} : {}),
             },
             hooks: {
                 drawClear: [u => this.drawMarks(u, marks, {muted, line})],
@@ -186,21 +194,43 @@ class UPlotCard extends HTMLElement {
         };
         const data = [model.x, ...model.series.map(s => s.values)];
         this.plot = new U(opts, data, this.$plot);
+        // open on the chosen period; a drag-zoom then sets its own scale
+        if(window && !model.log) this.plot.setScale?.('x', {min: window[0], max: window[1]});
         if(this.plot.over) {
             this.plot.over.addEventListener('mouseleave', () => { if(!touchDevice()) this.$tip.hidden = true; });
-            this.plot.over.addEventListener('click', () => {
-                if(touchDevice() || (this.plot.select?.width ?? 0) > 0) return;
+            // a click opens the day; where a double-click zooms out, wait to
+            // see that it isn't one (uPlot already swallows the click ending a drag)
+            const zooms = opts.cursor.drag.x;
+            this.plot.over.addEventListener('click', (e) => {
+                if(touchDevice() || e.detail > 1) return;
                 const i = this.plot.cursor?.idx;
-                if(i != null) this.openDay(this.readout(i)?.day);
+                if(i == null) return;
+                const day = this.readout(i)?.day;
+                clearTimeout(this.clickTimer);
+                if(zooms) this.clickTimer = setTimeout(() => this.openDay(day), 250);
+                else this.openDay(day);
             });
+            this.plot.over.addEventListener('dblclick', () => clearTimeout(this.clickTimer));
             const touch = (e) => {
                 const t = e.touches?.[0];
                 if(!t) return;
                 const r = this.plot.over.getBoundingClientRect();
                 this.plot.setCursor({left: t.clientX - r.left, top: t.clientY - r.top});
             };
-            this.plot.over.addEventListener('touchstart', touch, {passive: true});
-            this.plot.over.addEventListener('touchmove', e => { touch(e); e.preventDefault(); }, {passive: false});
+            // a finger sliding sideways moves the read-out; a vertical swipe
+            // is left to the page, so it scrolls
+            let start = null;
+            this.plot.over.addEventListener('touchstart', e => {
+                const t = e.touches?.[0];
+                start = t ? {x: t.clientX, y: t.clientY} : null;
+                touch(e);
+            }, {passive: true});
+            this.plot.over.addEventListener('touchmove', e => {
+                const t = e.touches?.[0];
+                if(!t || !start || Math.abs(t.clientY - start.y) > Math.abs(t.clientX - start.x)) return;
+                touch(e);
+                e.preventDefault();
+            }, {passive: false});
             this.plot.over.style.touchAction = 'pan-y';
         }
     }
@@ -226,7 +256,9 @@ class UPlotCard extends HTMLElement {
 
     showTip(u) {
         const i = u.cursor?.idx;
-        if(i == null || u.cursor.left < 0) { this.$tip.hidden = true; return; }
+        // a day from the shared cursor outside this chart's view: no read-out
+        const outside = u.cursor?.left < 0 || u.cursor?.left > (u.over?.clientWidth ?? Infinity);
+        if(i == null || outside) { this.$tip.hidden = true; return; }
         const r = this.readout(i);
         if(!r) { this.$tip.hidden = true; return; }
         const touchy = touchDevice();
