@@ -16,3 +16,4 @@ env.js
 .parcel-cache/
 
 /test/visual/out/
+soigneur-root.crt

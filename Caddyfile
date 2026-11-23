@@ -20,6 +20,15 @@
 	handle /api/* {
 		reverse_proxy api:3000
 	}
+	# Caddy's root certificate (public; never the key), for devices to
+	# install as a trusted CA: http://<SOIGNEUR_HOST>:8080/soigneur-root.crt
+	handle /soigneur-root.crt {
+		root * /data/caddy/pki/authorities/local
+		rewrite * /root.crt
+		header Content-Type application/x-x509-ca-cert
+		header Content-Disposition "attachment; filename=soigneur-root.crt"
+		file_server
+	}
 	# everything else is the app (separate handle, so try_files never
 	# rewrites /api requests)
 	handle {

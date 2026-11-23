@@ -92,7 +92,7 @@ This starts two containers: `soigneur-studio` (Caddy serving the app; compose se
   docker compose cp auuki:/data/caddy/pki/authorities/local/root.crt ./soigneur-root.crt
   ```
 
-  Install `soigneur-root.crt` as a trusted root certificate on each riding device. On Windows, import it under *Trusted Root Certification Authorities*. On Android, use *Settings → Security → Install a certificate → CA certificate*. Use the same address in the browser as in `SOIGNEUR_HOST` (`AUUKI_HOST`, the name before the rename, still works). The certificate is kept in the `caddy-data` volume, so you only install it once.
+  Install `soigneur-root.crt` as a trusted root certificate on each riding device; a device on your network can also download it from `http://<that address>:8080/soigneur-root.crt`. Without it the browser shows the address as not secure, and the app can't be installed and can't use Bluetooth. On Windows, import it under *Trusted Root Certification Authorities*. On Android, use *Settings → Security → Install a certificate → CA certificate*. Use the same address in the browser as in `SOIGNEUR_HOST` (`AUUKI_HOST`, the name before the rename, still works). The certificate is kept in the `caddy-data` volume, so you only install it once.
 * **Quick test without a certificate**, one PC only: in Chrome open `chrome://flags/#unsafely-treat-insecure-origin-as-secure`, add `http://<host>:8080`, and relaunch Chrome.
 
 * **Updating from Auuki Desktop:** `docker compose up -d --build` replaces the containers (now named `soigneur-studio` and `soigneur-studio-api`); accounts, rides and certificates stay, because the data volumes keep their names.
