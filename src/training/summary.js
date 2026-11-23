@@ -29,6 +29,11 @@ function rideSummary(samples, meta = {}) {
         best[seconds] = hasPower && b?.available && b.watts > 0 ? Math.round(b.watts) : null;
     }
     const power = (x, d) => (hasPower ? round(x, d) : null);
+    // heart rate, for a load when there is no power (dropouts don't count)
+    let hrSum = 0, hrN = 0, hrMax = 0;
+    for(const s of samples) {
+        if(s.heartRate > 0) { hrSum += s.heartRate; hrN++; if(s.heartRate > hrMax) hrMax = s.heartRate; }
+    }
 
     return {
         version:   SUMMARY_VERSION,
@@ -46,6 +51,8 @@ function rideSummary(samples, meta = {}) {
         kj:        power(sum.kj, 0),
         zoneSeconds: sum.zones.map(z => (hasPower ? z.seconds : 0)),
         best,
+        avgHr:     hrN ? Math.round(hrSum / hrN) : null,
+        maxHr:     hrN ? hrMax : null,
         ftp:       sum.ftp,
         weight:    sum.weight,
     };

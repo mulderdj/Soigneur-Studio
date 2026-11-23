@@ -426,8 +426,8 @@ xf.reg('app:start', async function(_, db) {
 
     db.sources = models.sources.set(models.sources.restore());
 
-    // IndexedDB Schema Version 5 (4 added the Training page's stores, 5 intervals.icu rides and hidden rides)
-    await idb.start(riders.dbName('store'), 5, ['session', 'workouts', 'activity', 'rideSummaries', 'plan', 'externalRides', 'hiddenRides']);
+    // IndexedDB Schema Version 5 (4 added the Training page's stores, 5 intervals.icu and Garmin rides, hidden rides, health data, ratings)
+    await idb.start(riders.dbName('store'), 5, ['session', 'workouts', 'activity', 'rideSummaries', 'plan', 'externalRides', 'hiddenRides', 'wellness', 'rideRatings']);
     db.workouts = await models.workouts.restore();
     db.activity = await models.activity.restore();
     db.workout = models.workout.restore(db);

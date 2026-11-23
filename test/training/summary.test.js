@@ -42,6 +42,15 @@ describe('ride summary', () => {
         expect(s.duration).toBe(3600);
         for(const k of ['tss', 'if', 'np', 'avgPower', 'kj']) expect(s[k]).toBeNull();
     });
+
+    test('average and max heart rate, for a load without power', () => {
+        const samples = [...steady(60, 0), ...Array.from({length: 60}, () => ({power: 0, heartRate: 160, cadence: 90})),
+                         ...Array.from({length: 10}, () => ({power: 0, heartRate: 0, cadence: 0}))]; // dropouts don't count
+        const s = rideSummary(samples, meta);
+        expect(s.avgHr).toBe(150);
+        expect(s.maxHr).toBe(160);
+        expect(rideSummary(steady(10, 200).map(x => ({...x, heartRate: 0})), meta).avgHr).toBeNull();
+    });
 });
 
 describe('.fit back to samples', () => {

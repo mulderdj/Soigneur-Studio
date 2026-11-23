@@ -217,6 +217,27 @@ test('hidden rides are stored, listed and removed per user', async () => {
     }
 });
 
+test('ride ratings are stored per user, 1 to 10', async () => {
+    const {call, stop} = await start({allowSignup: true});
+    try {
+        const a = (await call('POST', '/api/auth/register', {body: {username: 'dj', password: 'password123'}})).json.token;
+        const b = (await call('POST', '/api/auth/register', {body: {username: 'ane', password: 'password123'}})).json.token;
+        assert.deepEqual((await call('GET', '/api/me/ride-ratings', {token: a})).json, {ratings: {}});
+        assert.equal((await call('PUT', '/api/me/ride-ratings/garmin-1', {token: a, body: {rpe: 7}})).status, 200);
+        await call('PUT', '/api/me/ride-ratings/garmin-1', {token: a, body: {rpe: 8}});
+        await call('PUT', '/api/me/ride-ratings/r2', {token: a, body: {rpe: 3}});
+        assert.deepEqual((await call('GET', '/api/me/ride-ratings', {token: a})).json.ratings, {'garmin-1': 8, r2: 3});
+        assert.deepEqual((await call('GET', '/api/me/ride-ratings', {token: b})).json.ratings, {});
+        for(const rpe of [0, 11, 6.5, '7', null]) {
+            assert.equal((await call('PUT', '/api/me/ride-ratings/r3', {token: a, body: {rpe}})).status, 400, String(rpe));
+        }
+        await call('DELETE', '/api/me/ride-ratings/r2', {token: a});
+        assert.deepEqual((await call('GET', '/api/me/ride-ratings', {token: a})).json.ratings, {'garmin-1': 8});
+    } finally {
+        stop();
+    }
+});
+
 test('ride summaries can be added to rides already on the server', async () => {
     const {call, stop} = await start({allowSignup: true});
     try {

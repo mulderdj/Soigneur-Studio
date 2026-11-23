@@ -7,7 +7,7 @@ import { history } from '../../src/training/history.js';
 import { importFitFiles } from '../../src/training/fit-import.js';
 import { fit } from '../../src/fit/fit.js';
 
-const STORES = ['session', 'workouts', 'activity', 'rideSummaries', 'plan', 'externalRides', 'hiddenRides'];
+const STORES = ['session', 'workouts', 'activity', 'rideSummaries', 'plan', 'externalRides', 'hiddenRides', 'wellness', 'rideRatings'];
 let n = 0;
 beforeEach(async () => {
     await idb.start(`fit-import-${n++}`, 5, STORES);

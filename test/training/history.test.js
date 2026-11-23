@@ -7,7 +7,7 @@ import { history } from '../../src/training/history.js';
 import { fit } from '../../src/fit/fit.js';
 import { countable } from '../../src/training/merge.js';
 
-const STORES = ['session', 'workouts', 'activity', 'rideSummaries', 'plan', 'externalRides', 'hiddenRides'];
+const STORES = ['session', 'workouts', 'activity', 'rideSummaries', 'plan', 'externalRides', 'hiddenRides', 'wellness', 'rideRatings'];
 let n = 0;
 
 beforeEach(async () => {
@@ -54,7 +54,9 @@ describe('backfill', () => {
         expect(result.skipped).toEqual(['broken']);
         const all = await history.summaries();
         expect(all.map(s => s.id).sort()).toEqual(['broken', 'good1', 'good2']);
-        expect(all.find(s => s.id === 'broken').tss).toBeNull();
+        // an unreadable ride keeps its duration and gets an estimated load
+        expect(all.find(s => s.id === 'broken').rawTss).toBeNull();
+        expect(all.find(s => s.id === 'broken').loadSource).toBe('estimate');
         expect(all.find(s => s.id === 'good1').name).toBe('One');
         expect(all.find(s => s.id === 'good1').avgPower).toBe(220);
         expect(progress.at(-1)).toEqual({done: 3, total: 3});
@@ -138,7 +140,8 @@ describe('an unreadable ride', () => {
         expect(result.skipped).toEqual(['broken']);
         const s = (await history.summaries()).find(x => x.id === 'broken');
         expect(s.duration).toBe(1800);
-        expect(s.tss).toBeNull();
+        expect(s.rawTss).toBeNull();
+        expect(s.loadSource).toBe('estimate'); // counted with an estimate, marked as such
         expect(s.day).toBe('2026-11-18');
         expect((await history.backfill({ftp: 250, weight: 75})).skipped).toEqual([]); // not retried
     });
@@ -252,5 +255,47 @@ describe('intervals.icu plan entries', () => {
         history.connect({parseWorkout, toZwo: () => { throw new Error('erg'); }});
         const e = await history.addPlanEntry('2026-11-24', {id: 'w1', meta: {name: 'Erg'}, intervals: []});
         expect(e.zwo).toBeNull();
+    });
+});
+
+describe('a load for every workout', () => {
+    afterEach(() => history.connect({api: null, linked: () => false, thresholds: () => ({cycling: null, running: null})}));
+
+    test('summaries carry the effective load, where it came from, and the original', async () => {
+        await history.saveSummary({...summary('p', '2026-11-20', 1), tss: 64});
+        await idb.put('externalRides', {...summary('icu-run', '2026-11-21', 86400000), tss: null, sport: 'run', avgHr: 150, source: 'garmin'});
+        await idb.put('externalRides', {...summary('gym', '2026-11-22', 2 * 86400000), tss: null, sport: 'weighttraining', source: 'garmin'});
+        await idb.put('wellness', {id: '2026-11-21', day: '2026-11-21', restingHr: 50}); // keyed by day
+        history.connect({thresholds: () => ({cycling: null, running: 170})});
+        const byId = Object.fromEntries((await history.summaries()).map(s => [s.id, s]));
+        expect([byId.p.tss, byId.p.loadSource, byId.p.rawTss]).toEqual([64, 'power', 64]);
+        expect(byId['icu-run'].loadSource).toBe('hr');
+        expect(byId['icu-run'].tss).toBeCloseTo(69.4, 1);
+        expect(byId['icu-run'].rawTss).toBeNull();
+        expect([byId.gym.tss, byId.gym.loadSource]).toEqual([30, 'estimate']);
+        await history.rateRide('gym', 7);
+        const gym = (await history.summaries()).find(s => s.id === 'gym');
+        expect([gym.tss, gym.loadSource]).toEqual([49, 'rpe']);
+        expect((await history.ratings()).get('gym')).toBe(7);
+        await history.rateRide('gym', null);
+        expect((await history.summaries()).find(s => s.id === 'gym').loadSource).toBe('estimate');
+    });
+
+    test('ratings sync through the account: pushed, and pulled on another device', async () => {
+        const server = new Map([['other', 5]]);
+        const api = {
+            get: async (path) => path === '/me/ride-ratings' ? {ratings: Object.fromEntries(server)} :
+                                 path === '/me/hidden-rides' ? {ids: []} : {entries: [], now: Date.now()},
+            put: async (path, body) => { if(path.startsWith('/me/ride-ratings/')) server.set(decodeURIComponent(path.split('/').pop()), body.rpe); return {}; },
+            delete: async (path) => { server.delete(decodeURIComponent(path.split('/').pop())); return {}; },
+        };
+        history.connect({api, linked: () => true});
+        await history.rateRide('gym', 8);
+        await history.syncPlan();
+        expect(server.get('gym')).toBe(8);
+        expect(Object.fromEntries(await history.ratings())).toEqual({gym: 8, other: 5});
+        await history.rateRide('other', null);
+        await history.syncPlan();
+        expect(server.has('other')).toBe(false);
     });
 });

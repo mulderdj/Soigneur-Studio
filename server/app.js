@@ -177,6 +177,13 @@ function openDatabase(path) {
             updated_at INTEGER NOT NULL,
             PRIMARY KEY (user_id, id)
         );
+        CREATE TABLE IF NOT EXISTS ride_ratings (
+            user_id    TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+            ride_id    TEXT NOT NULL,
+            rpe        INTEGER NOT NULL,
+            updated_at INTEGER NOT NULL,
+            PRIMARY KEY (user_id, ride_id)
+        );
         CREATE TABLE IF NOT EXISTS hidden_rides (
             user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
             ride_id TEXT NOT NULL,
@@ -252,6 +259,10 @@ function createApp(options = {}) {
                                    WHERE user_id = ? AND id = ?`),
         planData:      db.prepare('SELECT data, deleted FROM plan WHERE user_id = ? AND id = ?'),
         hiddenRides:   db.prepare('SELECT ride_id FROM hidden_rides WHERE user_id = ? ORDER BY ride_id'),
+        ratings:       db.prepare('SELECT ride_id, rpe FROM ride_ratings WHERE user_id = ? ORDER BY ride_id'),
+        rate:          db.prepare(`INSERT INTO ride_ratings (user_id, ride_id, rpe, updated_at) VALUES (?, ?, ?, ?)
+                                   ON CONFLICT (user_id, ride_id) DO UPDATE SET rpe = excluded.rpe, updated_at = excluded.updated_at`),
+        unrate:        db.prepare('DELETE FROM ride_ratings WHERE user_id = ? AND ride_id = ?'),
         hideRide:      db.prepare('INSERT OR IGNORE INTO hidden_rides (user_id, ride_id) VALUES (?, ?)'),
         showRide:      db.prepare('DELETE FROM hidden_rides WHERE user_id = ? AND ride_id = ?'),
         insertActivity: db.prepare(`INSERT INTO activities (user_id, id, summary, fit, created_at) VALUES (?, ?, ?, ?, ?)
@@ -444,6 +455,22 @@ function createApp(options = {}) {
 
     route('DELETE', '/api/me/plan/:id', ({auth, params}) => {
         q.deletePlan.run(now(), auth.user.id, validId(params.id));
+        return {ok: true};
+    }, {auth: true});
+
+    // how hard a workout felt (1–10): its load when it has no power or heart rate
+    route('GET', '/api/me/ride-ratings', ({auth}) =>
+        ({ratings: Object.fromEntries(q.ratings.all(auth.user.id).map(r => [r.ride_id, r.rpe]))}), {auth: true});
+
+    route('PUT', '/api/me/ride-ratings/:id', ({auth, body, params}) => {
+        const id = validId(params.id);
+        if(!Number.isInteger(body?.rpe) || body.rpe < 1 || body.rpe > 10) fail(400, 'Expected {rpe: 1 to 10}.');
+        q.rate.run(auth.user.id, id, body.rpe, now());
+        return {ok: true};
+    }, {auth: true});
+
+    route('DELETE', '/api/me/ride-ratings/:id', ({auth, params}) => {
+        q.unrate.run(auth.user.id, validId(params.id));
         return {ok: true};
     }, {auth: true});
 

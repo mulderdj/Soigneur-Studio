@@ -23,11 +23,14 @@ import { rideSummary, SUMMARY_VERSION } from './summary.js';
 import { fitToSamples } from './fit-records.js';
 import { matchRide } from './plan.js';
 import { mergeRides } from './merge.js';
+import { effectiveLoad, restingHrOn } from './load-sources.js';
 
 const SUMMARIES = 'rideSummaries';
 const PLAN = 'plan';
 const EXTERNAL = 'externalRides';
 const HIDDEN = 'hiddenRides';
+const RATINGS = 'rideRatings';
+const WELLNESS = 'wellness';
 
 let remote = {
     api: null, linked: () => false,
@@ -35,6 +38,7 @@ let remote = {
     externalSince: {get: () => 0, set: () => {}},
     parseWorkout: null, // .zwo text -> workout (models.workout.parse)
     toZwo: null,        // workout -> .zwo text, for intervals.icu
+    thresholds: () => ({cycling: null, running: null}), // threshold heart rate per sport
 };
 
 function connect(options = {}) {
@@ -56,12 +60,80 @@ async function externalRides() {
     try { return (await idb.getAll(EXTERNAL)) ?? []; } catch(e) { return []; }
 }
 
-// every ride: Auuki's own and intervals.icu's, each counted once; hidden
-// rides are marked hidden: true
+// every workout: Auuki's own and the external ones, each counted once.
+// Each carries its effective load (tss), where it came from (loadSource:
+// power, hr, rpe or estimate) and the original (rawTss); hidden rides are
+// marked hidden: true
 async function summaries() {
     const hidden = await hiddenIds();
-    const all = mergeRides(await ownSummaries(), await externalRides());
-    return hidden.size ? all.map(s => hidden.has(s.id) ? {...s, hidden: true} : s) : all;
+    const rated = await ratings();
+    const days = await wellnessMap();
+    let thresholds = {};
+    try { thresholds = remote.thresholds?.() ?? {}; } catch(e) { thresholds = {}; }
+    return mergeRides(await ownSummaries(), await externalRides()).map(s => {
+        const load = effectiveLoad(s, {rating: rated.get(s.id) ?? null, thresholds, restingHr: restingHrOn(s.day, days)});
+        const out = {...s, rawTss: Number.isFinite(s.tss) ? s.tss : null, ...load};
+        if(hidden.has(s.id)) out.hidden = true;
+        return out;
+    });
+}
+
+// --- health data (from Garmin, through the account server) --------------------
+
+async function wellnessDays() {
+    try { return ((await idb.getAll(WELLNESS)) ?? []).sort((a, b) => (a.day < b.day ? -1 : a.day > b.day ? 1 : 0)); } catch(e) { return []; }
+}
+
+async function wellnessMap() {
+    return new Map((await wellnessDays()).map(d => [d.day, d]));
+}
+
+// --- how hard a workout felt ---------------------------------------------------
+
+async function ratingRecords() {
+    try { return (await idb.getAll(RATINGS)) ?? []; } catch(e) { return []; }
+}
+
+async function ratings() {
+    return new Map((await ratingRecords()).filter(r => Number.isInteger(r.rpe)).map(r => [r.id, r.rpe]));
+}
+
+// rpe 1–10, or null to take the rating away
+async function rateRide(id, rpe) {
+    const value = Number.isInteger(rpe) && rpe >= 1 && rpe <= 10 ? rpe : null;
+    await idb.put(RATINGS, {id, rpe: value, dirty: true});
+    changed();
+    schedulePush();
+}
+
+// push this device's changes, then take the server's list
+async function syncRatings() {
+    for(const r of await ratingRecords()) {
+        if(!r.dirty) continue;
+        const path = `/me/ride-ratings/${encodeURIComponent(r.id)}`;
+        if(r.rpe === null) await remote.api.delete(path);
+        else await remote.api.put(path, {rpe: r.rpe});
+        const now = await idb.get(RATINGS, r.id);
+        if(now && now.rpe === r.rpe) {
+            if(r.rpe === null) await idb.remove(RATINGS, r.id);
+            else await idb.put(RATINGS, {...now, dirty: false});
+        }
+    }
+    const res = await remote.api.get('/me/ride-ratings');
+    if(!res?.ratings || typeof res.ratings !== 'object') return;
+    const server = new Map(Object.entries(res.ratings));
+    let any = false;
+    for(const r of await ratingRecords()) {
+        if(r.dirty) continue;
+        if(!server.has(r.id)) { await idb.remove(RATINGS, r.id); any = true; }
+    }
+    for(const [id, rpe] of server) {
+        const mine = await idb.get(RATINGS, id);
+        if(mine?.dirty || mine?.rpe === rpe) continue;
+        await idb.put(RATINGS, {id, rpe, dirty: false});
+        any = true;
+    }
+    if(any) changed();
 }
 
 // --- hidden rides ------------------------------------------------------------
@@ -384,6 +456,7 @@ async function syncPlanOnce() {
     // hidden rides ride along with the plan; an older server without them is fine
     await syncHidden().catch(e => console.warn(':training :hidden', e));
     await pushImported().catch(e => console.warn(':training :imported', e));
+    await syncRatings().catch(e => console.warn(':training :ratings', e));
 }
 
 async function summaryFor(id) {
@@ -396,6 +469,9 @@ const history = Object.freeze({
     hideRide,
     showRide,
     hiddenIds,
+    rateRide,
+    ratings,
+    wellnessDays,
     pullExternal,
     requestIntervalsSync,
     saveImported,
