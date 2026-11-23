@@ -2,7 +2,9 @@
 // The training plan: planned TSS of a workout, the status of a plan entry,
 // matching a saved ride to the plan, and whether to pick today's workout.
 //
-// PlanEntry = {id, day, workout, rideId, updatedAt, deleted}
+// PlanEntry = {id, day, workout, rideId, updatedAt, deleted, origin, zwo, name}
+// origin 'intervals': planned on intervals.icu; its workout is read from
+// `zwo` and is null when that can't be read (shown by `name`, not ridable).
 // The entry keeps its own copy of the workout, so removing a workout from
 // the library doesn't break the plan.
 //
@@ -40,7 +42,7 @@ function matchRide(summary, entries) {
 function autoSelectWorkout({entries, today, watchStatus, handPickedDay}) {
     if(watchStatus === 'started' || watchStatus === 'paused') return null;
     if(handPickedDay === today) return null;
-    const entry = entries.find(e => !e.deleted && e.day === today && planStatus(e, today) === 'planned');
+    const entry = entries.find(e => !e.deleted && e.day === today && e.workout && planStatus(e, today) === 'planned');
     return entry?.workout ?? null;
 }
 

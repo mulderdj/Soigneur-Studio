@@ -391,3 +391,10 @@
         height: 220px;
     }
 }
+
+/* a plan entry from intervals.icu */
+.badge-icu {
+    background-color: transparent;
+    color: var(--accent);
+    box-shadow: inset 0 0 0 1px currentColor;
+}

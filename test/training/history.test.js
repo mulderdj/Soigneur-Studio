@@ -208,3 +208,49 @@ describe('hiding a ride', () => {
         }
     });
 });
+
+describe('intervals.icu plan entries', () => {
+    const parsed = {id: 'x', meta: {name: 'From zwo'}, intervals: [{duration: 600, steps: [{duration: 600, power: 0.9}]}]};
+    const parseWorkout = (text) => { if(text !== 'GOOD') throw new Error('no steps'); return structuredClone(parsed); };
+    const toZwo = (w) => `ZWO:${w.meta.name}`;
+    const pulled = (id, zwo) => ({id, deleted: false, updatedAt: 10, data: {
+        day: '2026-11-24', origin: 'intervals', intervalsEventId: 7, zwo, rideId: null,
+        workout: {id: `icu-ev-${id}`, meta: {name: 'Threshold'}, intervals: []}}});
+
+    afterEach(() => history.connect({api: null, linked: () => false, parseWorkout: undefined, toZwo: undefined}));
+
+    test('a readable .zwo becomes the workout, named as on intervals.icu', async () => {
+        const api = {get: async (p) => p.startsWith('/me/plan') ? {entries: [pulled('e1', 'GOOD')], now: 20} : {ids: []}};
+        history.connect({api, linked: () => true, parseWorkout, toZwo});
+        await history.syncPlan();
+        const [e] = await history.planEntries();
+        expect(e.workout.intervals).toHaveLength(1);
+        expect(e.workout.meta.name).toBe('Threshold');
+        expect(e.origin).toBe('intervals');
+    });
+
+    test('an unreadable .zwo leaves workout null; the entry is listed and can be removed', async () => {
+        const api = {get: async (p) => p.startsWith('/me/plan') ? {entries: [pulled('e2', 'BAD')], now: 20} : {ids: []},
+                     delete: async () => ({}), put: async () => ({})};
+        history.connect({api, linked: () => true, parseWorkout, toZwo});
+        await history.syncPlan();
+        const [e] = await history.planEntries();
+        expect(e.workout).toBeNull();
+        expect(e.name).toBe('Threshold');
+        await history.removePlanEntry(e.id);
+        expect(await history.planEntries()).toEqual([]);
+    });
+
+    test('an entry planned in Auuki stores its .zwo', async () => {
+        history.connect({parseWorkout, toZwo});
+        const e = await history.addPlanEntry('2026-11-24', {id: 'w1', meta: {name: 'Sweet spot'}, intervals: []});
+        expect(e.origin).toBe('auuki');
+        expect(e.zwo).toBe('ZWO:Sweet spot');
+    });
+
+    test('a workout the writer cannot turn into .zwo is still planned, without one', async () => {
+        history.connect({parseWorkout, toZwo: () => { throw new Error('erg'); }});
+        const e = await history.addPlanEntry('2026-11-24', {id: 'w1', meta: {name: 'Erg'}, intervals: []});
+        expect(e.zwo).toBeNull();
+    });
+});

@@ -12,12 +12,17 @@ import { session } from '../views/training-dashboard.js';
 import { history } from './history.js';
 import { today } from './dates.js';
 import { todayChecker } from './today.js';
+import { models } from '../models/models.js';
+import { zwo } from '../workouts/zwo.js';
 
 history.connect({
     api,
     linked: () => !!riders.current()?.account?.token,
     planSince: cursor('training:planSince'),
     externalSince: cursor('training:externalSince'),
+    // workouts planned on intervals.icu arrive as .zwo, Auuki's go out as .zwo
+    parseWorkout: text => models.workout.parse(text),
+    toZwo: workout => zwo.write(zwo.fromInterval(workout)),
 });
 
 function cursor(name) {

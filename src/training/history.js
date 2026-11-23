@@ -33,6 +33,8 @@ let remote = {
     api: null, linked: () => false,
     planSince: {get: () => 0, set: () => {}},
     externalSince: {get: () => 0, set: () => {}},
+    parseWorkout: null, // .zwo text -> workout (models.workout.parse)
+    toZwo: null,        // workout -> .zwo text, for intervals.icu
 };
 
 function connect(options = {}) {
@@ -265,8 +267,31 @@ async function putEntry(entry) {
     return e;
 }
 
+// the .zwo goes to intervals.icu with the entry; a workout that can't be
+// written as .zwo (e.g. some .erg files) is planned without one
+function zwoOf(workout) {
+    if(!remote.toZwo || !workout) return null;
+    try { return remote.toZwo(workout) || null; } catch(e) { return null; }
+}
+
 async function addPlanEntry(day, workout) {
-    return putEntry({id: uuid(), day, workout: structuredCloneSafe(workout), rideId: null, deleted: false});
+    return putEntry({id: uuid(), day, workout: structuredCloneSafe(workout), rideId: null, deleted: false,
+                     origin: 'auuki', zwo: zwoOf(workout), name: workout?.meta?.name ?? null});
+}
+
+// an entry planned on intervals.icu: its workout comes from the .zwo
+function readWorkout(entry) {
+    if(entry.origin !== 'intervals' || !entry.zwo || !remote.parseWorkout) return entry;
+    const name = entry.workout?.meta?.name ?? entry.name ?? 'Workout';
+    try {
+        const w = remote.parseWorkout(entry.zwo);
+        if(!w || !(w.intervals?.length > 0)) throw new Error('no steps');
+        w.id = entry.workout?.id ?? `icu-${entry.id}`;
+        w.meta = {...w.meta, name};
+        return {...entry, workout: w, name};
+    } catch(e) {
+        return {...entry, workout: null, name};
+    }
 }
 
 async function movePlanEntry(id, day) {
@@ -323,7 +348,7 @@ async function syncPlanOnce() {
         if(mine?.dirty && (mine.updatedAt ?? 0) >= r.updatedAt) continue; // our change is newer
         const entry = r.deleted ?
               {...(mine ?? {id: r.id, day: '', workout: null, rideId: null}), deleted: true, updatedAt: r.updatedAt, dirty: false} :
-              {...r.data, id: r.id, deleted: false, updatedAt: r.updatedAt, dirty: false};
+              readWorkout({...r.data, id: r.id, deleted: false, updatedAt: r.updatedAt, dirty: false});
         await idb.put(PLAN, entry);
         local.set(r.id, entry);
         any = true;

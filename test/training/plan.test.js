@@ -60,6 +60,11 @@ describe('auto-select today\'s workout', () => {
         expect(autoSelectWorkout({entries, today: '2026-11-23', watchStatus: 'stopped', handPickedDay: '2026-11-23'})).toBeNull();
         expect(autoSelectWorkout({entries, today: '2026-11-23', watchStatus: 'stopped', handPickedDay: '2026-11-22'})).toBe(copy);
     });
+    test('skips an entry whose workout could not be read, takes the next one', () => {
+        const unreadable = {id: 'u', day: '2026-11-23', workout: null, rideId: null, deleted: false, origin: 'intervals'};
+        expect(autoSelectWorkout({entries: [unreadable], today: '2026-11-23', watchStatus: 'stopped', handPickedDay: null})).toBeNull();
+        expect(autoSelectWorkout({entries: [unreadable, ...entries], today: '2026-11-23', watchStatus: 'stopped', handPickedDay: null})).toBe(copy);
+    });
     test('not when today\'s entry is done', () => {
         const done = [{...entries[0], rideId: 'r'}];
         expect(autoSelectWorkout({entries: done, today: '2026-11-23', watchStatus: 'stopped', handPickedDay: null})).toBeNull();

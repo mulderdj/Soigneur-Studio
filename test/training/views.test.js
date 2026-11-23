@@ -62,6 +62,36 @@ describe('calendar', () => {
     });
 });
 
+describe('intervals.icu entries', () => {
+    const icu = {...data, plan: [...data.plan,
+        {id: 'i1', day: '2026-11-27', workout: workout('wi', 'Threshold'), rideId: null, deleted: false, origin: 'intervals'},
+        {id: 'i2', day: '2026-11-28', workout: null, name: 'Odd file', rideId: null, deleted: false, origin: 'intervals'}]};
+
+    test('the calendar tags them, and shows an unreadable one by name', () => {
+        document.body.innerHTML = '<training-calendar layout="desktop"></training-calendar>';
+        const el = document.querySelector('training-calendar');
+        el.data = icu;
+        const items = [...el.querySelectorAll('.cal-plan')];
+        const threshold = items.find(i => i.textContent.includes('Threshold'));
+        expect(threshold.querySelector('.badge-icu')).not.toBeNull();
+        const odd = items.find(i => i.textContent.includes('Odd file'));
+        expect(odd.querySelector('.badge-icu')).not.toBeNull();
+        expect(items.find(i => i.textContent.includes('VO2 max')).querySelector('.badge-icu')).toBeNull();
+    });
+
+    test('the day dialog tags them; an unreadable one can be removed', () => {
+        document.body.innerHTML = '<day-dialog></day-dialog>';
+        const el = document.querySelector('day-dialog');
+        el.actions = {removePlanEntry: jest.fn()};
+        el.open('2026-11-28', icu);
+        expect(el.textContent).toContain('Odd file');
+        expect(el.textContent).toContain('could not be read');
+        expect(el.querySelector('.badge-icu')).not.toBeNull();
+        el.querySelector('[data-remove="i2"]').click();
+        expect(el.actions.removePlanEntry).toHaveBeenCalledWith('i2');
+    });
+});
+
 describe('day dialog', () => {
     function dialog() {
         document.body.innerHTML = '<day-dialog></day-dialog>';

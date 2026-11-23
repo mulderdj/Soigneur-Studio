@@ -78,8 +78,10 @@ class DayDialog extends HTMLElement {
                       `<button type="button" class="btn" data-show="${esc(r.id)}">Show</button>` :
                       `<button type="button" class="btn" data-hide="${esc(r.id)}">Hide this ride</button>`}</li>`).join('')}</ul>` : ''}
             ${entries.length ? `<h3 class="dd-sub">Planned</h3><ul class="dd-list">${entries.map(e => `
-                <li class="list-row"><div class="list-row__main"><div class="list-row__title">${esc(e.workout?.meta?.name ?? 'Workout')}</div>
-                    <div class="list-row__meta"><span class="badge">${planStatus(e, today)}</span> ${Math.round(plannedTss(e.workout, this.data.ftp))} TSS</div></div>
+                <li class="list-row"><div class="list-row__main"><div class="list-row__title">${esc(e.workout?.meta?.name ?? e.name ?? 'Workout')}</div>
+                    <div class="list-row__meta"><span class="badge">${planStatus(e, today)}</span>
+                        ${e.workout ? `${Math.round(plannedTss(e.workout, this.data.ftp))} TSS` : 'The workout from intervals.icu could not be read, so it can\'t be ridden here.'}
+                        ${e.origin === 'intervals' ? '<span class="badge badge-icu">intervals.icu</span>' : ''}</div></div>
                     <label class="field dd-move">Move to<input type="date" class="input" data-move="${esc(e.id)}" value="${esc(e.day)}"></label>
                     <button type="button" class="btn btn--danger" data-remove="${esc(e.id)}">Remove</button></li>`).join('')}</ul>` : ''}
             <h3 class="dd-sub">Plan a workout</h3>

@@ -78,9 +78,10 @@ class TrainingCalendar extends HTMLElement {
             const detail = status === 'done' && ride ?
                   `planned ${planned} / actual ${fmtTss(ride.tss)} TSS` :
                   `${planned} TSS`;
+            const icu = e.origin === 'intervals' ? ' <span class="badge badge-icu">intervals.icu</span>' : '';
             return `<li class="cal-item cal-plan" data-status="${status}">
-                        <span class="cal-item__name">${esc(e.workout?.meta?.name ?? 'Workout')}</span>
-                        <span class="cal-item__meta"><span class="badge cal-status">${status}</span> ${detail}</span>
+                        <span class="cal-item__name">${esc(e.workout?.meta?.name ?? e.name ?? 'Workout')}</span>
+                        <span class="cal-item__meta"><span class="badge cal-status">${status}</span> ${e.workout ? detail : 'not readable'}${icu}</span>
                     </li>`;
         }).join('');
         const rideHtml = rides.filter(r => !matched.has(r.id)).map(r => `
