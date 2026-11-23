@@ -1,50 +1,40 @@
 //
 // <health-card>: last night from Garmin. HRV against the rider's normal
 // range, resting heart rate against its 30-day average, sleep and Body
-// Battery, with 60 days of HRV (normal range shaded) and resting heart
-// rate. Hidden when there is no health data.
+// Battery; below, HRV with each night's normal range as a band and resting
+// heart rate on uPlot: a read-out per night, zoom (1 month / 3 months /
+// all), the cursor shared with the form card, a click opens the day.
+// Hidden when there is no health data.
 //
 // data = {today, wellness: Day[]}
 //
 
 import { hrvRange, hrvState, latestNight, restingTrend, sortedDays } from '../../training/wellness.js';
-import { ChartElement, token, drawLines } from './chart.js';
+import { UPlotCard, token } from './uplot-chart.js';
+import { healthChart } from './chart-models.js';
 import { esc, fmtDay, fmtDuration } from './format.js';
 
-const CHART_DAYS = 60;
 const STATE_TEXT = {in: 'in your normal range', below: 'below your normal range', above: 'above your normal range'};
 
-class HealthCard extends ChartElement {
-    connectedCallback() {
-        if(!this.querySelector('.hc-plot')) {
-            this.innerHTML = `
-                <h2 class="card__title hc-title">Health <small class="hc-when" data-k="when"></small></h2>
-                <dl class="hc-grid"></dl>
-                <div class="tc-plot hc-plot"><canvas class="tc-canvas" role="img" aria-label="HRV and resting heart rate over the last 60 days, with the normal HRV range shaded"></canvas></div>
-                <p class="card__note hc-legend"><span class="hc-key hc-key--hrv"></span>HRV (ms) <span class="hc-key hc-key--rest"></span>Resting heart rate (bpm) <span class="hc-key hc-key--band"></span>Normal HRV range</p>`;
-        }
-        this.connectChart();
-        this.render();
+class HealthCard extends UPlotCard {
+    night() {
+        return latestNight(sortedDays(this.data?.wellness));
     }
 
-    set data(d) {
-        this._data = d;
-        this.render();
-    }
-
-    render() {
-        if(!this._data) return;
-        const days = sortedDays(this._data.wellness);
-        const night = latestNight(days);
+    head() {
+        const night = this.night();
         this.hidden = !night;
-        if(!night || !this.isConnected || !this.querySelector('.hc-grid')) return;
+        const when = !night ? '' : night.day === this.data.today ? 'last night' : fmtDay(night.day);
+        return `<h2 class="card__title hc-title">Health <small class="hc-when" data-k="when">${esc(when)}</small></h2>`;
+    }
 
+    intro() {
+        const days = sortedDays(this.data.wellness);
+        const night = this.night();
+        if(!night) return '';
         const range = hrvRange(days);
         const state = hrvState(night.hrv, range);
         const rest = restingTrend(days);
-        const when = this.querySelector('[data-k="when"]');
-        when.textContent = night.day === this._data.today ? 'last night' : fmtDay(night.day);
-
         const item = (label, value, note = '', attrs = '') => `<div ${attrs}><dt>${label}</dt><dd>${value}</dd>${note ? `<small>${note}</small>` : ''}</div>`;
         const items = [];
         if(Number.isFinite(night.hrv)) {
@@ -60,25 +50,15 @@ class HealthCard extends ChartElement {
             items.push(item('Sleep', fmtDuration(night.sleepSeconds), Number.isFinite(night.sleepScore) ? `score ${night.sleepScore}` : ''));
         }
         if(Number.isFinite(night.bodyBattery)) items.push(item('Body Battery', String(night.bodyBattery)));
-        this.querySelector('.hc-grid').innerHTML = items.join('');
-
-        const from = new Date(Date.parse(this._data.today ?? night.day) - (CHART_DAYS - 1) * 86400000).toISOString().slice(0, 10);
-        this.model = {days: days.filter(d => d.day >= from), range};
-        this.redraw();
+        return `<dl class="hc-grid">${items.join('')}</dl>`;
     }
 
-    draw(ctx, w, h) {
-        if(!this.model || this.model.days.length === 0) return;
-        const {days, range} = this.model;
-        const labels = days.map((d, i) => (i % 14 === 0 ? fmtDay(d.day, {day: 'numeric', month: 'short'}) : ''));
-        drawLines(ctx, this, w, h, {
-            labels, every: 1, fromZero: false,
-            band: range ? {low: range.low, high: range.high, color: token(this, '--band', 'rgba(76,154,255,0.15)')} : null,
-            lines: [
-                {values: days.map(d => d.hrv), color: token(this, '--accent'), width: 2.5},
-                {values: days.map(d => d.restingHr), color: token(this, '--hr'), width: 1.5},
-            ],
-        });
+    foot() {
+        return '<p class="card__note hc-legend"><span class="hc-key hc-key--hrv"></span>HRV (ms) <span class="hc-key hc-key--rest"></span>Resting heart rate (bpm) <span class="hc-key hc-key--band"></span>Normal HRV range</p>';
+    }
+
+    chart() {
+        return healthChart(this.data, {accent: token(this, '--accent'), hr: token(this, '--hr'), band: token(this, '--band', 'rgba(76,154,255,0.15)')});
     }
 }
 

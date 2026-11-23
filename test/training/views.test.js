@@ -1,8 +1,8 @@
 /**
  * @jest-environment jsdom
  */
-// jsdom has no ResizeObserver; the chart cards only need it to redraw
-globalThis.ResizeObserver ??= class { observe() {} disconnect() {} };
+import './browser-stubs.js';
+import { UPlotCard } from '../../src/views/training/uplot-chart.js';
 import { ftpNudge } from '../../src/views/training/progress-cards.js';
 import { syncCounts, sportLabel, garminCounts, loadTag } from '../../src/views/training/format.js';
 import '../../src/views/training/health-card.js';
@@ -193,6 +193,14 @@ describe('other sports and intervals.icu status', () => {
     });
 });
 
+// jsdom has no canvas: a stand-in uPlot that only records what it was given
+UPlotCard.uPlot = class {
+    constructor(opts, data, el) { this.opts = opts; this.data = data; this.over = document.createElement('div'); this.root = document.createElement('div'); el.append(this.root); this.cursor = {}; this.select = {width: 0}; }
+    destroy() { this.root.remove(); }
+    setSize() {}
+    setCursor() {}
+};
+
 describe('loads, ratings and health', () => {
     test('workouts whose load is not from power carry a tag', () => {
         expect(loadTag('power')).toBe('');
@@ -245,7 +253,7 @@ describe('loads, ratings and health', () => {
         expect(el.textContent).toContain('7:12');
         expect(el.textContent).toContain('71');
         expect(el.textContent).toContain('62');
-        expect(el.querySelector('canvas')).not.toBeNull();
+        expect(el.querySelector('.uc-plot > div')).not.toBeNull(); // the chart
         el.data = {today, wellness: []};
         expect(el.hidden).toBe(true);
     });

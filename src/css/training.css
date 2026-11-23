@@ -557,10 +557,11 @@
         grid-template-areas: "title title" "grid plot" "grid legend";
         column-gap: var(--space-4);
     }
-    .tp-health .hc-title  { grid-area: title; }
-    .tp-health .hc-grid   { grid-area: grid; align-content: start; grid-template-columns: repeat(2, minmax(0, 1fr)); }
-    .tp-health .hc-plot   { grid-area: plot; }
-    .tp-health .hc-legend { grid-area: legend; }
+    .tp-health .uc-head  { grid-area: title; }
+    .tp-health .uc-intro { grid-area: grid; }
+    .tp-health .hc-grid  { align-content: start; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .tp-health .uc-plot  { grid-area: plot; min-width: 0; }
+    .tp-health .uc-foot  { grid-area: legend; }
     .tp-calendar { grid-column: 1 / -1; }
     .training > volume-card { grid-column: 1 / 2; }
     .training > zones-card  { grid-column: 1 / 2; }

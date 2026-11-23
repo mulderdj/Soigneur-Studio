@@ -2,7 +2,9 @@
 // <UPlotCard>: the base of the Training tab's charts, drawn with uPlot.
 //
 // A subclass gives two things:
-//   head()  -> the card's header HTML (title, toggles, notes)
+//   head()  -> the card's header HTML (title, toggles)
+//   intro() -> optional HTML between the header and the chart (headline numbers)
+//   foot()  -> optional HTML under the chart (notes, buttons)
 //   chart() -> {model, readout(i)}
 //     model = {
 //       x: number[]                     x values (unix seconds, or seconds for the power curve)
@@ -59,9 +61,12 @@ class UPlotCard extends HTMLElement {
     static uPlot = uPlot;
 
     connectedCallback() {
+        this.classList.add('uc-card');   // the read-out is placed within the card
         if(!this.$plot) {
-            this.innerHTML = `<div class="uc-head"></div><div class="uc-plot"></div><div class="uc-tip" hidden></div>`;
+            this.innerHTML = `<div class="uc-head"></div><div class="uc-intro"></div><div class="uc-plot"></div><div class="uc-foot"></div><div class="uc-tip" hidden></div>`;
             this.$head = this.querySelector('.uc-head');
+            this.$intro = this.querySelector('.uc-intro');
+            this.$foot = this.querySelector('.uc-foot');
             this.$plot = this.querySelector('.uc-plot');
             this.$tip = this.querySelector('.uc-tip');
             this.addEventListener('click', e => this.onClick(e));
@@ -117,6 +122,8 @@ class UPlotCard extends HTMLElement {
         this.model = model;
         this.range = this.range && model.ranges?.some(([k]) => k === this.range) ? this.range : model.defaultRange;
         this.$head.innerHTML = this.head() + this.rangeButtons(model);
+        this.$intro.innerHTML = this.intro?.() ?? '';
+        this.$foot.innerHTML = this.foot?.() ?? '';
         this.$tip.hidden = true;
         this.plot?.destroy();
         this.plot = null;
