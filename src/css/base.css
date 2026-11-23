@@ -8,6 +8,11 @@
     box-sizing: border-box;
 }
 
+/* hidden means hidden, whatever display a component sets */
+[hidden] {
+    display: none !important;
+}
+
 html {
     font-size: 62.5%; /* 1rem = 10px, as the original app */
     -webkit-text-size-adjust: 100%;

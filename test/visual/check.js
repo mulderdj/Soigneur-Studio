@@ -20,6 +20,7 @@ const PAGES = {
     ride:     '#home-tab-btn',
     riders:   '#home-tab-btn', // the rider menu dialog, opened from the Ride page
     training: '#training-tab-btn',
+    'training-day': '#training-tab-btn', // today's day dialog on the Training page
     workouts: '#workouts-tab-btn',
     settings: '#settings-tab-btn',
 };
@@ -183,7 +184,7 @@ async function main() {
             page.on('pageerror', e => errors.push(e.message));
             page.on('console', m => { if(m.type() === 'error' && !IGNORED_ERRORS.test(m.text())) errors.push(m.text().slice(0, 200)); });
 
-            await page.goto(`${url}/?simulate`, {waitUntil: 'networkidle'});
+            await page.goto(`${url}/?simulate&history`, {waitUntil: 'networkidle'});
             await page.waitForTimeout(800);
             if(theme === 'light') {
                 // the theme switch in Settings cycles DARK → WHITE → AUTO
@@ -198,6 +199,10 @@ async function main() {
                 const where = `${name} @ ${sizeName} ${theme}`;
                 if(!PAGES[name]) { failures.push(`${where}: unknown page`); continue; }
                 if(!(await openTab(page, PAGES[name], size.phone))) { missing.add(name); continue; }
+                if(name === 'training-day') {
+                    await page.locator('.cal-day.is-today .cal-open').first().click();
+                    await page.waitForTimeout(400);
+                }
                 if(name === 'riders') {
                     // while riding, very short screens hide the header (and the pill)
                     const pill = page.locator('.rm--pill').first();
@@ -211,7 +216,7 @@ async function main() {
                 problems.push(...await page.evaluate(inspect, {isPhone: !!size.phone, longValues: name === 'ride'}));
                 await page.screenshot({path: path.join(outDir, `${name}-${sizeName}-${theme}.png`)});
                 for(const p of problems) failures.push(`${where}: ${p}`);
-                if(name === 'riders') {
+                if(name === 'riders' || name === 'training-day') {
                     await page.keyboard.press('Escape');
                     await page.waitForTimeout(200);
                 }
