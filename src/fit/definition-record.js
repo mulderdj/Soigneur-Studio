@@ -65,10 +65,12 @@ function DefinitionRecord(args = {}) {
     // }
     // -> DataView
     function encode(definition, view, i = 0) {
+        const devFields = Array.isArray(definition.dev_fields) ? definition.dev_fields : [];
+        // bit 5 of a definition header says developer field definitions follow
         const header = recordHeader.encode({
             messageType:      _type,
             localMessageType: definition.local_number,
-        });
+        }) | (devFields.length > 0 ? 0x20 : 0);
         const numberOfFields = definition.fields.length;
         const globalNumber   = messageNameToNumber(definition.name);
 
@@ -86,18 +88,16 @@ function DefinitionRecord(args = {}) {
             i += fieldLength;
         });
 
-        // TODO:
-        // if developer fields are defined
-        // write # developer fields
-        // write developer fields definitions
-        if('dev_fields' in definition) {
+        // developer fields: their count, then their definitions (only when
+        // there are any, matching the header flag above)
+        if(devFields.length > 0) {
 
-            const numberOfDeveloperFields = definition.dev_fields.length;
+            const numberOfDeveloperFields = devFields.length;
 
             view.setUint8(i, numberOfDeveloperFields, true);
             i += 1;
 
-            definition.dev_fields.forEach((field) => {
+            devFields.forEach((field) => {
                 fieldDefinition.encode(field, view, i);
                 i += fieldLength;
             });

@@ -20,6 +20,9 @@ describe('Fill - Shift - Enlarge - Fill - Shift', () => {
 
     const moxy = new MoxyGraph();
     moxy.width = 8;
+    // the graph draws into its SVG lines; outside a page it needs its own
+    moxy.$path = Object.fromEntries(['smo2', 'thb', 'heartRate', 'power'].map(k =>
+        [k, document.createElementNS('http://www.w3.org/2000/svg', 'polyline')]));
 
     const power = [
         // path until shift 1
@@ -228,6 +231,8 @@ describe('Fill - Shift - Shrink - Fill - Shift', () => {
 
     const moxy = new MoxyGraph();
     moxy.width = 12;
+    moxy.$path = Object.fromEntries(['smo2', 'thb', 'heartRate', 'power'].map(k =>
+        [k, document.createElementNS('http://www.w3.org/2000/svg', 'polyline')]));
 
     const power = [
         // path until shift 1

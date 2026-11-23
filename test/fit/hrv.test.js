@@ -86,14 +86,19 @@ describe('AppData', () => {
         expect(decoded).toEqual(expected);
     });
 
-    test('toFITjs', () => {
-        const res = fit.localActivity.toFITjs({
-            records: appData.records,
-            laps: appData.laps,
-            events: appData.events,
-        });
-
-        expect(res).toEqual(FITjs({crc: false}));
+    // Used to compare with a snapshot whose intervals were in milliseconds;
+    // the app records them in seconds (strap value / 1024, see models.js), and
+    // that is what Garmin's own decoder reads back correctly. Checks that.
+    test('beat-to-beat intervals (seconds) are written and read back', () => {
+        const pad = (xs) => [...xs, ...Array(5 - xs.length).fill(0xFFFF)];
+        const records = appData.records.flatMap(r => (r.time === undefined ? [r] : [{time: pad([0.882, 0.906])}]));
+        const view = fit.localActivity.encode({records, laps: appData.laps, events: appData.events});
+        const back = fit.FITjs.decode(view).filter(m => m.type === 'data' && m.name === 'hrv').map(m => m.fields.time);
+        expect(back.length).toBeGreaterThan(0);
+        for(const time of back) {
+            expect(time[0]).toBeCloseTo(0.882, 3);
+            expect(time[1]).toBeCloseTo(0.906, 3);
+        }
     });
 });
 

@@ -2,10 +2,8 @@
  * @jest-environment jsdom
  */
 
+import '../training/fake-idb.js'; // fake-indexeddb with a structuredClone shim
 import { idb } from '../../src/storage/idb.js';
-import indexedDB from 'fake-indexeddb';
-
-window.indexedDB = indexedDB;
 
 describe('IDB', () => {
 
@@ -26,11 +24,11 @@ describe('IDB', () => {
     ];
 
     test('open', async () => {
-        let resOpen = await idb.open('store', 1, 'numbers');
+        let resOpen = await idb.open('store', 1, ['numbers']);
 
-        expect(resOpen.constructor.name).toBe('FDBDatabase'); // 'IDBDatabase'
+        expect(resOpen.constructor.name).toMatch(/DBDatabase$/); // IDBDatabase, or fake-indexeddb's
         expect(resOpen.name).toBe('store');
-        expect(resOpen.objectStoreNames).toStrictEqual(['numbers']);
+        expect(Array.from(resOpen.objectStoreNames)).toStrictEqual(['numbers']);
     });
 
     test('add', async () => {

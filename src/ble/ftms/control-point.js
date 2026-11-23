@@ -128,11 +128,22 @@ function PowerTarget() {
         return view.buffer;
     }
 
+    // DataView -> {power: Int}; also how the trainer confirms a new target
+    // (Fitness Machine Status 'Target Power Changed' carries the same layout)
+    function decode(dataview) {
+        const power = spec.decodeField('power', dataview.getUint16(1, true));
+
+        return {
+            power,
+        };
+    }
+
     return Object.freeze({
         opCode,
         length,
         definitions,
         encode,
+        decode,
     });
 }
 

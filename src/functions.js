@@ -75,8 +75,12 @@ function validate(predicates = [], value, fallback = undefined) {
 }
 
 // Collections
+// undefined is empty; objects, arrays and strings by their size; anything
+// else (null, numbers) is a mistake and throws
 function empty(x) {
+    if(x === undefined) return true;
     if(isObject(x)) return (Object.keys(x).length === 0);
+    if(typeof x?.length !== 'number') throw new TypeError(`empty: not a collection: ${x}`);
     return x.length === 0;
 };
 
@@ -88,20 +92,21 @@ const nth = curry2(function(offset, xs) {
     return xs[i];
 });
 
+// undefined has no elements: undefined; null or a number still throws
 function first(xs) {
-    return xs.at(0);
+    return xs === undefined ? undefined : xs.at(0);
 }
 
 function second(xs) {
-    return xs.at(1);
+    return xs === undefined ? undefined : xs.at(1);
 }
 
 function third(xs) {
-    return xs.at(2);
+    return xs === undefined ? undefined : xs.at(2);
 }
 
 function last(xs) {
-    return xs.at(-1);
+    return xs === undefined ? undefined : xs.at(-1);
 }
 
 const prop = curry2(function(p, x) {
@@ -180,7 +185,7 @@ function max(xs, prop = false) {
     if(prop !== false) {
         return xs.reduce( (acc,v,i) => v[prop] > acc ? v[prop] : acc, 0);
     } else {
-        return Math.max(xs);
+        return Math.max(...xs);
     }
 };
 
