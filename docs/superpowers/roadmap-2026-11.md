@@ -92,6 +92,8 @@ Sources:
 - **Later:** a 2-minute morning HRV measurement with the chest strap. Auuki already records beat-to-beat intervals.
 
 ### 6. The model of the rider
+Status (2026-11-24): first part built on branch `rider-model`: best power at 21 durations (1 s to 2 h), fitted CP and W′ (Ask me / Automatically for W′bal), the power profile, and the fitted curve on the power curve. Still to come: durability, the CP and W′ trend, the rider comparing with their own best.
+
 - **Summary v2:** best power at about 20 durations from 1 s to 2 h, plus best 5 and 20 min after 1,000, 2,000 and 3,000 kJ (durability). Auuki rides are read back from their `.fit`; intervals.icu rides use their power curve; Garmin rides use their file.
 - **Fitted CP and W′** (critical-power model over 2–20 min efforts, recent 90 days). They feed the W′bal panel, which asks first before replacing the typed-in value.
 - **Power profile:** strengths and limiters compared with the rider's own best and with standard tables.

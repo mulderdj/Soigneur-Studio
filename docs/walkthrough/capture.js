@@ -127,7 +127,7 @@ async function shots(browser) {
     await shotOf(page.locator('training-calendar'), 'training-calendar');
     for(const [sel, name] of [['volume-card', 'progress-volume'], ['curve-card', 'progress-curve'],
                               ['zones-card', 'progress-zones'], ['ftp-card', 'progress-ftp'], ['form-card', 'training-form'],
-                              ['health-card', 'training-health']]) {
+                              ['health-card', 'training-health'], ['model-card', 'model-cp'], ['profile-card', 'model-profile']]) {
         await page.locator(sel).scrollIntoViewIfNeeded();
         await shotOf(page.locator(sel), name);
     }

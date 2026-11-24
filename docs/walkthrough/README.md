@@ -149,9 +149,19 @@ Fitness, fatigue and form need a training load (TSS) for every workout, also one
 | <a href="img/progress-zones.png"><img src="img/progress-zones.png" alt="Time in zones" width="380"></a> | <a href="img/progress-ftp.png"><img src="img/progress-ftp.png" alt="FTP trend" width="380"></a> |
 
 - **Weekly volume**: hours, TSS or kJ for the last 12 weeks or the year.
-- **Power curve**: your best 5 s, 1, 5, 20 and 60 min over the last 6 weeks against all time, in W or W/kg.
+- **Power curve**: your best power from 1 s to 2 h over the last 6 weeks against all time, in W or W/kg, with your rider model's curve dashed over it (2–20 min).
 - **Time in zones**: per week or per month, the zones stacked.
 - **FTP trend**: estimated from your best 20 and 60 minutes; the read-out names the effort each estimate comes from. When the estimate is more than 5 % off your FTP, the card offers to update it ("Use 213 W").
+
+### Rider model
+
+| | |
+|---|---|
+| <a href="img/model-cp.png"><img src="img/model-cp.png" alt="The CP and W′ card: CP, W′, how well they fit, and the offer to use them for W′bal" width="380"></a> | <a href="img/model-profile.png"><img src="img/model-profile.png" alt="The power profile: 5 s, 1 min, 5 min and FTP in W/kg with a category each" width="380"></a> |
+
+- **CP and W′**: fitted from your best efforts of 2 to 20 minutes in the last 90 days (work = CP × time + W′). The card shows the fit (R²), the efforts it used with their ride and day, and CP against your FTP. When something is missing, for example a hard effort of 12 to 20 minutes, it says what.
+- **W′bal from the model**: with *Ask me* (the default) the card offers the fitted values when they differ from what W′bal uses (*Use for W′bal*); *Back to my settings* goes back to your FTP and the W′ you typed. With *Automatically* W′bal follows the model as it changes. The model is never applied during a ride, and it never changes your FTP.
+- **Power profile**: your best 5 s, 1 min and 5 min and your FTP in W/kg, each with a category (*Untrained* to *World class*) from the CTS chart after Allen & Coggan, men's or women's table, and a sentence on your strongest duration and your limiter. It needs your weight.
 
 ### Edit layout
 
@@ -179,7 +189,7 @@ Fitness, fatigue and form need a training load (TSS) for every workout, also one
 <a href="img/analysis-cards.png"><img src="img/analysis-cards.png" alt="Endurance, W′bal and matches, best efforts and time in zones" width="720"></a>
 
 - **Endurance:** decoupling (power per heartbeat, second half against first, the first 10 minutes left out; only on steady rides of 45 minutes or more) and efficiency factor (NP ÷ average heart rate).
-- **W′bal and matches:** the lowest point and each match (an effort above FTP that cost 2 kJ or more); tap a match to zoom to it. The analysis uses the FTP the ride was ridden with.
+- **W′bal and matches:** the lowest point and each match (an effort above FTP that cost 2 kJ or more); tap a match to zoom to it. The analysis uses the CP and W′ that W′bal uses today: your rider model's, or your FTP and typed W′; the card says which.
 - **Durability:** your best 5 and 20 minutes after 1,000, 2,000 and 3,000 kJ, against your best fresh in the same ride.
 - **Best efforts** from 5 s to 60 min, marked *Best ever* or *Best in 6 weeks*, and **time in zones** for power and heart rate (from your threshold heart rate).
 
