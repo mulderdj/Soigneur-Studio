@@ -35,6 +35,9 @@ class SensorPanel extends HTMLElement {
             xf.sub(`${id}:batteryLevel`, level => this.set(id, {battery: level}));
         }
         xf.sub('ui:sensor-panel', ({for: id, anchor} = {}) => this.open(id, anchor));
+        // the trainer's controls go back into the page at once (inside the closed
+        // panel), so they keep following the mode and target while it is closed
+        this.frame();
     }
 
     set(id, change) {

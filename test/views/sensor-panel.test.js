@@ -71,3 +71,12 @@ describe('<sensor-panel>', () => {
         expect(q(el, '[data-k="title"]').textContent).toBe('Heart rate');
     });
 });
+
+describe('the trainer controls while the panel is closed', () => {
+    test('they are in the page from the start, so they keep up with the target', () => {
+        const el = mount();
+        expect(el.querySelector('dialog [data-sp-trainer]')).not.toBeNull();
+        expect(el.querySelector('dialog').hasAttribute('open')).toBe(false);
+        expect(document.contains(el.querySelector('.mode-selector'))).toBe(true);
+    });
+});
