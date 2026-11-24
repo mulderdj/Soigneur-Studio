@@ -36,7 +36,7 @@ function fakes() {
             return state.garmin[m[1]] ? send(200, state.garmin[m[1]], 'application/x-zip-compressed') : send(404, '{}', 'application/json');
         }
         if((m = /^\/api\/v1\/activity\/(i\d+)\/fit-file$/.exec(url.pathname))) {
-            if(state.strava.has(m[1])) return send(422, JSON.stringify({error: 'Strava activities not supported'}), 'application/json');
+            if(state.strava.has(m[1])) return send(state.stravaStatus ?? 422, JSON.stringify({error: 'Strava activities not supported'}), 'application/json');
             return state.icu[m[1]] ? send(200, state.icu[m[1]]) : send(404, '{}', 'application/json');
         }
         if((m = /^\/api\/v1\/activity\/(i\d+)$/.exec(url.pathname))) {
@@ -103,6 +103,19 @@ test('an intervals.icu ride: its .fit; one from Strava says so', async () => {
         assert.equal(s.status, 404);
         assert.equal(s.json.reason, 'strava');
     } finally { t.stop(); }
+});
+
+test('a Strava ride is recognised whatever intervals.icu answers to the download (404, 403, 422)', async () => {
+    for(const status of [404, 403, 422]) {
+        const t = await setup();
+        try {
+            t.connect('intervals', {apiKey: 'icu_x'});
+            t.fake.state.stravaStatus = status;
+            const s = await t.call('GET', '/api/me/rides/icu-i333/file', {token: t.token});
+            assert.equal(s.json.reason, 'strava', `status ${status}`);
+            assert.ok(t.app.db.prepare("SELECT 1 FROM connections WHERE service = 'intervals'").get(), 'the connection stays');
+        } finally { t.stop(); }
+    }
 });
 
 test('reasons: not connected, refused, not found, unreadable', async () => {

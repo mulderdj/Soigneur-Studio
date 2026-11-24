@@ -46,6 +46,17 @@ describe('records to 1 s samples', () => {
         expect(r.laps).toEqual([{start: 0, end: 1282}, {start: 1283, end: 2972}]);
     });
 
+    test('a short auto-pause the file marks with timer events is a pause, not a held line', () => {
+        const records = [];
+        for(let i = 0; i < 60; i++) records.push({timestamp: T + i * 1000, power: 200, heart_rate: 130, cadence: 85, speed: 8, distance: i * 8});
+        for(let i = 68; i < 120; i++) records.push({timestamp: T + i * 1000, power: 200, heart_rate: 130, cadence: 85, speed: 8, distance: i * 8});
+        const events = [{timestamp: T, type: 'start'}, {timestamp: T + 60000, type: 'stop'}, {timestamp: T + 68000, type: 'start'}];
+        const view = fit.localActivity.encode({records, laps: [], events, ftp: 250});
+        const r = readRide(view);
+        expect(r.pauses).toEqual([{start: 60, end: 68}]);
+        expect(r.samples[63].power).toBeNull();
+    });
+
     test('no records: an empty ride', () => {
         expect(samplesFromRecords([]).samples).toEqual([]);
     });

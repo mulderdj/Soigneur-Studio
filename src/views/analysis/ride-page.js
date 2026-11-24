@@ -56,9 +56,15 @@ class RidePage extends HTMLElement {
         window.addEventListener('ride:open', e => { this.from = e.detail.from; this.open(e.detail.id); }, signal);
         window.addEventListener('hashchange', () => this.fromHash(), signal);
         window.addEventListener('popstate', () => this.fromHash(), signal);
-        // the app remembers its page: back on this one with no ride in the link → Training
         xf.sub('db:page', page => {
+            // the app remembers its page: back on this one with no ride in the link → Training
             if(page === 'analysis' && !rideFromHash()) setTimeout(() => { if(!rideFromHash()) xf.dispatch('ui:page-set', 'training'); }, 0);
+            // left by a tab: the ride goes from the link (a reload doesn't reopen it)
+            if(page !== 'analysis' && rideFromHash()) {
+                this.showing = false;
+                this.rideId = null;
+                history.replaceState(null, '', location.pathname + location.search);
+            }
         }, signal);
         this.innerHTML = '';
         setTimeout(() => this.fromHash(), 0);          // the app opened with a ride's link
@@ -71,40 +77,52 @@ class RidePage extends HTMLElement {
 
     fromHash() {
         const id = rideFromHash();
-        if(!id || id === this.id) return;
+        // Back (the browser's or the phone's) took the ride out of the link
+        if(!id) {
+            if(this.showing) { this.showing = false; this.rideId = null; xf.dispatch('ui:page-set', this.from ?? lastFrom ?? 'training'); }
+            return;
+        }
+        if(id === this.rideId) return;
         xf.dispatch('ui:page-set', 'analysis');
         this.open(id);
     }
 
     back() {
         const to = this.from ?? lastFrom ?? 'training';
-        this.id = null;
+        this.rideId = null;
+        this.showing = false;
         history.replaceState(null, '', location.pathname + location.search);
         xf.dispatch('ui:page-set', to);
     }
 
     async open(id) {
         const src = RidePage.source;
-        this.id = id;
+        this.rideId = id;
+        this.showing = true;
         const token = this.token = Symbol();
         const summary = src ? await src.summary(id) : null;
         if(token !== this.token) return;
         if(!summary) { this.renderNotFound(); return; }
         this.summary = summary;
         this.renderShell(summary);
-        const [got, context] = await Promise.all([src.ride(id), src.context(summary)]);
-        if(token !== this.token) return;
-        if(!got.ride) { this.renderProblem(problemText(got.reason, summary)); return; }
-        const ride = got.ride;
-        // the FTP the ride was ridden with (kept in its summary), else today's
-        context.ftp = summary.ftp > 0 ? summary.ftp : context.ftp;
-        const analysis = analyseRide({
-            samples: ride.samples, pauses: ride.pauses ?? [], laps: ride.laps ?? [], workout: context.workout,
-            ftp: context.ftp, weight: context.weight, wprime: context.wprime, lthr: context.lthr,
-            summaries: context.summaries, day: summary.day, id,
-        });
-        this.ride = ride; this.analysis = analysis; this.context = context;
-        this.renderRide();
+        try {
+            const [got, context] = await Promise.all([src.ride(id), src.context(summary)]);
+            if(token !== this.token) return;
+            if(!got.ride) { this.renderProblem(problemText(got.reason, summary)); return; }
+            const ride = got.ride;
+            // the FTP the ride was ridden with (kept in its summary), else today's
+            context.ftp = summary.ftp > 0 ? summary.ftp : context.ftp;
+            const analysis = analyseRide({
+                samples: ride.samples, pauses: ride.pauses ?? [], laps: ride.laps ?? [], workout: context.workout,
+                ftp: context.ftp, weight: context.weight, wprime: context.wprime, lthr: context.lthr,
+                summaries: context.summaries, day: summary.day, id,
+            });
+            this.ride = ride; this.analysis = analysis; this.context = context;
+            this.renderRide();
+        } catch(e) {
+            console.error(':ride-page', e);
+            if(token === this.token) this.renderProblem('Something went wrong while analysing this ride.');
+        }
     }
 
     // --- rendering ---

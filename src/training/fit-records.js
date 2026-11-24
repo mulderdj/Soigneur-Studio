@@ -64,7 +64,25 @@ function altitude(x) {
 
 // records ({timestamp, power, heart_rate, …}) → 1 s samples {t, power, heartRate, cadence,
 // speed, distance, altitude}; laps ({start_time, timestamp}) → [{start, end}] in seconds
-function samplesFromRecords(records = [], lapRecords = []) {
+const STOP = new Set([1, 4, 8, 9, 'stop', 'stop_all', 'stop_disable', 'stop_disable_all']);
+const START = new Set([0, 'start']);
+const isTimer = e => e?.event === 0 || e?.event === 'timer' || e?.event === undefined;
+
+// [{start, end}] in ms from the file's timer stop/start events (the app's
+// pause and auto-pause, a head unit's auto-pause)
+function timerPauses(events = []) {
+    const out = [];
+    let stopped = null;
+    for(const e of [...events].filter(isTimer).sort((a, b) => toMs(a.timestamp) - toMs(b.timestamp))) {
+        const ms = toMs(e.timestamp);
+        if(!Number.isFinite(ms)) continue;
+        if(STOP.has(e.event_type)) { if(stopped === null) stopped = ms; }
+        else if(START.has(e.event_type) && stopped !== null) { if(ms > stopped) out.push({start: stopped, end: ms}); stopped = null; }
+    }
+    return out;
+}
+
+function samplesFromRecords(records = [], lapRecords = [], eventRecords = []) {
     const rows = records
         .map(f => ({ms: toMs(f?.timestamp), f}))
         .filter(r => Number.isFinite(r.ms))
@@ -97,6 +115,22 @@ function samplesFromRecords(records = [], lapRecords = []) {
         samples[t] = sample(t);
         prev = t;
     }
+    // pauses the file marks with timer events, however short
+    for(const p of timerPauses(eventRecords)) {
+        const a = Math.max(0, sec(p.start)), b = Math.min(samples.length, sec(p.end));
+        if(b <= a) continue;
+        for(let t = a; t < b; t++) samples[t] = {t, ...Object.fromEntries(KEYS.map(k => [k, null]))};
+        pauses.push({start: a, end: b});
+    }
+    pauses.sort((x, y) => x.start - y.start);
+    const merged = [];
+    for(const p of pauses) {
+        const last = merged.at(-1);
+        if(last && p.start <= last.end) last.end = Math.max(last.end, p.end);
+        else merged.push({...p});
+    }
+    pauses.length = 0;
+    pauses.push(...merged);
     const laps = (lapRecords ?? [])
         .map(l => {
             const start = toMs(l?.start_time);
@@ -118,7 +152,7 @@ function readRide(view) {
     }
     const data = decoded.filter(r => r?.type === 'data' && r.fields);
     const of = name => data.filter(r => r.name === name).map(r => r.fields);
-    const out = samplesFromRecords(of('record'), of('lap'));
+    const out = samplesFromRecords(of('record'), of('lap'), of('event'));
     const sport = of('session')[0]?.sport ?? of('sport')[0]?.sport ?? null;
     return {...out, sport: typeof sport === 'string' ? sport : null};
 }

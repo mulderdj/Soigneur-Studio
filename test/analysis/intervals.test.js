@@ -32,6 +32,42 @@ describe('intervals from the workout\'s steps', () => {
     });
 });
 
+describe('workout steps on the laps the app wrote', () => {
+    // the app writes a lap per workout interval; a free ride before the workout is a lap of its own
+    const lapsOf = (w, offset = 0, lengths = null) => {
+        const laps = offset ? [{start: 0, end: offset}] : [];
+        let t = offset;
+        w.intervals.forEach((iv, i) => { const d = lengths?.[i] ?? iv.duration; laps.push({start: t, end: t + d}); t += d; });
+        return laps;
+    };
+    const ridden = (w, offset, lengths) => {
+        const total = offset + w.intervals.reduce((a, iv, i) => a + (lengths?.[i] ?? iv.duration), 0);
+        return Array.from({length: total}, (_, t) => ({t, power: 200, heartRate: 130, cadence: 85, speed: 8, distance: t, altitude: 0}));
+    };
+    test('the workout started 5 min after the clock: the steps start at the workout\'s lap', () => {
+        const w = workout();
+        const samples = ridden(w, 300), laps = lapsOf(w, 300);
+        const {intervals} = intervalsFromSteps(w, samples, {ftp: FTP, pauses: [], laps});
+        expect(intervals[0]).toMatchObject({start: 300, end: 600});
+        expect(intervals.find(i => i.rep === 1)).toMatchObject({start: 600, end: 840});
+    });
+    test('a step skipped with the lap button: that rep is cut short, the next starts where its lap starts', () => {
+        const w = workout();
+        const lengths = w.intervals.map((iv, i) => (i === 3 ? 60 : iv.duration));      // rep 2 (index 3) skipped after 60 s
+        const samples = ridden(w, 0, lengths), laps = lapsOf(w, 0, lengths);
+        const {intervals} = intervalsFromSteps(w, samples, {ftp: FTP, pauses: [], laps});
+        const reps = intervals.filter(i => i.kind === 'work');
+        expect(reps[1]).toMatchObject({start: 720, end: 780, planned: 240});
+        expect(reps[2].start).toBe(780 + 180);
+    });
+    test('laps that don\'t fit the workout (a Garmin auto-lap every 5 km) are not used for it', () => {
+        const w = workout(), {samples, pauses} = rideOf(w);
+        const laps = Array.from({length: 4}, (_, i) => ({start: i * 600, end: (i + 1) * 600}));
+        const {intervals} = intervalsFromSteps(w, samples, {ftp: FTP, pauses, laps});
+        expect(intervals.find(i => i.rep === 1)).toMatchObject({start: 300, end: 540});
+    });
+});
+
 describe('laps and detection', () => {
     test('laps become intervals; one lap is no intervals', () => {
         expect(intervalsFromLaps([{start: 0, end: 300}, {start: 300, end: 600}])).toEqual([{start: 0, end: 300, kind: 'lap', lap: 1}, {start: 300, end: 600, kind: 'lap', lap: 2}]);

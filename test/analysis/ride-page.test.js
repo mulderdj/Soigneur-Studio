@@ -123,4 +123,30 @@ describe('opening a ride', () => {
         await el.open('r2'); await flush(); await flush();
         expect(el.analysis.intervals.find(i => i.kind === 'work').target).toBe(330);
     });
+
+    test('something failing while the ride is read: a problem on the page, not "Reading…" forever', async () => {
+        const src = source({rides: {r1: {...rideOf(workout()), laps: []}}});
+        src.context = async () => { throw new Error('boom'); };
+        const el = page(src);
+        await el.open('r1'); await flush();
+        expect(el.querySelector('.rp-problem')).not.toBeNull();
+        expect(el.textContent).not.toMatch(/Reading the ride/);
+    });
+
+    test('the browser\'s or phone\'s Back from a ride returns to where it was opened from', async () => {
+        const el = page(source({rides: {r1: {...rideOf(workout()), laps: []}}}));
+        openRide('r1', 'workouts'); await flush(); await flush();
+        history.replaceState(null, '', '/');                  // what Back leaves
+        window.dispatchEvent(new PopStateEvent('popstate'));
+        await flush();
+        expect(pageSets.at(-1)).toBe('workouts');
+    });
+
+    test('leaving the ride page by a tab clears the ride from the link', async () => {
+        page(source({rides: {r1: {...rideOf(workout()), laps: []}}}));
+        openRide('r1', 'training'); await flush();
+        xf.dispatch('db:page', {page: 'settings'});
+        await flush();
+        expect(location.hash).toBe('');
+    });
 });

@@ -363,16 +363,18 @@ function createIntervalsSync({db, options = {}}) {
         if(!key) throw Object.assign(new Error('intervals.icu is not connected.'), {reason: 'not-connected'});
         const request = client(key);
         const id = encodeURIComponent(n);
+        let failed = null;
         try {
             const fit = await request('GET', `/api/v1/activity/${id}/fit-file`, undefined, {raw: true});
             if(fit.length > 0) return fit;
         } catch(e) {
-            if(e.revoked) throw Object.assign(new Error(e.message), {reason: 'refused'});
-            if(e.status === 404) throw Object.assign(new Error('intervals.icu doesn\'t know this ride.'), {reason: 'not-found'});
+            failed = e;
         }
-        // no file: from Strava, or refused
+        // no file: a ride from Strava (whatever intervals.icu answered), else why
         const a = await request('GET', `/api/v1/activity/${id}`).catch(() => null);
         if(String(a?.source ?? '').toUpperCase() === 'STRAVA') throw Object.assign(new Error('intervals.icu doesn\'t hand out rides that came from Strava.'), {reason: 'strava'});
+        if(failed?.status === 404) throw Object.assign(new Error('intervals.icu doesn\'t know this ride.'), {reason: 'not-found'});
+        if(failed?.revoked) throw Object.assign(new Error(failed.message), {reason: 'refused'});
         throw Object.assign(new Error('intervals.icu refused to send this ride.'), {reason: 'refused'});
     }
 
