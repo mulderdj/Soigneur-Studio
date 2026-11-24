@@ -10,6 +10,7 @@ import { uuid } from '../storage/uuid.js';
 
 import { workouts as workoutsFile }  from '../workouts/workouts.js';
 import { zwo } from '../workouts/zwo.js';
+import { protocols as testProtocols } from '../tests/protocols.js';
 import { toZwo } from '../workouts/formats.js';
 import { fileHandler } from '../file.js';
 import { Model as Cycling } from '../physics.js';
@@ -699,7 +700,8 @@ class Workouts extends Model {
     }
     defaultValue() {
         const self = this;
-        return workoutsFile.map((w) => Object.assign(self.workoutModel.parse(w), {id: uuid()}));
+        return workoutsFile.map((w) => Object.assign(self.workoutModel.parse(w), {id: uuid()}))
+            .concat(testProtocols());   // the built-in tests (src/tests/protocols.js)
     }
     defaultIsValid(value) {
         const self = this;

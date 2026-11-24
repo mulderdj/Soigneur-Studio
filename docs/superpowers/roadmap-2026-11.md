@@ -118,7 +118,7 @@ Status (2026-11-24): first part built on branch `rider-model`: best power at 21 
 - **Power match:** ERG steered by the pedal or crank power meter instead of the trainer's reading.
 - **Fuelling:** grams of carbohydrate per hour estimated from the work done, with reminders at a set interval.
 - **During the ride:** a lap button, and audio cues before interval changes.
-- **Built-in tests:** ramp, 3 + 12 min and sprint, each updating CP, W′ and zones.
+- **Built-in tests:** ~~ramp, 3 + 12 min and sprint~~ done 2026-11-24 (with 20 min and 2 × 8 min): a result screen offers the CP and W′ or FTP; zones follow the FTP.
 - **Trainer calibration reminders.**
 
 ### 10. Insights

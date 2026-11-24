@@ -495,3 +495,47 @@ div.graph--bar-group {
     background-color: transparent;
     pointer-events: none;
 }
+
+/* ---------- test result (built-in tests) ---------- */
+
+.test-result[open] {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+}
+
+.test-result .card__title { margin: 0; }
+
+.tr-values {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));
+    gap: var(--space-2) var(--space-4);
+    margin: 0;
+}
+
+.tr-values dt {
+    color: var(--muted);
+    font-size: var(--text-s);
+}
+
+.tr-values dd {
+    margin: 0;
+    font-variant-numeric: tabular-nums;
+}
+
+.tr-main dd {
+    font-size: var(--text-l);
+    font-weight: var(--weight-bold);
+}
+
+.tr-note,
+.tr-done { color: var(--muted); }
+
+.tr-done { color: var(--good); }
+
+.tr-actions {
+    display: flex;
+    justify-content: flex-end;
+}
+
+.test-result > .btn { align-self: flex-start; }

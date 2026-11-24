@@ -67,8 +67,8 @@ class Watch {
             self.textEvents = flattenMessages(self.intervals);
             if(workout.meta.category?.toLowerCase().includes("test")) {
                 self.workoutType = "test";
-                // force turn off auto pausing for Test Category workouts
-                xf.dispatch(`sources`, {autoPause: false});
+                // no auto-pause during a test (onPower1s); the rider's own
+                // setting is left as it is, so it applies again afterwards
             } else {
                 self.workoutType = "workout";
             }
@@ -110,7 +110,7 @@ class Watch {
         this.autoStart = value.autoStart ?? this.autoStart;
     }
     onPower1s(power) {
-        if(this.autoPause) {
+        if(this.autoPause && this.workoutType !== 'test') {
             if(power === 0 && this.isStarted()) {
                 this.autoPauseCounter += 1;
             } else {
