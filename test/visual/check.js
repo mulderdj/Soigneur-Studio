@@ -84,7 +84,8 @@ function inspect({isPhone, longValues}) {
     for(const el of document.querySelectorAll('.card, .tile, .panel, .list-row, .btn')) {
         if(!visible(el) || el.closest('[data-check-ignore]')) continue;
         const r = el.getBoundingClientRect();
-        if(r.right > window.innerWidth + 1 && !el.closest('.ride__stats')) {
+        // the stats panels and the Ride screens out of view are swiped to
+        if(r.right > window.innerWidth + 1 && !el.closest('.ride__stats') && !el.closest('.rs-screen[aria-hidden="true"]')) {
             problems.push(`runs off the right edge (${Math.round(r.right)}px > ${window.innerWidth}px): ${label(el)}`);
         }
     }
@@ -225,29 +226,29 @@ async function main() {
             await context.close();
         }
     }
-    // a stored tile choice from a wider screen (SmO2/THb) must not take the
-    // phone's Speed and Distance slots
-    {
+    // the phone's default Ride screen: the tiles of the old fixed layout, live
+    // (not placeholders), and a broken saved layout still gives tiles
+    for(const saved of [null, '{"version":1,"ride":"broken"}']) {
         const context = await browser.newContext({viewport: {width: 390, height: 844}, hasTouch: true});
-        await context.addInitScript(() => {
-            try { localStorage.setItem('dataTileSwitch', '1'); } catch(e) {}
+        await context.addInitScript((saved) => {
+            try { if(saved) localStorage.setItem('layouts', saved); } catch(e) {}
             if(!('bluetooth' in navigator)) {
                 Object.defineProperty(navigator, 'bluetooth', {value: {
                     getAvailability: async () => false, getDevices: async () => [],
                     addEventListener() {}, removeEventListener() {},
                 }});
             }
-        });
+        }, saved);
         const page = await context.newPage();
         await page.goto(`${url}/?simulate`, {waitUntil: 'networkidle'});
         await page.waitForTimeout(800);
         const shown = await page.evaluate(() => Object.fromEntries(
-            ['speed', 'distance', 'smo2', 'thb'].map(t => {
-                const el = document.querySelector(`#data-tile--${t}`);
+            ['power', 'target', 'heart-rate', 'cadence', 'speed', 'distance'].map(t => {
+                const el = document.querySelector(`[data-screen="0"] #data-tile--${t}`);
                 return [t, !!el && getComputedStyle(el).display !== 'none'];
             })));
-        if(!shown.speed || !shown.distance) failures.push(`ride @ phone with stored tile choice 1: Speed/Distance hidden (${JSON.stringify(shown)})`);
-        if(shown.smo2 || shown.thb) failures.push(`ride @ phone with stored tile choice 1: SmO2/THb shown (${JSON.stringify(shown)})`);
+        const label = saved ? 'a broken saved layout' : 'the default layout';
+        if(Object.values(shown).some(v => !v)) failures.push(`ride @ phone with ${label}: tiles missing on the first screen (${JSON.stringify(shown)})`);
         await context.close();
     }
 

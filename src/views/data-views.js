@@ -1087,55 +1087,6 @@ class SwitchGroup extends HTMLElement {
     }
 }
 
-class DataTileSwitchGroup extends SwitchGroup {
-    postInit() {
-        this.prop = 'dataTileSwitch';
-        this.effect = 'ui:data-tile-switch-set';
-    }
-    config() {
-        this.$speed    = document.querySelector('#data-tile--speed');     // tab 0
-        this.$distance = document.querySelector('#data-tile--distance');  // tab 0
-        this.$powerAvg = document.querySelector('#data-tile--power-avg'); // tab 1
-        this.$slope    = document.querySelector('#data-tile--slope');     // tab 1
-        this.$smo2     = document.querySelector('#data-tile--smo2');      // tab 2
-        this.$thb      = document.querySelector('#data-tile--thb');       // tab 2
-        this.$coreBodyTemperature =
-            document.querySelector('#data-tile--core-body-temperature');  // tab 3
-        this.$skinTemperature =
-            document.querySelector('#data-tile--skin-temperature');       // tab 3
-
-        this.renderEffect(this.state);
-    }
-    renderEffect(state) {
-        if(equals(state, 0)) {
-            this.$speed.classList.add('active');
-            this.$distance.classList.add('active');
-            this.$slope.classList.add('active');
-            this.$powerAvg.classList.add('active');
-
-            this.$smo2.classList.remove('active');
-            this.$thb.classList.remove('active');
-            this.$coreBodyTemperature.classList.remove('active');
-            this.$skinTemperature.classList.remove('active');
-        }
-        if(equals(state, 1)) {
-            this.$smo2.classList.add('active');
-            this.$thb.classList.add('active');
-            this.$coreBodyTemperature.classList.add('active');
-            this.$skinTemperature.classList.add('active');
-
-            this.$speed.classList.remove('active');
-            this.$distance.classList.remove('active');
-            this.$powerAvg.classList.remove('active');
-            this.$slope.classList.remove('active');
-        }
-        return;
-    }
-}
-
-customElements.define('data-tile-switch-group', DataTileSwitchGroup);
-
-
 class NavigationStack extends HTMLElement {
     constructor() {
         super();
@@ -1652,7 +1603,6 @@ export {
     InstantPowerGraph,
 
     SwitchGroup,
-    DataTileSwitchGroup,
 
 
     NavigationStack,

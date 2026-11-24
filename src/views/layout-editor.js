@@ -99,10 +99,11 @@ class LayoutEditor {
                     <button type="button" class="le-btn le-handle" data-le-handle aria-label="Move ${name}" title="Drag, or use the arrow keys">
                         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5h2v2H9zm4 0h2v2h-2zM9 11h2v2H9zm4 0h2v2h-2zm-4 6h2v2H9zm4 0h2v2h-2z"/></svg>
                     </button>
-                    ${sizes.length > 1 ? `<button type="button" class="le-btn le-size" data-le-size aria-label="Size of ${name}: ${esc(size)}">${esc(SIZE_LABEL[size] ?? size)}</button>` : ''}
+                    <span class="le-name">${name}</span>
                     <button type="button" class="le-btn le-hide" data-le-hide aria-label="Remove ${name}">
                         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6.4 5 5 6.4 10.6 12 5 17.6 6.4 19l5.6-5.6 5.6 5.6 1.4-1.4-5.6-5.6L19 6.4 17.6 5 12 10.6z"/></svg>
                     </button>
+                    ${sizes.length > 1 ? `<button type="button" class="le-btn le-size" data-le-size aria-label="Size of ${name}: ${esc(size)}">${esc(SIZE_LABEL[size] ?? size)}</button>` : ''}
                 </div>`);
         }
         if(this.focusId) {

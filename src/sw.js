@@ -1,4 +1,4 @@
-const cacheName = 'soigneur-studio-v009';
+const cacheName = 'soigneur-studio-v010';
 const resources = [
     './',
     'index.html',

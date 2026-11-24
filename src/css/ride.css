@@ -12,18 +12,15 @@
 
 /* ---------- frame ---------- */
 
+/* header, the rider's screens (see ride-screens.js), the trainer controls */
 .ride {
     display: grid;
     grid-template-columns: minmax(0, 1fr);
-    grid-template-rows: auto auto auto minmax(80px, 1fr) 48px auto minmax(120px, 1.25fr);
+    grid-template-rows: auto minmax(0, 1fr) auto;
     grid-template-areas:
         "header"
-        "hero"
-        "metrics"
-        "chart"
-        "workout"
-        "modes"
-        "stats";
+        "screens"
+        "modes";
     gap: var(--space-2);
     height: calc(100dvh - var(--app-bar-h) - env(safe-area-inset-bottom, 0px));
     padding: var(--space-2);
@@ -31,14 +28,10 @@
 }
 
 .ride__header  { grid-area: header; }
-.ride__hero    { grid-area: hero; }
-.ride__metrics { grid-area: metrics; }
-.ride__chart   { grid-area: chart; }
-.ride__workout { grid-area: workout; }
+.ride__screens { grid-area: screens; }
 .ride__modes   { grid-area: modes; }
-.ride__moxy    { grid-area: chart; }
-.ride__stats   { grid-area: stats; }
-.ride__pager   { grid-area: stats; }
+.ride__moxy    { grid-area: screens; }
+.ride__pool    { display: none; }
 
 /* ---------- header ---------- */
 
@@ -47,6 +40,15 @@
     align-items: center;
     gap: var(--space-2);
     min-width: 0;
+}
+
+.ride__header .ride__layout {
+    margin-left: auto;
+}
+
+.ride__header .ride__layout[aria-pressed="true"] {
+    background-color: var(--surface-2);
+    color: var(--accent);
 }
 
 .ride__header .connection-switch {
@@ -67,12 +69,6 @@
 }
 
 /* ---------- hero: power and target ---------- */
-
-.ride__hero {
-    display: grid;
-    grid-template-columns: minmax(0, 2.2fr) minmax(0, 1fr);
-    gap: var(--space-2);
-}
 
 .ride .tile--hero {
     --zone-color: var(--line);
@@ -157,72 +153,244 @@ body.white-theme .ride .tile--hero .tile__value {
     cursor: pointer;
 }
 
-/* ---------- metric grid ---------- */
+/* ---------- screens ---------- */
 
-.ride__metrics {
-    display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+ride-screens {
+    display: flex;
+    flex-direction: column;
     gap: var(--space-2);
+    min-height: 0;
 }
 
-.ride__metrics .tile {
+/* the screens side by side; one in view, swipe for the next */
+.rs-track {
+    flex: 1;
+    display: flex;
+    min-height: 0;
+    overflow-x: auto;
+    overflow-y: hidden;
+    overscroll-behavior-x: contain;
+    scroll-snap-type: x mandatory;
+    scrollbar-width: none;
+}
+
+.rs-track::-webkit-scrollbar { display: none; }
+
+.rs-screen {
+    flex: 0 0 100%;
+    display: grid;
+    grid-template-columns: repeat(var(--cols, 3), minmax(0, 1fr));
+    grid-auto-rows: auto;
+    align-content: start;
+    gap: var(--space-2);
+    min-width: 0;
+    min-height: 0;
+    overflow-y: auto;
+    scroll-snap-align: start;
+    scroll-snap-stop: always;
+    scrollbar-width: thin;
+    scrollbar-color: var(--line) transparent;
+}
+
+.rs-slot {
+    position: relative;
+    display: flex;
+    min-width: 0;        /* no min-height: 0, or a screen of fixed height squeezes its rows to nothing */
+}
+
+.rs-slot > * {
+    flex: 1;
+    min-width: 0;
+}
+
+.rs-slot.is-clipped {
+    visibility: hidden;
+}
+
+.rs-empty {
+    grid-column: 1 / -1;
+    align-self: center;
+    padding: var(--space-5);
+    color: var(--muted);
+    text-align: center;
+}
+
+.rs-placeholder .tile__label {
+    color: var(--muted);
+}
+
+.rs-live {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+}
+
+/* tile sizes: numbers grow with their tile (the number tokens follow the tile's width) */
+.ride .tile {
     min-height: 64px;
     padding: var(--space-2) var(--space-3);
 }
 
-.ride__metrics .tile__label {
+.ride .tile__label {
     font-size: var(--text-xs);
+}
+
+.rs-slot[data-size="wide"] .tile__value {
+    font-size: clamp(28px, 24cqi, 110px);
+}
+
+.rs-slot[data-size="large"] .tile__value,
+.ride .tile--hero .tile__value {
+    font-size: var(--num-hero);
+}
+
+.rs-slot[data-size="small"] .tile--hero .tile__value {
+    font-size: var(--num-tile);
+}
+
+.rs-slot[data-size="large"] .tile {
+    min-height: 120px;
 }
 
 .ride #data-tile--elapsed-time .tile__value {
     font-size: var(--num-tile-long);
 }
 
-/* the small tiles take turns (data-tile switch); on a phone two of them fit */
-#data-tile--speed:not(.active),
-#data-tile--distance:not(.active),
-#data-tile--slope:not(.active),
-#data-tile--power-avg:not(.active),
-#data-tile--smo2:not(.active),
-#data-tile--thb:not(.active),
-#data-tile--core-body-temperature:not(.active),
-#data-tile--skin-temperature:not(.active) {
-    display: none;
+.rs-slot[data-size="large"] #data-tile--elapsed-time .tile__value {
+    font-size: clamp(40px, 18cqi, 160px);
 }
 
-.ride #data-tile--slope,
-.ride #data-tile--power-avg,
-.ride #data-tile--core-body-temperature,
-.ride #data-tile--skin-temperature,
-.ride .data-tile--switch--group {
-    display: none;
+.rs-slot[data-tile="chart"] {
+    min-height: clamp(140px, 26dvh, 460px);
 }
 
-.data-tile--switch--group {
+.rs-slot[data-tile="workout"] {
+    min-height: 88px;
+}
+
+/* ---------- edit layout ---------- */
+
+.rs-edit {
     display: flex;
+    flex-wrap: wrap;
     align-items: center;
-    justify-content: center;
-    gap: var(--space-1);
+    justify-content: space-between;
+    gap: var(--space-2);
+    padding: var(--space-2) var(--space-3);
+    border: var(--line-w) solid var(--accent);
+    border-radius: var(--radius-m);
+    background-color: var(--surface);
 }
 
-.data-tile--switch {
+.rs-edit[hidden] { display: none; }
+
+.rs-edit__note {
+    color: var(--muted);
+    font-size: var(--text-s);
+}
+
+.rs-edit__actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-2);
+}
+
+.rs-screen.is-editing .rs-slot {
+    min-height: 104px;
+    outline: var(--line-w) dashed var(--line);
+    outline-offset: 2px;
+    border-radius: var(--radius-m);
+}
+
+.le-bar {
+    position: absolute;
+    inset: 0;
+    z-index: 2;
     display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    grid-template-rows: auto auto;
+    align-content: space-between;
+    gap: 2px;
+    padding: 2px;
+    border-radius: var(--radius-m);
+    background-color: color-mix(in srgb, var(--surface-2) 90%, transparent);
+}
+
+.le-name {
+    align-self: center;
+    overflow: hidden;
+    color: var(--ink);
+    font-size: var(--text-xs);
+    font-weight: var(--weight-bold);
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.le-btn {
+    display: inline-grid;
     place-items: center;
-    width: var(--tap);
-    height: var(--tap);
+    min-width: var(--tap);
+    min-height: var(--tap);
+    padding: 0 var(--space-2);
+    border: 0;
+    border-radius: var(--radius-s);
+    background: none;
+    color: var(--ink);
+    font-size: var(--text-s);
+    font-weight: var(--weight-bold);
     cursor: pointer;
 }
 
-.data-tile--switch--icon {
-    width: var(--space-3);
-    height: var(--space-3);
-    border: var(--focus-w) solid var(--muted);
-    border-radius: var(--radius-pill);
+.le-btn svg { width: 22px; height: 22px; fill: currentColor; }
+.le-btn:hover { background-color: var(--surface); }
+.le-handle { cursor: grab; touch-action: none; }
+.le-size { grid-column: 1 / -1; }
+
+.le-dragging { opacity: 0.4; }
+
+.le-drop {
+    outline: var(--focus-w) solid var(--accent) !important;
 }
 
-.data-tile--switch.active .data-tile--switch--icon {
-    background-color: var(--ink);
-    border-color: var(--ink);
+.rs-screen[data-le-edge="left"]  { box-shadow: inset var(--space-2) 0 0 var(--accent); }
+.rs-screen[data-le-edge="right"] { box-shadow: inset calc(-1 * var(--space-2)) 0 0 var(--accent); }
+
+@media (prefers-reduced-motion: no-preference) {
+    .rs-track { scroll-behavior: smooth; }
+}
+
+.rs-tray__title {
+    margin-bottom: var(--space-3);
+    font-size: var(--text-l);
+}
+
+.rs-tray__list {
+    display: grid;
+    gap: var(--space-2);
+    max-height: 60dvh;
+    margin-bottom: var(--space-4);
+    overflow-y: auto;
+}
+
+.rs-tray__item {
+    display: grid;
+    gap: 2px;
+    min-height: var(--tap);
+    padding: var(--space-2) var(--space-3);
+    border: var(--line-w) solid var(--line);
+    border-radius: var(--radius-s);
+    background-color: var(--surface-2);
+    color: var(--ink);
+    text-align: left;
+    cursor: pointer;
+}
+
+.rs-tray__item span {
+    color: var(--muted);
+    font-size: var(--text-s);
 }
 
 /* ---------- live chart ---------- */
@@ -359,8 +527,10 @@ body.white-theme .ride .tile--hero .tile__value {
     pointer-events: none;
 }
 
-/* countdown and workout text cues show on top of the chart */
+/* countdown and workout text cues: a band along the bottom of the screens */
 .ride__moxy {
+    align-self: end;
+    height: clamp(96px, 28%, 200px);
     position: relative;
     z-index: 1;
     pointer-events: none;
@@ -521,7 +691,17 @@ body.white-theme .ride .tile--hero .tile__value {
 
 /* ---------- statistics panels ---------- */
 
+/* the panels and their dots are one tile */
+.ride__stats-tile {
+    display: grid;
+    grid-template-areas: "stats";
+    min-height: 260px;
+}
+
+.ride__stats-tile > * { grid-area: stats; }
+
 .ride__stats {
+    grid-area: stats;
     display: flex;
     gap: var(--space-2);
     min-height: 0;
@@ -872,40 +1052,20 @@ body.white-theme .ride .tile--hero .tile__value {
     }
 }
 
-/* ---------- tablet ---------- */
+/* ---------- wider screens: panels side by side, bigger tiles ---------- */
 
 @media (min-width: 600px) {
     .ride {
-        grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr);
-        grid-template-rows: auto auto 300px 96px auto auto;
-        grid-template-areas:
-            "header  header"
-            "hero    metrics"
-            "chart   chart"
-            "workout workout"
-            "modes   modes"
-            "stats   stats";
         gap: var(--space-3);
-        height: auto;
         padding: var(--space-3);
     }
 
-    .ride__hero {
-        grid-template-columns: minmax(0, 1fr);
-        grid-template-rows: minmax(0, 1fr) auto;
+    .rs-screen {
+        gap: var(--space-3);
     }
 
-    .ride__metrics {
-        grid-template-columns: repeat(3, minmax(0, 1fr));
-    }
-
-    .ride__metrics .tile {
-        min-height: 80px;
-    }
-
-    .ride__metrics .tile__label {
-        font-size: var(--text-s);
-    }
+    .ride .tile { min-height: 80px; }
+    .ride .tile__label { font-size: var(--text-s); }
 
     .ride__modes .targets--cont {
         justify-content: space-between;
@@ -915,52 +1075,38 @@ body.white-theme .ride .tile--hero .tile__value {
         flex: 0 1 320px;
     }
 
+    .ride__stats-tile {
+        min-height: 0;
+    }
+
     .ride__stats {
         display: grid;
-        grid-template-columns: repeat(2, minmax(0, 1fr));
+        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
         gap: var(--space-3);
         overflow: visible;
         scroll-snap-type: none;
     }
 
     .ride__stats > .panel {
+        padding-bottom: var(--space-3);
         overflow: visible;
     }
 
     .ride__pager {
         display: none;
     }
+}
 
-    .ride #data-tile--slope,
-    .ride #data-tile--power-avg,
-    .ride #data-tile--core-body-temperature,
-    .ride #data-tile--skin-temperature {
-        display: flex;
-    }
-
-    .ride #data-tile--slope:not(.active),
-    .ride #data-tile--power-avg:not(.active),
-    .ride #data-tile--core-body-temperature:not(.active),
-    .ride #data-tile--skin-temperature:not(.active) {
-        display: none;
-    }
-
-    .ride .data-tile--switch--group {
-        display: flex;
-    }
+@media (min-width: 1200px) {
+    .ride .tile { min-height: 96px; }
 }
 
 /* ---------- phone landscape: handlebar mount ---------- */
 
 @media (max-height: 599px) and (orientation: landscape) and (max-width: 1199px) {
     .ride {
-        grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.4fr);
-        grid-template-rows: auto minmax(0, 1.5fr) minmax(64px, 1fr) auto;
-        grid-template-areas:
-            "header  header"
-            "hero    metrics"
-            "chart   chart"
-            "modes   modes";
+        gap: var(--space-2);
+        padding: var(--space-2);
     }
 
     /* while riding, the header (rider pill, connections) steps aside */
@@ -968,44 +1114,34 @@ body.white-theme .ride .tile--hero .tile__value {
         display: none;
     }
 
-    .ride__workout,
-    .ride__stats,
-    .ride__pager {
-        display: none;
+    .rs-screen {
+        gap: var(--space-2);
+        overflow-y: hidden;
     }
 
-    .ride__hero {
-        grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr);
-        grid-template-rows: minmax(0, 1fr);
+    .rs-screen.is-editing { overflow-y: auto; }
+
+    .ride .tile {
+        min-height: 56px;
+        padding: var(--space-1) var(--space-2);
+        gap: 0;
     }
 
     .ride .tile--hero {
         padding: var(--space-2) var(--space-3) var(--space-2) var(--space-4);
     }
 
+    .rs-slot[data-size="large"] .tile__value,
     .ride .tile--hero .tile__value {
         font-size: var(--num-hero-short);
     }
 
-    .ride__metrics .tile,
-    .ride__hero .tile--target {
-        padding: var(--space-1) var(--space-2);
-        gap: 0;
-    }
-
-    .ride__metrics .tile__value,
-    .ride__hero .tile--target .tile__value,
+    .rs-slot[data-size="small"] .tile__value,
     .ride #data-tile--elapsed-time .tile__value {
         font-size: var(--num-short);
     }
 
-    .ride__metrics {
-        grid-template-rows: repeat(2, minmax(0, 1fr));
-    }
-
-    .ride__metrics .tile {
-        min-height: 0;
-    }
+    .rs-slot[data-tile="chart"] { min-height: 120px; }
 
     .ride__modes .targets--cont {
         justify-content: center;
@@ -1013,71 +1149,6 @@ body.white-theme .ride .tile--hero .tile__value {
 
     .ride__modes tab-group {
         flex: 0 1 280px;
-    }
-
-    .ride__metrics .tile,
-    .ride #data-tile--slope,
-    .ride #data-tile--power-avg {
-        min-height: 0;
-    }
-
-    .ride #data-tile--slope,
-    .ride #data-tile--power-avg,
-    .ride #data-tile--core-body-temperature,
-    .ride #data-tile--skin-temperature,
-    .ride .data-tile--switch--group {
-        display: none;
-    }
-
-    .ride {
-        height: calc(100dvh - var(--app-bar-h) - env(safe-area-inset-bottom, 0px));
-        gap: var(--space-2);
-        padding: var(--space-2);
-    }
-}
-
-/* ---------- desktop: main column + statistics sidebar ---------- */
-
-@media (min-width: 1200px) {
-    .ride {
-        grid-template-columns: minmax(0, 0.42fr) minmax(0, 1fr) clamp(340px, 24vw, 420px);
-        grid-template-rows: auto auto minmax(0, 1fr) 112px auto;
-        grid-template-areas:
-            "header  header  stats"
-            "hero    metrics stats"
-            "chart   chart   stats"
-            "workout workout stats"
-            "modes   modes   stats";
-        height: calc(100dvh - var(--app-bar-h));
-    }
-
-    .ride__metrics {
-        grid-template-columns: repeat(5, minmax(0, 1fr));
-        grid-template-rows: repeat(2, minmax(96px, auto));
-    }
-
-    .ride__stats {
-        display: flex;
-        flex-direction: column;
-        overflow-y: auto;
-        scrollbar-width: thin;
-        scrollbar-color: var(--line) transparent;
-    }
-
-    .ride__stats > .panel {
-        flex: none;
-    }
-}
-
-/* short laptop screens: give the chart the height */
-@media (min-width: 1200px) and (max-height: 880px) {
-    .ride {
-        grid-template-rows: auto auto minmax(0, 1fr) 80px auto;
-        gap: var(--space-2);
-    }
-
-    .ride__metrics {
-        grid-template-rows: repeat(2, minmax(72px, auto));
     }
 }
 
@@ -1088,42 +1159,9 @@ body.white-theme .ride .tile--hero .tile__value {
     }
 }
 
-/* short phones: the essentials first */
-@media (max-width: 599px) and (max-height: 760px) {
-    .ride {
-        grid-template-rows: auto auto auto minmax(72px, 1fr) 0 auto minmax(112px, 1.25fr);
-    }
-
-    .ride__workout {
-        display: none;
-    }
-
-    .ride__metrics .tile {
-        min-height: 56px;
-    }
-}
-
 /* very short phones: while riding, the header (rider pill, connections) steps aside */
 @media (max-width: 599px) and (max-height: 700px) {
-    body:has(app-bar[data-mode="riding"]) .ride {
-        grid-template-rows: 0 auto auto minmax(72px, 1fr) 0 auto minmax(104px, 1.25fr);
-    }
-
     body:has(app-bar[data-mode="riding"]) .ride__header {
-        display: none;
-    }
-}
-
-/* phones have room for two small tiles: always Speed and Distance, whatever
-   tile set was last picked on a wider screen (the switch is hidden here) */
-@media (max-width: 599px), (max-height: 599px) and (orientation: landscape) and (max-width: 1199px) {
-    .ride #data-tile--speed,
-    .ride #data-tile--distance {
-        display: flex;
-    }
-
-    .ride #data-tile--smo2,
-    .ride #data-tile--thb {
         display: none;
     }
 }

@@ -69,7 +69,7 @@ describe('the grid', () => {
         expect(columnsFor('phone-landscape', 800)).toBe(5);
         expect(columnsFor('tablet', 900)).toBe(4);
         expect(columnsFor('desktop', 1440)).toBe(4);
-        expect(columnsFor('desktop', 1700)).toBe(5);
+        expect(columnsFor('desktop', 1700)).toBe(4);
         expect(columnsFor('tv', 2560)).toBe(6);
     });
     test('spans per size', () => {

@@ -56,9 +56,15 @@
                             <span class="connection-switch--indicator dot off"></span>
                             <span class="connection-switch--label">HR</span>
                         </connection-switch>
+                        <button type="button" class="btn btn--icon ride__layout" data-ride-layout aria-label="Edit layout" title="Edit layout">
+                            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 3h8v8H3zm2 2v4h4V5zm8-2h8v5h-8zm2 2v1h4V5zm-2 5h8v11h-8zm2 2v7h4v-7zM3 13h8v8H3zm2 2v4h4v-4z"/></svg>
+                        </button>
                     </header>
 
-                    <section class="ride__hero" aria-label="Power">
+                    <ride-screens class="ride__screens"></ride-screens>
+
+                    <!-- the tiles; <ride-screens> places them on the rider's screens -->
+                    <div class="ride__pool" hidden>
                         <div class="tile tile--hero" id="data-tile--power">
                             <z-stack data-key="powerZStack">
                                 <z-stack-item class="active">
@@ -106,9 +112,8 @@
                                 </z-stack-item>
                             </z-stack>
                         </div>
-                    </section>
+                    
 
-                    <section class="ride__metrics data-tiles" aria-label="Ride metrics">
                         <div class="tile" id="data-tile--interval-time">
                             <h2 class="tile__label">Interval Time</h2>
                             <div class="tile__value-cont">
@@ -269,15 +274,6 @@
                                 </skin-temperature-value>
                             </div>
                         </div>
-                        <data-tile-switch-group class="data-tile--switch--group">
-                            <div class="data-tile--switch switch-item switch-0 active" index="0">
-                                <div class="data-tile--switch--icon"></div>
-                            </div>
-                            <div class="data-tile--switch switch-item switch-1" index="1">
-                                <div class="data-tile--switch--icon"></div>
-                            </div>
-                        </data-tile-switch-group>
-                    </section>
 
                     <live-chart id="dash-chart" class="ride__chart"></live-chart>
 
@@ -285,6 +281,12 @@
                         <workout-name id="current-workout-name" class="graph--heading"></workout-name>
                         <workout-graph class="workout--graph-cont" prop="workout" metric="ftp"></workout-graph>
                     </div>
+
+                    <div id="data-tile--stats" class="ride__stats-tile">
+                        <training-stats id="dash-stats" class="ride__stats"></training-stats>
+                        <panel-pager for="dash-stats" class="ride__pager"></panel-pager>
+                    </div>
+                    </div> <!-- end ride__pool -->
 
                     <div id="targets" class="ride__modes">
                         <div class="targets--cont">
@@ -386,8 +388,6 @@
                                      </z-stack> -->
                     </div>
 
-                    <training-stats id="dash-stats" class="ride__stats"></training-stats>
-                    <panel-pager for="dash-stats" class="ride__pager"></panel-pager>
 
                     </div> <!-- end home-page-wrapper -->
             </div> <!-- end page-home -->

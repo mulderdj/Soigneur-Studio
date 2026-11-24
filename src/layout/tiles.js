@@ -67,7 +67,8 @@ function defaultLayouts() {
                 {id: 'chart', name: 'Chart', tiles: [t('power', 'wide'), t('target'), t('chart', 'large')]},
             ]},
             large: {screens: [
-                {id: 'ride', name: 'Ride', tiles: [t('power', 'wide'), t('target'), ...rideScreen(),
+                // 4 columns: Power and six tiles fill two rows
+                {id: 'ride', name: 'Ride', tiles: [t('power', 'wide'), t('target'), ...rideScreen().slice(0, 5),
                                                    t('chart'), t('workout'), t('stats')]},
                 {id: 'big', name: 'Big numbers', tiles: ['power', 'heart-rate', 'cadence', 'interval-time'].map(id => t(id, 'wide'))},
                 {id: 'chart', name: 'Chart', tiles: [t('power', 'wide'), t('target'), t('heart-rate'), t('cadence'), t('chart', 'large')]},
@@ -146,12 +147,12 @@ function screenClass(layoutName) {
     return layoutName === 'phone' || layoutName === 'phone-landscape' ? 'phone' : 'large';
 }
 
-function columnsFor(layoutName, width) {
+function columnsFor(layoutName) {
     if(layoutName === 'phone') return 3;
     if(layoutName === 'phone-landscape') return 5;
     if(layoutName === 'tablet') return 4;
     if(layoutName === 'tv') return 6;
-    return width < 1600 ? 4 : 5;
+    return 4;
 }
 
 function spanFor(size, columns) {
