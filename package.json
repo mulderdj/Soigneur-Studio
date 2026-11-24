@@ -26,6 +26,7 @@
         "@babel/core": "^7.29.7",
         "@babel/plugin-transform-modules-commonjs": "^7.29.7",
         "@parcel/packager-raw-url": "^2.16.4",
+        "@parcel/service-worker": "^2.16.4",
         "@parcel/transformer-webmanifest": "^2.16.4",
         "babel-jest": "^30.5.2",
         "fake-indexeddb": "^6.2.6",

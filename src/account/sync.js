@@ -49,11 +49,19 @@ function linked() {
     return !!riders.current()?.account?.token;
 }
 
+const isOffline = err => err instanceof ApiError && err.status === 0;
+
+// what is kept on this device until the server can be reached
+function offlineMessage() {
+    const n = local('pendingRides', []).length;
+    return n ? `Offline: ${n} ride${n === 1 ? '' : 's'} waiting to sync` : 'Offline: changes sync when you\'re back online';
+}
+
 function handleError(err, what) {
     console.warn(`:sync :${what}`, err);
     if(err instanceof ApiError && err.status === 401) return; // account:signed-out handles it
-    setState(err instanceof ApiError && err.status === 0 ? 'offline' : 'error',
-             err?.message ?? `Could not sync ${what}.`);
+    if(isOffline(err)) setState('offline', offlineMessage());
+    else setState('error', err?.message ?? `Could not sync ${what}.`);
 }
 
 // --- profile ---------------------------------------------------------------
@@ -129,7 +137,7 @@ async function syncWorkouts() {
             known.delete(w.id);
             continue;
         }
-        if(!storedIds.has(w.id)) {
+        if(!storedIds.has(w.id) && !local('pendingDeletes', []).includes(w.id)) {
             const workout = {...w.data, id: w.id};
             workout.meta = {category: DEFAULT_WORKOUT_CATEGORY, ...(workout.meta ?? {})};
             applyingRemote = true;
@@ -169,7 +177,32 @@ async function deleteWorkout(id) {
     try {
         await api.delete(`/me/workouts/${encodeURIComponent(id)}`);
         setLocal('workoutIds', local('workoutIds', []).filter(x => x !== id));
-    } catch(e) { handleError(e, 'workouts'); }
+    } catch(e) {
+        // not reached: delete it on the server at the next sync
+        if(!(e instanceof ApiError && e.status === 404)) setLocal('pendingDeletes', [...new Set([...local('pendingDeletes', []), id])]);
+        handleError(e, 'workouts');
+    }
+}
+
+// workouts deleted while the server couldn't be reached
+async function flushDeletes() {
+    const pending = local('pendingDeletes', []);
+    const left = [];
+    let failure = null;
+    for(const id of pending) {
+        if(failure) { left.push(id); continue; }
+        try {
+            await api.delete(`/me/workouts/${encodeURIComponent(id)}`);
+        } catch(e) {
+            if(e instanceof ApiError && e.status === 404) continue;   // already gone
+            left.push(id);
+            failure = e;
+        }
+    }
+    setLocal('pendingDeletes', left);
+    const done = pending.filter(id => !left.includes(id));
+    if(done.length) setLocal('workoutIds', local('workoutIds', []).filter(x => !done.includes(x)));
+    if(failure) throw failure;
 }
 
 // --- rides -----------------------------------------------------------------
@@ -243,6 +276,7 @@ async function syncNow() {
     setState('syncing');
     try {
         await pullProfile();
+        await flushDeletes();
         await syncWorkouts();
         await history.syncPlan();
         await history.pullExternal().catch(e => console.warn(':sync :external-rides', e)); // never blocks the rest
@@ -275,6 +309,7 @@ function start() {
     xf.sub('activity:add', onRideSaved);
 
     window.addEventListener('online', () => syncNow());
+    window.addEventListener('offline', () => { if(linked()) setState('offline', offlineMessage()); });
     window.addEventListener('account:signed-out', () => {
         setState('error', 'Your session has ended. Sign in again.');
     });

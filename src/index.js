@@ -7,28 +7,26 @@ import './watch.js';
 import './course.js';
 import './lock.js';
 
+// The service worker (src/sw.js) keeps the app usable without a connection.
+// Production builds only: on the Parcel dev server (module.hot) a cached app
+// would hide every change, so there any earlier registration is removed.
+const devServer = typeof module !== 'undefined' && !!module.hot;
+
 function startServiceWorker() {
-    if('serviceWorker' in navigator) {
-        try {
-            // const reg = navigator.serviceWorker.register('./sw.js');
-
-            const reg = navigator.serviceWorker.register(
-                new URL('./sw.js', import.meta.url),
-                {type: 'module'}
-            );
-
-            console.log(`SW: register success.`);
-            console.log('Cache Version: Flux-v003');
-        } catch(err) {
-            console.log(`SW: register error: `, err);
-        }
-    };
+    if(!('serviceWorker' in navigator)) return;
+    if(devServer) {
+        navigator.serviceWorker.getRegistrations?.()
+            .then(regs => regs.forEach(r => r.unregister())).catch(() => {});
+        return;
+    }
+    navigator.serviceWorker.register(new URL('./sw.js', import.meta.url), {type: 'module'})
+        .then(() => console.log(':sw :registered'))
+        .catch(err => console.warn(':sw :register', err));   // e.g. an untrusted certificate
 }
 
 function start() {
     console.log('start app.');
-
-    // startServiceWorker(); // stable version only
+    startServiceWorker();
     xf.dispatch('app:start');
 }
 
