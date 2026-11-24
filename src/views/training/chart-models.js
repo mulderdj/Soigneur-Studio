@@ -207,7 +207,12 @@ const recordNote = (from) => (from ? `${shortDay(from.day)}${from.name ? ` · ${
 
 // best power at 5 s … 60 min: the last 6 weeks against all time, as lines
 // with points on a log time axis; W or W/kg (unit 'w' or 'wkg')
-function curveChart(data, unit = 'w', colors = {}) {
+// the rider model's curve, P = CP + W′/t, over the durations it's fitted on
+const MODEL_FROM = 120, MODEL_TO = 1200;
+// the labelled durations on the log axis
+const TICKS = [1, 5, 15, 60, 300, 1200, 3600, 7200];
+
+function curveChart(data, unit = 'w', colors = {}, fit = null) {
     const c = powerCurve(data.summaries ?? [], data.today);
     const key = unit === 'wkg' ? 'wkg' : 'watts';
     const val = (v) => (v === null || v === undefined ? null : key === 'wkg' ? Math.round(v * 100) / 100 : Math.round(v));
@@ -225,8 +230,14 @@ function curveChart(data, unit = 'w', colors = {}) {
             {label: 'Last 6 weeks', color: colors.accent, width: 2.5, points: true, values: recent},
             {label: 'All time', color: colors.muted, width: 1.5, points: true, values: all},
         ],
-        xFormat: (v) => durationLabel(v),
+        xTicks: TICKS.filter(t => t >= xs[0] && t <= xs.at(-1)),
+        xFormat: (v) => (Number.isFinite(v) ? durationLabel(v) : ''),
     };
+    const perKg = key === 'wkg' ? (data.weight > 0 ? data.weight : null) : 1;
+    const fitted = fit?.ok && perKg ? xs.map(t => (t >= MODEL_FROM && t <= MODEL_TO ? val((fit.cp + fit.wprime / t) / perKg) : null)) : null;
+    if(fitted) {
+        model.series.push({label: `Model (CP ${fit.cp} W, W′ ${(fit.wprime / 1000).toFixed(1)} kJ)`, color: colors.model, width: 1.5, dash: [5, 4], values: fitted});
+    }
     const readout = (i) => {
         if(i < 0 || i >= xs.length) return null;
         const from = fromRecent[i] ?? fromAll[i];
@@ -235,6 +246,7 @@ function curveChart(data, unit = 'w', colors = {}) {
             rows: [
                 {label: 'Last 6 weeks', color: colors.accent, value: show(recent[i]), note: recordNote(fromRecent[i])},
                 {label: 'All time', color: colors.muted, value: show(all[i]), note: recordNote(fromAll[i])},
+                ...(fitted && fitted[i] !== null ? [{label: 'Model', color: colors.model, value: show(fitted[i]), note: 'CP + W′ / time'}] : []),
             ],
             more: [],
             day: from?.day,   // the recent record first: today's form
@@ -278,4 +290,4 @@ function ftpChart(data, colors = {}) {
     return {model, readout};
 }
 
-export { formModel, formChart, healthChart, volumeChart, zonesChart, curveChart, ftpChart, PAST_DAYS, AHEAD_DAYS, daySec, longDay, weekTitle, shortDay };
+export { formModel, formChart, healthChart, volumeChart, zonesChart, curveChart, ftpChart, PAST_DAYS, AHEAD_DAYS, daySec, longDay, weekTitle, shortDay, durationLabel };

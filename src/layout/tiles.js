@@ -46,12 +46,14 @@ const TRAINING_CARDS = [
     {id: 'calendar', name: 'Calendar',      sizes: CARD, size: 'full'},
     {id: 'volume',   name: 'Weekly volume', sizes: CARD, size: 'narrow'},
     {id: 'curve',    name: 'Power curve',   sizes: CARD, size: 'wide'},
+    {id: 'model',    name: 'CP and W′',     sizes: CARD, size: 'narrow'},
+    {id: 'profile',  name: 'Power profile', sizes: CARD, size: 'narrow'},
     {id: 'zones',    name: 'Time in zones', sizes: CARD, size: 'narrow'},
     {id: 'ftp',      name: 'FTP trend',     sizes: CARD, size: 'wide'},
 ];
 
 // cards an update adds that a saved layout should show (not hide): at their default place
-const ADDED_VISIBLE = new Set(['readiness']);
+const ADDED_VISIBLE = new Set(['readiness', 'model', 'profile']);
 
 const RIDE_BY_ID = new Map(RIDE_TILES.map(t => [t.id, t]));
 const CARD_BY_ID = new Map(TRAINING_CARDS.map(c => [c.id, c]));

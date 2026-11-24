@@ -13,6 +13,15 @@ import { esc } from './format.js';
 
 const NUDGE = 0.05;
 
+// the rider model's fit, drawn over the power curve (rider-model-wiring.js)
+let modelFit = null;
+window.addEventListener('rider-model:changed', e => {
+    const fit = e.detail?.data?.fit ?? null;
+    if(fit?.ok === modelFit?.ok && fit?.cp === modelFit?.cp && fit?.wprime === modelFit?.wprime) return;
+    modelFit = fit;
+    for(const c of document.querySelectorAll('curve-card')) if(c.data) c.rebuild?.();
+});
+
 // the FTP to offer when the estimate is more than 5 % away from the set FTP
 function ftpNudge(estimate, ftp) {
     if(!Number.isFinite(estimate) || !(ftp > 0)) return null;
@@ -52,8 +61,11 @@ class CurveCard extends ToggleCard {
     get title() { return 'Power curve'; }
     get defaultOption() { return 'w'; }
     get options() { return [['w', 'W'], ['wkg', 'W/kg']]; }
-    foot() { return '<p class="card__note pc-legend"><span class="pc-key pc-key--recent"></span> Last 6 weeks <span class="pc-key pc-key--all"></span> All time</p>'; }
-    chart() { return curveChart(this.data, this.option, {accent: token(this, '--accent'), muted: token(this, '--muted')}); }
+    foot() {
+        return `<p class="card__note pc-legend"><span class="pc-key pc-key--recent"></span> Last 6 weeks <span class="pc-key pc-key--all"></span> All time${
+            modelFit?.ok ? ' <span class="pc-key pc-key--model"></span> Model' : ''}</p>`;
+    }
+    chart() { return curveChart(this.data, this.option, {accent: token(this, '--accent'), muted: token(this, '--muted'), model: token(this, '--good')}, modelFit); }
 }
 
 class FtpCard extends ToggleCard {

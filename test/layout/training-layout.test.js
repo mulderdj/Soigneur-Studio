@@ -5,7 +5,7 @@ import { layouts } from '../../src/layout/store.js';
 import { defaultLayouts } from '../../src/layout/tiles.js';
 import { TrainingLayout } from '../../src/views/training/training-layout.js';
 
-const IDS = ['form', 'week', 'health', 'calendar', 'volume', 'curve', 'zones', 'ftp'];
+const IDS = ['form', 'week', 'health', 'calendar', 'volume', 'curve', 'model', 'profile', 'zones', 'ftp'];
 
 function size(w, h) {
     Object.defineProperty(window, 'innerWidth', {value: w, configurable: true});
@@ -39,7 +39,7 @@ describe('the Training cards', () => {
         l.training.large.cards = [{id: 'ftp', size: 'full'}, {id: 'form', size: 'wide'}, ...l.training.large.cards.filter(c => !['ftp', 'form', 'zones'].includes(c.id)), {id: 'zones', size: 'narrow', hidden: true}];
         layouts.save(l);
         const {grid, cards} = setup();
-        expect(shown(grid)).toEqual(['ftp', 'form', 'week', 'health', 'calendar', 'volume', 'curve']);
+        expect(shown(grid)).toEqual(['ftp', 'form', 'week', 'health', 'calendar', 'volume', 'curve', 'model', 'profile']);
         expect(cards.ftp.dataset.size).toBe('full');
         expect(cards.zones.isConnected).toBe(false);
     });
@@ -63,7 +63,7 @@ describe('editing the Training cards', () => {
         const {tl, grid} = setup();
         document.querySelector('[data-tl-edit]').click();
         expect(grid.classList.contains('is-editing')).toBe(true);
-        expect(grid.querySelectorAll('[data-le-handle]')).toHaveLength(8);
+        expect(grid.querySelectorAll('[data-le-handle]')).toHaveLength(10);
         grid.querySelector('[data-tile="week"] [data-le-size]').click();
         grid.querySelector('[data-tile="zones"] [data-le-hide]').click();
         grid.querySelector('[data-tile="ftp"] [data-le-handle]').dispatchEvent(new KeyboardEvent('keydown', {key: 'ArrowUp', bubbles: true}));
@@ -71,7 +71,7 @@ describe('editing the Training cards', () => {
         const saved = layouts.get().training.large.cards;
         expect(saved.find(c => c.id === 'week').size).toBe('full');
         expect(saved.find(c => c.id === 'zones').hidden).toBe(true);
-        expect(saved.filter(c => !c.hidden).map(c => c.id).slice(-2)).toEqual(['ftp', 'curve']);
+        expect(saved.filter(c => !c.hidden).map(c => c.id).slice(-2)).toEqual(['ftp', 'profile']);
         expect(grid.classList.contains('is-editing')).toBe(false);
     });
 
@@ -80,7 +80,7 @@ describe('editing the Training cards', () => {
         const {grid} = setup();
         document.querySelector('[data-tl-edit]').click();
         expect(grid.querySelector('[data-le-size]')).toBeNull();
-        expect(grid.querySelectorAll('[data-le-handle]')).toHaveLength(8);
+        expect(grid.querySelectorAll('[data-le-handle]')).toHaveLength(10);
     });
 
     test('Add card lists the hidden cards and brings one back', () => {

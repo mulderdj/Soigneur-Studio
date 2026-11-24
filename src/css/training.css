@@ -727,3 +727,41 @@ uplot-card, .uc-card { position: relative; overflow: visible; } /* a tall read-o
 .uc-tip dd small { color: var(--muted); font-weight: 400; font-family: var(--font-text); }
 .uc-tip__more { margin-top: var(--space-1); color: var(--muted); font-size: var(--text-xs); }
 .uc-tip__open { margin-top: var(--space-2); width: 100%; }
+
+/* ---------- rider model: CP and W′, power profile ---------- */
+
+.pc-key--model { background: repeating-linear-gradient(90deg, var(--good) 0 5px, transparent 5px 8px); }
+
+.mc-values {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-4);
+    margin: 0 0 var(--space-2);
+}
+.mc-values dt { color: var(--muted); font-size: var(--text-s, 0.85em); }
+.mc-values dd { margin: 0; font-size: 1.5em; font-weight: var(--weight-medium); font-variant-numeric: tabular-nums; }
+.mc-values [data-k="r2"] { font-size: 1em; padding-top: 0.4em; }
+.mc-ftp, .mc-missing { margin: 0 0 var(--space-2); }
+.mc-details summary { cursor: pointer; color: var(--muted); }
+.mc-efforts, .pp-rows { list-style: none; margin: var(--space-2) 0; padding: 0; }
+.mc-effort {
+    display: grid;
+    grid-template-columns: 4em 4.5em 1fr;
+    gap: var(--space-2);
+    font-variant-numeric: tabular-nums;
+}
+.mc-from { color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mc-using { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); }
+
+.pp-row {
+    display: grid;
+    grid-template-columns: 3.5em 6em 1fr 7.5em;
+    align-items: center;
+    gap: var(--space-2);
+    padding: var(--space-1, 4px) 0;
+    font-variant-numeric: tabular-nums;
+}
+.pp-bar { height: var(--space-2); border-radius: var(--radius-s); background-color: color-mix(in srgb, var(--muted) 20%, transparent); overflow: hidden; }
+.pp-bar > span { display: block; height: 100%; background-color: var(--accent); }
+.pp-cat { font-weight: var(--weight-medium); }
+.pp-sentence { margin: var(--space-2) 0; }

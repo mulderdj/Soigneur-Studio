@@ -191,6 +191,26 @@ describe('power curve and FTP trend', () => {
         expect(o.day).toBe('2026-11-04');
     });
 
+    test('the x axis: ticks at round durations within the data, never "null"', () => {
+        const {model} = curveChart(data, 'w', {});
+        expect(model.xTicks).toEqual([5, 15, 60, 300, 1200, 3600]);
+        expect(model.xFormat(null)).toBe('');
+        expect(model.xFormat(undefined)).toBe('');
+    });
+
+    test('the rider model\'s curve over it, 2–20 min, dashed, in the read-out', () => {
+        const withFit = {...data, summaries: data.summaries.map(x => ({...x, best: {...x.best, 120: 420, 600: 300}}))};
+        const {model, readout} = curveChart(withFit, 'w', {accent: 'a', muted: 'm', model: 'g'}, {ok: true, cp: 260, wprime: 20000});
+        const m = model.series.find(x => x.label === 'Model (CP 260 W, W′ 20.0 kJ)');
+        expect(m.dash).toBeTruthy();
+        const at = sec => m.values[model.x.indexOf(sec)];
+        expect(at(120)).toBe(Math.round(260 + 20000 / 120));
+        expect(at(1200)).toBe(Math.round(260 + 20000 / 1200));
+        expect(at(5)).toBeNull();
+        expect(at(3600)).toBeNull();
+        expect(readout(model.x.indexOf(600)).rows.map(r => r.label)).toContain('Model');
+    });
+
     test('W/kg: "–" where the ride has no weight', () => {
         const only = {today: '2026-11-25', summaries: [r('noweight', '2026-11-20', best(500, 350, 280, 250, 230), null, 'No scale')]};
         const {model, readout} = curveChart(only, 'wkg', {});

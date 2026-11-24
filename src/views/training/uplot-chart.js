@@ -12,6 +12,7 @@
 //                 fill?: colour}]
 //       bands?: [[upperSeries, lowerSeries, fill]]   (1-based series index, as in uPlot)
 //       time?: true (default), log?: false, xFormat?: v => label, yFormat?: v => label,
+//       xTicks?: [x] (where the x axis's labels go),
 //       ranges?: [[key, label]], defaultRange?: key, today?: unix seconds,
 //       zoom?: false (drag to zoom on desktop), sync?: 'days', marks?: {zero?, today?},
 //     }
@@ -172,7 +173,7 @@ class UPlotCard extends HTMLElement {
                 y: model.yRange ? {range: model.yRange} : {},
             },
             axes: [
-                {...axis, values: model.xFormat ? (u, ts) => ts.map(model.xFormat) :
+                {...axis, ...(model.xTicks ? {splits: () => model.xTicks, filter: (u, splits) => splits} : {}), values: model.xFormat ? (u, ts) => ts.map(model.xFormat) :
                     (time ? (u, ts) => ts.map(t => fmtDay(new Date(t * 1000).toISOString().slice(0, 10), {day: 'numeric', month: 'short'})) : undefined)},
                 {...axis, size: 40, values: model.yFormat ? (u, ts) => ts.map(model.yFormat) : undefined},
             ],
