@@ -13,6 +13,7 @@ import { pickIntervals } from './intervals.js';
 const SHORT = 20;                         // s: below this, averages only
 const DECOUPLING_MIN = 45 * 60;           // s of riding
 const DECOUPLING_SKIP = 10 * 60;          // s of warm-up left out
+const STEADY_VI = 1.10;                   // decoupling only when NP is within 10 % of average power (steady riding)
 const DURABILITY_KJ = [1000, 2000, 3000];
 const RECENT_DAYS = 42;
 const ON_TARGET = 0.05, ON_TARGET_MIN_W = 5;
@@ -191,6 +192,8 @@ function analyseRide({samples = [], pauses = [], laps = [], workout = null, ftp 
         bests = sum.best.filter(b => b.available && b.watts > 0)
             .map(b => ({seconds: b.seconds, label: b.label, watts: Math.round(b.watts), record: recordOf(b.seconds, Math.round(b.watts), {summaries, day, id})}));
     }
+    const powers = active.map(s => s.power).filter(x => x > 0);
+    const steady = hasPower && np > 0 && mean(powers) > 0 && np / mean(powers) <= STEADY_VI;
     const hrs = active.map(s => s.heartRate).filter(x => x > 0);
     const avgHr = mean(hrs);
     return {
@@ -199,7 +202,7 @@ function analyseRide({samples = [], pauses = [], laps = [], workout = null, ftp 
         wbal, powerZones,
         hrZones: hasHr ? hrZonesOf(active, lthr) : null,
         bests,
-        decoupling: hasPower && hasHr ? decouplingOf(active) : null,
+        decoupling: hasPower && hasHr && steady ? decouplingOf(active) : null,
         ef: hasPower && hasHr && np > 0 && avgHr > 0 ? round(np / avgHr, 2) : null,
         durability: hasPower ? durabilityOf(active) : [],
         np: round(np),

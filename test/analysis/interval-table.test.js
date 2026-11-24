@@ -56,4 +56,10 @@ describe('the intervals table', () => {
         expect(el.querySelector('.it-row.is-work [data-l="Time"]').textContent).toBe('4:00');
         expect(el.textContent).not.toMatch(/[−-]0 %/);
     });
+
+    test('no power and no laps: says there is no power to find efforts from', () => {
+        const el = table(analyseRide({...base, samples: steady({withPower: false}), pauses: []}));
+        expect(el.textContent).toMatch(/no power/i);
+        expect(el.textContent).not.toMatch(/88 %/);
+    });
 });

@@ -12,6 +12,7 @@ import { analyseRide } from '../../analysis/ride.js';
 import { esc, fmtDuration, fmtDay, sportLabelFor } from '../training/format.js';
 import './ride-chart.js';
 import './interval-table.js';
+import './ride-cards.js';
 
 const SOURCES = {garmin: 'Garmin', intervals: 'intervals.icu', fit: 'Imported .fit'};
 const sourceOf = s => SOURCES[s?.source] ?? (String(s?.id ?? '').startsWith('garmin-') ? 'Garmin' : String(s?.id ?? '').startsWith('icu-') ? 'intervals.icu' : 'Soigneur');
@@ -165,6 +166,10 @@ class RidePage extends HTMLElement {
         this.querySelector('.rp-intervals').append(table);
         table.data = {analysis: a, ftp: this.context.ftp};
         table.addEventListener('interval-zoom', e => this.$chart.zoomTo(e.detail.start, e.detail.end));
+        const cards = document.createElement('ride-cards');
+        this.querySelector('.rp-cards').append(cards);
+        cards.data = {analysis: a, ftp: this.context.ftp};
+        cards.addEventListener('interval-zoom', e => this.$chart.zoomTo(e.detail.start, e.detail.end));
         this.dispatchEvent(new CustomEvent('ride-analysed', {detail: {analysis: a}}));
     }
 }

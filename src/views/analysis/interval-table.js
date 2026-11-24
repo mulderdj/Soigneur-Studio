@@ -57,7 +57,9 @@ class IntervalTable extends HTMLElement {
         const list = analysis.intervals ?? [];
         if(!list.length) {
             this.innerHTML = `<div class="card it"><h2 class="card__title">Intervals</h2>
-                <p class="card__note">No intervals in this ride: no workout, no laps, and no efforts of 30 s or more at 88 % of FTP.</p></div>`;
+                <p class="card__note">${analysis.hasPower ?
+                    'No intervals in this ride: no workout, no laps, and no efforts of 30 s or more at 88 % of FTP.' :
+                    'No intervals in this ride: no workout or laps, and no power to find efforts from.'}</p></div>`;
             return;
         }
         const planned = analysis.intervalSource === 'workout';

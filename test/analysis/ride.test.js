@@ -88,4 +88,11 @@ describe('the whole ride', () => {
         expect(a.bests.find(b => b.seconds === 1200).record).toBe('recent');
         expect(a.bests.find(b => b.seconds === 5).record).toBeNull();
     });
+
+    test('decoupling only for steady riding: an interval workout has none', () => {
+        const w = workout(), {samples, pauses} = rideOf(w);
+        const long = {...w, intervals: [...w.intervals, ...w.intervals]};            // over 45 min
+        const r = rideOf(long);
+        expect(analyseRide({...base, samples: r.samples, pauses: r.pauses, workout: long}).decoupling).toBeNull();
+    });
 });
