@@ -44,6 +44,19 @@ function setWprime(joules) {
     notify();
 }
 
+// the rider model (src/training/rider-model-wiring.js): W′bal against its CP
+// and W′ when they are in use; the typed W′ stays stored, for when they aren't
+let modelSource = 'settings';
+function applyModel(eff) {
+    if(!eff) return;
+    modelSource = eff.source;
+    session.setCp(eff.source === 'model' ? eff.cp : null);
+    const w = eff.source === 'model' ? eff.wprime : loadWprime();
+    if(w >= 5000 && w <= 60000) session.setWprime(Math.round(w));
+    window.dispatchEvent(new CustomEvent('rider-model:applied', {detail: {data: eff}}));
+    notify();
+}
+
 function currentTarget() {
     const following = live.mode === 'erg' || live.workoutStatus === 'started';
     return following ? (live.powerTarget || 0) : 0;
@@ -573,6 +586,15 @@ class TrainingStats extends HTMLElement {
 
         const $w = this.$['wprime-input'];
         $w.value = (session.wprime / 1000).toFixed(1);
+        // from the rider model: shown, not typed over
+        const showSource = () => {
+            const model = modelSource === 'model';
+            $w.value = (session.wprime / 1000).toFixed(1);
+            $w.disabled = model;
+            $w.title = model ? 'From the rider model (Training → CP and W′)' : '';
+        };
+        showSource();
+        window.addEventListener('rider-model:applied', showSource);
         $w.addEventListener('change', () => {
             const kj = parseFloat($w.value);
             if(!(kj >= 5 && kj <= 60)) {
@@ -689,4 +711,4 @@ class TrainingStats extends HTMLElement {
 
 customElements.define('training-stats', TrainingStats);
 
-export { session, setWprime };
+export { session, setWprime, applyModel, loadWprime };

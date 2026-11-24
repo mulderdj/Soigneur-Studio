@@ -94,6 +94,7 @@ class SessionStats {
         this.weight      = args.weight ?? 75;
         this.percentages = args.percentages ?? DEFAULT_PERCENTAGES;
         this.wprime      = args.wprime ?? DEFAULT_WPRIME;
+        this.cp          = args.cp > 0 ? args.cp : null;   // the rider model's CP for W′bal; FTP when not set
         this.reset();
     }
 
@@ -176,6 +177,11 @@ class SessionStats {
         if(ftp > 0) this.ftp = ftp;
     }
 
+    // W′bal and matches against this CP instead of FTP (null: FTP again)
+    setCp(cp) {
+        this.cp = cp > 0 ? cp : null;
+    }
+
     setWeight(weight) {
         if(weight > 0) this.weight = weight;
     }
@@ -240,8 +246,8 @@ class SessionStats {
             this.countCadence += 1;
         }
 
-        // W'bal
-        const cp = this.ftp;
+        // W'bal (against the rider model's CP when set, else FTP)
+        const cp = this.wbalCp();
         const W0 = this.wprime;
         if(power < cp) {
             this.wbal += (cp - power) * (W0 - this.wbal) / W0;
@@ -280,8 +286,8 @@ class SessionStats {
         this.x4Sum += Math.pow(this.xWeighted, 4);
 
         // TISS
-        if(cp > 0) {
-            const f = power / cp;
+        if(this.ftp > 0) {
+            const f = power / this.ftp;
             this.aTISS  += ATISS.a  * Math.exp(ATISS.b  * Math.exp(ATISS.c  * f));
             this.anTISS += ANTISS.a * Math.exp(ANTISS.b * Math.exp(ANTISS.c * f));
         }
@@ -334,10 +340,13 @@ class SessionStats {
     }
 
     // seconds until W' is empty if the last 10 s of power is held
+    // the CP W′bal works against: the rider model's, else FTP
+    wbalCp() { return this.cp > 0 ? this.cp : this.ftp; }
+
     timeToEmpty() {
-        const p = this.recentPower(10);
-        if(p <= this.ftp || this.wbal <= 0) return null;
-        return this.wbal / (p - this.ftp);
+        const p = this.recentPower(10), cp = this.wbalCp();
+        if(p <= cp || this.wbal <= 0) return null;
+        return this.wbal / (p - cp);
     }
 
     np() {
@@ -471,7 +480,7 @@ class SessionStats {
             const m = Math.floor(tte / 60), sec = Math.floor(tte % 60);
             out.push({level: tte < 60 ? 'warn' : 'info',
                       text: `At this power W′ is empty in ${m}:${String(sec).padStart(2, '0')}`});
-        } else if(this.wbal < W0 * 0.25 && this.recentPower(10) < this.ftp) {
+        } else if(this.wbal < W0 * 0.25 && this.recentPower(10) < this.wbalCp()) {
             out.push({level: 'info', text: `W′ at ${Math.round(this.wbal / W0 * 100)}% — recover before the next effort`});
         }
 

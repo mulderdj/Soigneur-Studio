@@ -149,3 +149,17 @@ describe('GoldenCheetah metrics', () => {
         expect(s.summary().wbalPct).toBeCloseTo(0.5);
     });
 });
+
+describe('W′bal with a CP of its own (the rider model)', () => {
+    test('280 W is above an FTP of 250 but below a CP of 300: no W′ spent', () => {
+        const byFtp = new SessionStats({ftp: 250, wprime: 20000});
+        const byCp = new SessionStats({ftp: 250, wprime: 20000, cp: 300});
+        for(let i = 0; i < 120; i++) { byFtp.push({power: 280}); byCp.push({power: 280}); }
+        expect(byFtp.summary().wbal).toBeLessThan(20000);
+        expect(byCp.summary().wbal).toBe(20000);
+        expect(byCp.summary().ftp).toBe(250);                 // FTP itself untouched
+        byFtp.setCp(300);
+        expect(byFtp.cp).toBe(300);
+        expect(byCp.timeToEmpty()).toBeNull();            // 280 W is below CP: W′ isn't running out
+    });
+});

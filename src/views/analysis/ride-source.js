@@ -11,6 +11,7 @@ import { history } from '../../training/history.js';
 import { readRide } from '../../training/fit-records.js';
 import { thresholds } from '../../training/rider-thresholds.js';
 import { session } from '../training-dashboard.js';
+import { modelNow } from '../../training/rider-model-wiring.js';
 
 const rideSource = {
     async summary(id) {
@@ -28,8 +29,11 @@ const rideSource = {
         const planned = (entries.find(e => e.rideId && e.rideId === summary?.id) ??
                          entries.find(e => summary?.workoutId && e.day === summary.day && e.workout?.id === summary.workoutId))?.workout ?? null;
         const own = summary?.workoutId ? (db.workouts ?? []).find(w => w.id === summary.workoutId) : null;
+        // W′bal with the CP and W′ in use now (the rider model's, or FTP and the typed W′)
+        const model = await modelNow().catch(() => null);
+        const eff = model?.effective ?? {cp: db.ftp, wprime: session.wprime, source: 'settings'};
         return {
-            ftp: db.ftp, weight: db.weight, wprime: session.wprime,
+            ftp: db.ftp, weight: db.weight, wprime: eff.wprime, cp: eff.source === 'model' ? eff.cp : null, wbalSource: eff.source,
             // a run's heart-rate zones from the running threshold
             lthr: (/run/.test(summary?.sport ?? '') ? thresholds.effective().running : thresholds.effective().cycling) ?? null,
             workout: planned ?? own ?? null,

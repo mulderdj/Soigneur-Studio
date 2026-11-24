@@ -1,7 +1,7 @@
 /**
  * @jest-environment jsdom
  */
-import { meanMaximal, fitCp, effective, offer, powerProfile, CATEGORIES } from '../../src/training/rider-model.js';
+import { meanMaximal, fitCp, effective, offer, powerProfile, CATEGORIES, currentModel } from '../../src/training/rider-model.js';
 import { modelSettings } from '../../src/training/rider-model-settings.js';
 import { DURATIONS } from '../../src/training/summary.js';
 
@@ -103,5 +103,22 @@ describe('the settings, per rider', () => {
     test('nonsense in storage gives the defaults', () => {
         localStorage.setItem('riderModel', '{"mode":"sometimes","use":{"cp":-1}}');
         expect(modelSettings.get()).toEqual({mode: 'ask', use: null, table: 'men'});
+    });
+});
+
+describe('the model now, for the app', () => {
+    test('fit, what W′bal uses and the offer, from summaries and settings', () => {
+        const m = currentModel({summaries: [ride('a', 5, curve(270, 22000))], today, ftp: 250, typedWprime: 20000, settings: {mode: 'ask', use: null, table: 'men'}});
+        expect(m.fit.ok).toBe(true);
+        expect(m.effective).toEqual({cp: 250, wprime: 20000, source: 'settings'});
+        expect(m.offer.cp).toBeCloseTo(270, -1);
+        const auto = currentModel({summaries: [ride('a', 5, curve(270, 22000))], today, ftp: 250, typedWprime: 20000, settings: {mode: 'auto', use: null, table: 'men'}});
+        expect(auto.effective.source).toBe('model');
+        expect(auto.offer).toBeNull();
+    });
+    test('efforts aging out of 90 days in auto mode: back to FTP and the typed W′', () => {
+        const m = currentModel({summaries: [ride('a', 100, curve(270, 22000))], today, ftp: 250, typedWprime: 20000, settings: {mode: 'auto', use: null, table: 'men'}});
+        expect(m.fit.ok).toBe(false);
+        expect(m.effective).toEqual({cp: 250, wprime: 20000, source: 'settings'});
     });
 });

@@ -55,4 +55,14 @@ describe('the ride\'s cards', () => {
         expect(card(el, 'zones').querySelectorAll('.rc-zone')).toHaveLength(5);
         expect(el.textContent).not.toMatch(/NaN|undefined|null/);
     });
+
+    test('the W′bal card says which CP and W′ it used', () => {
+        const w = workout(), {samples, pauses} = rideOf(w);
+        document.body.innerHTML = '<ride-cards></ride-cards>';
+        const el = document.querySelector('ride-cards');
+        el.data = {analysis: analyseRide({...base, samples, pauses, workout: w, cp: 262, wprime: 23000}), ftp: FTP, wbalSource: 'model'};
+        expect(card(el, 'wbal').textContent).toMatch(/CP 262 W and W′ 23\.0 kJ from the rider model/);
+        el.data = {analysis: analyseRide({...base, samples, pauses, workout: w}), ftp: FTP, wbalSource: 'settings'};
+        expect(card(el, 'wbal').textContent).toMatch(/FTP \(250 W\) as CP and W′ 20\.0 kJ/);
+    });
 });

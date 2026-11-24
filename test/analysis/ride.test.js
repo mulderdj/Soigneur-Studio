@@ -95,4 +95,13 @@ describe('the whole ride', () => {
         const r = rideOf(long);
         expect(analyseRide({...base, samples: r.samples, pauses: r.pauses, workout: long}).decoupling).toBeNull();
     });
+
+    test('W′bal with the model\'s CP and W′, and which ones it used', () => {
+        const samples = Array.from({length: 1200}, (_, t) => ({t, power: 270, heartRate: 150, cadence: 90, speed: 9, distance: t * 9, altitude: 0}));
+        const byFtp = analyseRide({...base, samples, pauses: []});
+        const byModel = analyseRide({...base, samples, pauses: [], cp: 280, wprime: 25000});
+        expect(byFtp.wbal.min).toBeLessThan(20000);
+        expect(byModel.wbal.min).toBe(25000);
+        expect(byModel.wbal).toMatchObject({cp: 280, wprime: 25000});
+    });
 });

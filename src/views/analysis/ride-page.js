@@ -114,7 +114,7 @@ class RidePage extends HTMLElement {
             context.ftp = summary.ftp > 0 ? summary.ftp : context.ftp;
             const analysis = analyseRide({
                 samples: ride.samples, pauses: ride.pauses ?? [], laps: ride.laps ?? [], workout: context.workout,
-                ftp: context.ftp, weight: context.weight, wprime: context.wprime, lthr: context.lthr,
+                ftp: context.ftp, weight: context.weight, wprime: context.wprime, cp: context.cp ?? null, lthr: context.lthr,
                 summaries: context.summaries, day: summary.day, id,
             });
             this.ride = ride; this.analysis = analysis; this.context = context;
@@ -186,7 +186,7 @@ class RidePage extends HTMLElement {
         table.addEventListener('interval-zoom', e => this.$chart.zoomTo(e.detail.start, e.detail.end));
         const cards = document.createElement('ride-cards');
         this.querySelector('.rp-cards').append(cards);
-        cards.data = {analysis: a, ftp: this.context.ftp};
+        cards.data = {analysis: a, ftp: this.context.ftp, wbalSource: this.context.wbalSource};
         cards.addEventListener('interval-zoom', e => this.$chart.zoomTo(e.detail.start, e.detail.end));
         this.dispatchEvent(new CustomEvent('ride-analysed', {detail: {analysis: a}}));
     }

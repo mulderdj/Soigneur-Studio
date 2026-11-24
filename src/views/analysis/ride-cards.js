@@ -63,7 +63,9 @@ class RideCards extends HTMLElement {
             <dl class="rc-facts">
                 <div><dt>Lowest</dt><dd>${kj(w.min)}<small> kJ</small></dd><small>${Math.round(w.min / w.wprime * 100)} % of W′, at ${clock(low.t)}</small></div>
                 <div><dt>Matches</dt><dd>${w.matches.length}</dd></div>
-            </dl>${matches}`, `With FTP as CP and W′ ${kj(w.wprime)} kJ. A match: an effort above FTP that cost 2 kJ or more.`);
+            </dl>${matches}`, `${this._data.wbalSource === 'model' ?
+                `With CP ${w.cp} W and W′ ${kj(w.wprime)} kJ from the rider model.` :
+                `With your FTP (${w.cp} W) as CP and W′ ${kj(w.wprime)} kJ.`} A match: an effort above CP that cost 2 kJ or more.`);
     }
 
     durability(a) {

@@ -164,7 +164,7 @@ function recordOf(seconds, watts, {summaries = [], day = null, id = null}) {
     return null;
 }
 
-function analyseRide({samples = [], pauses = [], laps = [], workout = null, ftp = 250, weight = 75, wprime = 20000, lthr = null,
+function analyseRide({samples = [], pauses = [], laps = [], workout = null, ftp = 250, weight = 75, wprime = 20000, cp = null, lthr = null,
                       summaries = [], day = null, id = null} = {}) {
     const paused = t => pauses.some(p => t >= p.start && t < p.end);
     const active = samples.filter(s => !paused(s.t));
@@ -177,7 +177,7 @@ function analyseRide({samples = [], pauses = [], laps = [], workout = null, ftp 
 
     let wbal = null, powerZones = null, bests = [], np = null;
     if(hasPower) {
-        const stats = new SessionStats({ftp, weight, wprime});
+        const stats = new SessionStats({ftp, weight, wprime, cp});
         const atIndex = [];
         for(const s of active) { stats.push({power: s.power, heartRate: s.heartRate, cadence: s.cadence}); atIndex.push(s.t); }
         const sum = stats.summary();
@@ -185,7 +185,7 @@ function analyseRide({samples = [], pauses = [], laps = [], workout = null, ftp 
         const series = new Array(samples.length).fill(null);
         stats.wbalSeries.forEach((w, i) => { series[atIndex[i]] = Math.round(w); });
         wbal = {
-            series, min: Math.round(sum.wbalMin), wprime,
+            series, min: Math.round(sum.wbalMin), wprime, cp: cp > 0 ? cp : ftp,
             matches: stats.matches.map(m => ({start: atIndex[m.start], end: atIndex[m.stop], cost: Math.round(m.cost)})),
         };
         powerZones = sum.zones.map(z => ({short: z.short, name: z.name, color: z.color, seconds: z.seconds}));

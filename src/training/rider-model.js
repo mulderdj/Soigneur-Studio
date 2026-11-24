@@ -122,4 +122,12 @@ function powerProfile({meanMax = {}, ftp, weight, table = 'men'}) {
     return {rows, sentence, table};
 }
 
-export { meanMaximal, fitCp, effective, offer, powerProfile, CATEGORIES, TABLES };
+// everything the app needs at once
+function currentModel({summaries, today, ftp, typedWprime, settings}) {
+    const meanMax = meanMaximal(summaries, today);
+    const fit = fitCp(meanMax);
+    const eff = effective({fit, settings, ftp, typedWprime});
+    return {meanMax, fit, effective: eff, offer: settings?.mode === 'auto' ? null : offer({fit, current: eff}), settings};
+}
+
+export { meanMaximal, fitCp, effective, offer, powerProfile, currentModel, CATEGORIES, TABLES };
