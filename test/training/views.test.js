@@ -31,6 +31,18 @@ function calendar(layout) {
 }
 
 describe('calendar', () => {
+    test('moved to another place on the page (a layout edit), it keeps its month and steps once', () => {
+        const el = calendar('desktop');
+        const month = () => el.querySelector('.cal-days, .cal-grid')?.parentElement && el.textContent.match(/(January|February|March|April|May|June|July|August|September|October|November|December) \d{4}/)?.[0];
+        const before = month();
+        const box = document.createElement('div');
+        document.body.append(box);
+        expect(() => box.append(el)).not.toThrow();
+        expect(month()).toBe(before);
+        el.querySelector('[data-nav="next"]').click();
+        expect(month()).toBe('December 2026');
+    });
+
     test('a week list on a phone', () => {
         const el = calendar('phone');
         expect(el.querySelectorAll('.cal-day')).toHaveLength(7);

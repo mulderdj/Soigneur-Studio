@@ -16,13 +16,18 @@ const WEEKDAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
 class TrainingCalendar extends HTMLElement {
     connectedCallback() {
-        this.anchor = null;
-        this.addEventListener('click', e => {
-            const nav = e.target.closest('[data-nav]');
-            if(nav) return this.navigate(nav.dataset.nav);
-            const open = e.target.closest('.cal-open');
-            if(open) this.dispatchEvent(new CustomEvent('day-open', {bubbles: true, detail: {day: open.closest('.cal-day').dataset.day}}));
-        });
+        // connected again when the rider moves the card (Edit layout): keep
+        // the month in view, and the click handler is added once
+        this.anchor ??= this._data?.today ?? null;
+        if(!this.clicks) {
+            this.clicks = true;
+            this.addEventListener('click', e => {
+                const nav = e.target.closest('[data-nav]');
+                if(nav) return this.navigate(nav.dataset.nav);
+                const open = e.target.closest('.cal-open');
+                if(open) this.dispatchEvent(new CustomEvent('day-open', {bubbles: true, detail: {day: open.closest('.cal-day').dataset.day}}));
+            });
+        }
         this.onResize = () => { if(this.week() !== this.lastWeek) this.render(); };
         window.addEventListener('resize', this.onResize);
         this.render();

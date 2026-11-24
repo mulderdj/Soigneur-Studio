@@ -16,6 +16,7 @@ import './week-card.js';
 import './health-card.js';
 import './hr-thresholds.js';
 import './progress-cards.js';
+import { TrainingLayout } from './training-layout.js';
 
 class TrainingPage extends HTMLElement {
     connectedCallback() {
@@ -31,6 +32,7 @@ class TrainingPage extends HTMLElement {
                 <p>Ride with Soigneur and your rides, plan, form and progress show up here.
                    Signed in? Rides saved to your account appear too.</p>
             </div>
+            <div class="tp-layout"></div>
             <div class="training">
                 <form-card class="card tp-form"></form-card>
                 <week-card class="card tp-week"></week-card>
@@ -46,6 +48,12 @@ class TrainingPage extends HTMLElement {
         this.$empty = this.querySelector('.tp-empty');
         this.$dialog = this.querySelector('day-dialog');
         this.$file = this.querySelector('.tp-file');
+        const card = sel => this.querySelector(`.training > ${sel}`);
+        this.layout = new TrainingLayout({
+            tools: this.querySelector('.tp-tools'), bar: this.querySelector('.tp-layout'), grid: this.querySelector('.training'),
+            cards: {form: card('.tp-form'), week: card('.tp-week'), health: card('.tp-health'), calendar: card('.tp-calendar'),
+                    volume: card('volume-card'), curve: card('curve-card'), zones: card('zones-card'), ftp: card('ftp-card')},
+        });
         this.querySelector('[data-import-fit]').addEventListener('click', () => this.$file.click());
         this.$file.addEventListener('change', () => this.importFiles());
 

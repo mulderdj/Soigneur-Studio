@@ -21,6 +21,48 @@
     margin-bottom: var(--space-3);
 }
 
+/* Edit layout (see training-layout.js; the edit bar on each card is .le-bar in ride.css) */
+.tl-edit {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-2);
+    margin-bottom: var(--space-3);
+    padding: var(--space-2) var(--space-3);
+    border: var(--line-w) solid var(--accent);
+    border-radius: var(--radius-m);
+    background-color: var(--surface);
+}
+
+.tl-edit[hidden] { display: none; }
+.tl-edit__note { color: var(--muted); font-size: var(--text-s); }
+.tl-edit__actions { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+
+.tl-live {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+}
+
+.training.is-editing > [data-tile] {
+    position: relative;
+    min-height: 120px;
+    outline: var(--line-w) dashed var(--line);
+    outline-offset: 2px;
+}
+
+/* a card that hides itself (Health without data) can still be moved */
+.training.is-editing > [data-le-placeholder="true"][hidden] {
+    display: block;
+    opacity: 0.6;
+}
+
+.tl-tray__title { margin-bottom: var(--space-3); font-size: var(--text-l); }
+.tl-tray__list { display: grid; gap: var(--space-2); margin-bottom: var(--space-4); }
+
 .tp-tools {
     display: flex;
     justify-content: flex-end;
@@ -520,10 +562,9 @@
         grid-template-columns: repeat(2, minmax(0, 1fr));
     }
 
-    .tp-form,
-    .tp-week,
-    .tp-health,
-    .tp-calendar {
+    /* tablet: two columns; narrow takes one, wide and full the row */
+    .training > [data-size="wide"],
+    .training > [data-size="full"] {
         grid-column: 1 / -1;
     }
 
@@ -541,32 +582,28 @@
 }
 
 @media (min-width: 1200px) {
+    /* three columns: narrow one, wide two, full all (the rider's sizes, see training-layout.js) */
     .training {
-        grid-template-columns: minmax(0, 2fr) minmax(0, 1fr) minmax(0, 1fr);
+        grid-template-columns: repeat(3, minmax(0, 1fr));
         grid-auto-flow: row dense;
     }
 
-    .tp-form     { grid-column: 1 / 2; }
-    .tp-week     { grid-column: 2 / 4; }
+    .training > [data-size="narrow"] { grid-column: span 1; }
+    .training > [data-size="wide"]   { grid-column: span 2; }
+    .training > [data-size="full"]   { grid-column: 1 / -1; }
 
     /* health: one wide row, the numbers beside the chart */
-    .tp-health:not([hidden]) {
-        grid-column: 1 / -1;
+    .tp-health[data-size="full"]:not([hidden]) {
         display: grid;
         grid-template-columns: minmax(0, 1fr) minmax(0, 2fr);
         grid-template-areas: "title title" "grid plot" "grid legend";
         column-gap: var(--space-4);
     }
-    .tp-health .uc-head  { grid-area: title; }
-    .tp-health .uc-intro { grid-area: grid; }
-    .tp-health .hc-grid  { align-content: start; grid-template-columns: repeat(2, minmax(0, 1fr)); }
-    .tp-health .uc-plot  { grid-area: plot; min-width: 0; }
-    .tp-health .uc-foot  { grid-area: legend; }
-    .tp-calendar { grid-column: 1 / -1; }
-    .training > volume-card { grid-column: 1 / 2; }
-    .training > zones-card  { grid-column: 1 / 2; }
-    .training > curve-card  { grid-column: 2 / 4; }
-    .training > ftp-card    { grid-column: 2 / 4; }
+    .tp-health[data-size="full"] .uc-head  { grid-area: title; }
+    .tp-health[data-size="full"] .uc-intro { grid-area: grid; }
+    .tp-health[data-size="full"] .hc-grid  { align-content: start; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .tp-health[data-size="full"] .uc-plot  { grid-area: plot; min-width: 0; }
+    .tp-health[data-size="full"] .uc-foot  { grid-area: legend; }
 
     .wc-grid {
         grid-template-columns: repeat(2, minmax(0, 1fr));
