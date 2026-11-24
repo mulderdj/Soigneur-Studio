@@ -212,7 +212,9 @@ async function main() {
                     }, prefix).catch(() => null);
                     if(!id) { missing.add(name); continue; }
                     await page.evaluate(id => { location.hash = `#ride=${encodeURIComponent(id)}`; }, id);
-                    await page.waitForTimeout(1500);
+                    // measure the page once the ride is drawn, not while it is still being read
+                    await page.locator('ride-chart .rc-plot canvas').first().waitFor({timeout: 8000}).catch(() => {});
+                    await page.waitForTimeout(500);
                 } else if(!(await openTab(page, PAGES[name], size.phone))) { missing.add(name); continue; }
                 if(name === 'training-day') {
                     await page.locator('.cal-day.is-today .cal-open').first().click();

@@ -89,6 +89,7 @@
 ride-chart {
     position: relative;
     display: grid;
+    grid-template-columns: minmax(0, 1fr);   /* never wider than its card */
     gap: var(--space-2);
 }
 
@@ -96,6 +97,7 @@ ride-chart {
     display: flex;
     align-items: flex-start;
     gap: var(--space-2);
+    min-width: 0;
 }
 
 .rc-chips {
@@ -103,6 +105,7 @@ ride-chart {
     flex: 1;
     flex-wrap: wrap;
     gap: var(--space-1);
+    min-width: 0;                             /* the phones' one-row chips scroll, not stretch the page */
 }
 
 .rc-full { flex: none; }
