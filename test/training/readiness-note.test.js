@@ -91,4 +91,26 @@ describe('the note before you ride', () => {
         expect(el.hidden).toBe(false);
         expect(el.querySelector('[data-rn="undo"]')).not.toBeNull();
     });
+
+    test('starting the clock hides the Undo line, and Undo can\'t swap the workout mid-ride', async () => {
+        const el = await note(source());
+        el.querySelector('[data-rn="easier"]').click(); await flush(); await flush();
+        const undo = el.querySelector('[data-rn="undo"]');
+        xf.dispatch('db:watchStatus', {watchStatus: 'started'}); await flush();
+        expect(el.hidden).toBe(true);
+        undo.click(); await flush(); await flush();
+        expect(calls.filter(c => c[0] === 'restore')).toEqual([]);
+    });
+
+    test('a second tap while a change is running does nothing', async () => {
+        const src = source();
+        let release;
+        src.actions.replacePlanWorkout = async (id, w) => { calls.push(['replace', id, w.meta.name]); await new Promise(r => { release = r; }); return entry; };
+        const el = await note(src);
+        el.querySelector('[data-rn="easier"]').click();
+        el.querySelector('[data-rn="move"]').click();
+        await flush();
+        release(); await flush(); await flush();
+        expect(calls.map(c => c[0])).toEqual(['replace', 'ride']);
+    });
 });

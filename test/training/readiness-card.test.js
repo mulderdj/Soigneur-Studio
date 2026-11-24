@@ -42,6 +42,7 @@ describe('the Readiness card', () => {
         const el = card({wellness: []});
         expect(el.textContent).toMatch(/No health data from last night/);
         expect(el.textContent).toMatch(/Connect Garmin/);
+        expect(el.querySelector('.rd-advice').textContent).toMatch(/training load only/);   // the headline says what it rests on
         expect(el.textContent).not.toMatch(/NaN|undefined/);
     });
 });

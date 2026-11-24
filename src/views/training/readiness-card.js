@@ -40,7 +40,7 @@ class ReadinessCard extends HTMLElement {
                         <p class="rd-word">${WORD[r.state]}</p>
                     </div>
                 </div>
-                <p class="rd-advice">${ADVICE[r.state]}</p>
+                <p class="rd-advice">${ADVICE[r.state]}${r.basis === 'form' ? ' Judging by your training load only.' : ''}</p>
                 <ul class="rd-reasons">${r.reasons.map(x => `<li>${esc(x)}</li>`).join('')}</ul>
                 ${plan}
                 ${noGarmin ? '<p class="card__note">Connect Garmin in the rider menu for HRV, resting heart rate and sleep.</p>' : ''}

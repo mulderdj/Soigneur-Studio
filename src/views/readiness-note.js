@@ -30,7 +30,12 @@ class ReadinessNote extends HTMLElement {
         this.watch = 'stopped';
         this.addEventListener('click', e => this.onClick(e), signal);
         xf.sub('db:workout', w => { this.workout = w; this.refresh(); }, signal);
-        xf.sub('db:watchStatus', s => { this.watch = s; this.refresh(); }, signal);
+        xf.sub('db:watchStatus', s => {
+            this.watch = s;
+            // riding: no note and no Undo (Undo would swap the workout mid-ride)
+            if(this.riding()) { clearTimeout(this.undoTimer); this.undoing = null; this.hidden = true; this.innerHTML = ''; return; }
+            this.refresh();
+        }, signal);
         xf.sub('training:changed', () => this.refresh(), signal);
         xf.sub('db:page', p => { if(p === 'home') this.refresh(); }, signal);
     }
@@ -39,7 +44,11 @@ class ReadinessNote extends HTMLElement {
         this.abort?.abort();
         this.abort = null;
         clearTimeout(this.undoTimer);
+        this.undoing = null;
+        this.busy = false;
     }
+
+    riding() { return this.watch === 'started' || this.watch === 'paused'; }
 
     notNow(today) {
         try { return localStorage.getItem(notNowKey()) === today; } catch(e) { return false; }
@@ -86,7 +95,7 @@ class ReadinessNote extends HTMLElement {
 
     async onClick(ev) {
         const b = ev.target.closest('[data-rn]');
-        if(!b || !ReadinessNote.source) return;
+        if(!b || !ReadinessNote.source || this.busy || this.riding()) return;      // one change at a time, never while riding
         const {actions} = ReadinessNote.source;
         const c = this.c, e = c?.entry;
         const what = b.dataset.rn;
