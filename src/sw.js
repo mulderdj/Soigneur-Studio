@@ -1,214 +1,92 @@
-const cacheName = 'soigneur-studio-v011';
-const resources = [
-    './',
-    'index.html',
-    'privacy.html',
+//
+// Service worker: the app works without a connection.
+//
+// - install: caches every file of this build (Parcel's manifest) under a
+//   cache named after the build's version
+// - the page (navigations): network first, the cached page when the server
+//   doesn't answer within NAV_TIMEOUT (so online you always get the newest
+//   build; offline the last one this device saw)
+// - the build's files: cache first (their names change with every build)
+// - Google Fonts: cache first, kept after the first visit
+// - the account server (/api/) and the root certificate: never cached; the
+//   app keeps its data in IndexedDB and syncs when the connection returns
+// - activate: earlier builds' caches are removed
+//
+// Registered by index.js in production builds only, never on the dev server.
+//
 
-    'images/connections/garmin-connect.png',
-    'images/logo/logo-192.png',
-    'images/logo/logo-512.png',
-    'images/logo/logo-maskable-512.png',
-    'images/logo/logo-1024.png',
-    'favicon-16.png',
-    'favicon-32.png',
-    'favicon-64.png',
-    'favicon-180.png',
-    'index.js',
+import { manifest, version } from '@parcel/service-worker';
 
-    'activity/enums.js',
+const PREFIX = 'soigneur-';
+const CACHE = `${PREFIX}${version}`;
+const FONTS = `${PREFIX}fonts`;
+const NAV_TIMEOUT = 3000;
+const FONT_HOSTS = ['fonts.googleapis.com', 'fonts.gstatic.com'];
 
-    'ant/ant.js',
-    'ant/channel.js',
-    'ant/common.js',
-    'ant/constants.js',
-    'ant/controllable.js',
-    'ant/device.js',
-    'ant/fec-channel.js',
-    'ant/fec.js',
-    'ant/hrm-channel.js',
-    'ant/hrm.js',
-    'ant/message.js',
-    'ant/polyfill.js',
-    'ant/search-channel.js',
-    'ant/types.js',
-    'ant/web-serial.js',
-    'ant/web-usb.js',
-
-    'ble/bas/bas.js',
-    'ble/bas/battery-level.js',
-
-    'ble/cps/control-point.js',
-    'ble/cps/cps.js',
-    'ble/cps/cycling-power-feature.js',
-    'ble/cps/cycling-power-measurement.js',
-
-    'ble/cscs/feature.js',
-    'ble/cscs/measurement.js',
-    'ble/cscs/cscs.js',
-
-    'ble/ct/core-body-temperature.js',
-    'ble/ct/ct.js',
-
-    'ble/dis/dis.js',
-
-    'ble/fec/fec.js',
-    'ble/fec/message.js',
-    'ble/fec/messages.js',
-
-    'ble/ftms/control-point.js',
-    'ble/ftms/fitness-machine-feature.js',
-    'ble/ftms/fitness-machine-status.js',
-    'ble/ftms/ftms.js',
-    'ble/ftms/indoor-bike-data.js',
-    'ble/ftms/supported-ranges.js',
-
-    'ble/hrs/heartRateMeasurement.js',
-    'ble/hrs/hrs.js',
-
-    'ble/moxy/moxy.js',
-    'ble/moxy/smo2.js',
-
-    'ble/obc/controls.js',
-    'ble/obc/obc.js',
-    'ble/obc/training-controls.js',
-    'ble/obc/ui-controls.js',
-    'ble/obc/virtual-gear-shifting.js',
-
-    'ble/rcs/race-controller-measurement.js',
-    'ble/rcs/rcs.js',
-
-    'ble/wcps/control.js',
-    'ble/wcps/wcps.js',
-
-    'ble/characteristic.js',
-    'ble/common.js',
-    'ble/connectable.js',
-    'ble/devices.js',
-    'ble/enums.js',
-    'ble/reactive-connectable.js',
-    'ble/reactive-connectable.js',
-    'ble/service.js',
-    'ble/userData.js',
-    'ble/web-ble.js',
-
-
-    'fit/common.js',
-    'fit/crc.js',
-    'fit/data-record.js',
-    'fit/definition-record.js',
-    'fit/field-definition.js',
-    'fit/file-header.js',
-    'fit/fit.js',
-    'fit/fitjs.js',
-    'fit/local-activity.js',
-    'fit/local-course.js',
-    'fit/record-header.js',
-    'fit/profiles/base-types.js',
-    'fit/profiles/global-field-definitions.js',
-    'fit/profiles/global-message-definitions.js',
-    'fit/profiles/global-type-definitions.js',
-    'fit/profiles/product-message-definitions.js',
-    'fit/profiles/profiles.js',
-
-    'models/enums.js',
-    'models/models.js',
-
-    'storage/idb.js',
-    'storage/local-storage.js',
-    'storage/uuid.js',
-
-    'views/active-list-item.js',
-    'views/activity-list.js',
-    'views/ant-device-scan.js',
-    'views/connection-switch.js',
-    'views/data-views.js',
-    'views/editor.js',
-    'views/effect-views.js',
-    'views/graph.js',
-    'views/keyboard.js',
-    'views/training-dashboard.js',
-    'views/rider-menu.js',
-    'views/app-bar.js',
-    'views/panel-pager.js',
-    'views/layout.js',
-    'legacy-prefs.js',
-    'riders.js',
-    'sensors.js',
-    'account/api.js',
-    'account/sync.js',
-    'css/tokens.css',
-    'css/base.css',
-    'css/components.css',
-    'css/ride.css',
-    'css/training.css',
-    'css/analysis.css',
-    'css/workouts.css',
-    'css/settings.css',
-    'css/rider-menu.css',
-    'analytics.js',
-    'views/moxy-graph.js',
-    'views/tabs.js',
-    'views/views.js',
-    'views/watch.js',
-    'views/workout-graph.js',
-    'views/workout-list.js',
-
-    'workouts/workouts.js',
-    'workouts/zwo.js',
-    'workouts/formats.js',
-
-    'course.js',
-    'db.js',
-    'file.js',
-    'functions.js',
-    'lock.js',
-    'physics.js',
-    'sound.js',
-    'timer.js',
-    'utils.js',
-    'watch.js',
-
-    'manifest.webmanifest',
-];
+const isMap = url => url.endsWith('.map');
+const essential = url => /\.(html|js|css|webmanifest)$/.test(url) || url === '/';
 
 self.addEventListener('install', e => {
-    console.log('SW: Install.');
-
-    e.waitUntil(caches.open(cacheName).then((cache) => cache.addAll(resources)));
+    const files = [...new Set(['/', ...manifest])].filter(url => !isMap(url));
+    e.waitUntil(caches.open(CACHE).then(async cache => {
+        // the page, scripts and styles must all be there; an image that fails is fetched later
+        await cache.addAll(files.filter(essential));
+        await Promise.all(files.filter(url => !essential(url)).map(url => cache.add(url).catch(() => {})));
+    }));
 });
 
 self.addEventListener('activate', e => {
-    console.log('SW: Activate.');
-
-    e.waitUntil(
-        caches.keys().then((keyList) => {
-                Promise.all(keyList.map((key) => {
-                    console.log(key);
-                    if (key === cacheName) { return; }
-                    console.log(`deleting cache ${key}.`);
-                    caches.delete(key);
-                }));
-            }));
+    e.waitUntil((async () => {
+        for(const key of await caches.keys()) {
+            if(key !== CACHE && key !== FONTS) await caches.delete(key);
+        }
+        await self.clients.claim();
+    })());
 });
 
+function withTimeout(promise, ms) {
+    return new Promise((resolve, reject) => {
+        const t = setTimeout(() => reject(new Error('timeout')), ms);
+        promise.then(r => { clearTimeout(t); resolve(r); }, err => { clearTimeout(t); reject(err); });
+    });
+}
+
+async function page(request) {
+    const cache = await caches.open(CACHE);
+    const network = fetch(request);
+    try {
+        const res = await withTimeout(network, NAV_TIMEOUT);
+        if(res.ok) cache.put('/', res.clone());
+        return res;
+    } catch(e) {
+        const cached = await cache.match('/') ?? await cache.match('/index.html');
+        if(cached) {
+            // a slow answer that arrives later still refreshes the cached page
+            network.then(res => { if(res.ok) cache.put('/', res.clone()); }).catch(() => {});
+            return cached;
+        }
+        return network;
+    }
+}
+
+async function cacheFirst(request, name) {
+    const cache = await caches.open(name);
+    const cached = await cache.match(request);
+    if(cached) return cached;
+    const res = await fetch(request);
+    if(res.ok || res.type === 'opaque') cache.put(request, res.clone());
+    return res;
+}
+
 self.addEventListener('fetch', e => {
-    // The path only
-    const path = new URL(e.request.url).pathname;
-    console.log(`SW: fetch: `, path);
+    const request = e.request;
+    if(request.method !== 'GET') return;
+    const url = new URL(request.url);
 
-    // Cache falling back to the Network
-    e.respondWith(
-        caches.match(e.request)
-            .then(cachedResource => {
-                if(cachedResource) {
-                    return cachedResource;
-                }
-                return fetch(e.request);
-            }));
+    if(FONT_HOSTS.includes(url.hostname)) { e.respondWith(cacheFirst(request, FONTS)); return; }
+    if(url.origin !== self.location.origin) return;
+    if(url.pathname.startsWith('/api/') || url.pathname === '/soigneur-root.crt') return;
 
-    // Network falling back to the Cache
-    // e.respondWith(
-    //     fetch(e.request).catch(function() {
-    //         return caches.match(e.request);
-    //     }));
+    if(request.mode === 'navigate') { e.respondWith(page(request)); return; }
+    e.respondWith(cacheFirst(request, CACHE));
 });

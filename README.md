@@ -29,6 +29,7 @@ Soigneur Studio is based on [Auuki](https://github.com/dvmarinoff/Auuki) by Dimi
   * *Training load*: BikeScore and xPower next to TSS and NP, plus the aerobic / anaerobic split from Skiba's TISS.
   * W′bal line on the ride chart, and peak power for 5 s, 30 s, 1, 5, 10, 20 and 60 min.
 * Light and dark theme, 4K / TV scaling, and statistics rebuilt from the recorded session after a page reload.
+* **Works offline**: once opened over HTTPS (or `http://localhost:8080`), the app is kept on the device and starts without a connection. Rides, plan changes, ratings and settings are kept on the device and sync with your account when the connection returns; the rider menu shows *Offline* and how many rides are waiting. Online you always get the newest build. Not offline: opening Garmin or intervals.icu rides for analysis (your server fetches those) and new data from those services.
 
 * **Readiness**: every morning *Ready*, *Take care* or *Rest*, with the reasons (HRV against your range, resting heart rate, sleep, Body Battery, form). Before a hard planned workout on a bad morning the Ride page offers to ride it easier, swap it for a recovery spin, or move it, with Undo.
 * **Rider model**: CP and W′ fitted from your best 2–20 minute efforts of the last 90 days, drawn over the power curve, and used for W′bal when you say so (or automatically); a power profile (5 s, 1 min, 5 min, FTP in W/kg) with a category for each. FTP is never changed by the model.
