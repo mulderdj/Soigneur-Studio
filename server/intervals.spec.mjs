@@ -4,6 +4,8 @@ import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 const require = createRequire(import.meta.url);
 const { sportOf, isStub, bestFromPowerCurve, zonesFromZoneTimes, toSummary } = require('./intervals.js');
+const { DURATIONS } = require('./durations.js');
+const all = (known = {}) => Object.fromEntries(DURATIONS.map(d => [d, known[d] ?? null]));
 
 const ride = {
     id: 'i101', start_date_local: '2026-11-20T18:00:00', start_date: '2026-11-20T17:00:00Z',
@@ -28,12 +30,13 @@ test('stubs (Strava, blocked sources)', () => {
 });
 
 test('best efforts from the power curve, in any of its shapes', () => {
-    const want = {5: 900, 60: 450, 300: 320, 1200: 280, 3600: 260};
+    const want = all({1: 1000, 5: 900, 60: 450, 300: 320, 1200: 280, 3600: 260});   // every duration the app keeps
     assert.deepEqual(bestFromPowerCurve(curve), want);
     assert.deepEqual(bestFromPowerCurve({list: curve.secs.map((s, i) => ({secs: s, watts: curve.watts[i]}))}), want);
     assert.deepEqual(bestFromPowerCurve(curve.secs.map((s, i) => ({secs: s, watts: curve.watts[i]}))), want);
-    assert.deepEqual(bestFromPowerCurve({secs: [5, 60], watts: [800, 400]}), {5: 800, 60: 400, 300: null, 1200: null, 3600: null});
-    assert.deepEqual(bestFromPowerCurve(null), {5: null, 60: null, 300: null, 1200: null, 3600: null});
+    assert.deepEqual(bestFromPowerCurve({secs: [5, 60], watts: [800, 400]}), all({5: 800, 60: 400}));
+    assert.deepEqual(bestFromPowerCurve(null), all());
+    assert.equal(Object.keys(want).length, 21);
 });
 
 test('zone times onto Auuki\'s 7 zones, sweet spot into Z4', () => {
@@ -68,7 +71,7 @@ test('a run counts for load only', () => {
     assert.equal(s.tss, 55);
     assert.equal(s.duration, 3700); // elapsed_time when moving_time is missing
     assert.deepEqual(s.zoneSeconds, [0, 0, 0, 0, 0, 0, 0]);
-    assert.deepEqual(Object.values(s.best), [null, null, null, null, null]);
+    assert.ok(Object.values(s.best).every(v => v === null));
 });
 
 test('no load reported', () => {

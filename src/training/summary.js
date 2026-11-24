@@ -7,8 +7,25 @@
 import { SessionStats } from '../analytics.js';
 import { localDay } from './dates.js';
 
-const SUMMARY_VERSION = 1;
-const BEST_SECONDS = [5, 60, 300, 1200, 3600];
+const SUMMARY_VERSION = 2;   // 2: best power at 21 durations (the rider model)
+// the durations (s) kept for the rider model: same list as server/durations.js
+const DURATIONS = [1, 2, 5, 10, 15, 20, 30, 60, 120, 180, 240, 300, 420, 600, 900, 1200, 1800, 2700, 3600, 5400, 7200];
+const BEST_SECONDS = DURATIONS;
+
+// the best average power over each duration (rolling sums); null when the
+// ride is shorter than the duration
+function bestPowers(powers) {
+    const out = {};
+    const prefix = new Float64Array(powers.length + 1);
+    for(let i = 0; i < powers.length; i++) prefix[i + 1] = prefix[i] + (powers[i] > 0 ? powers[i] : 0);
+    for(const d of DURATIONS) {
+        if(powers.length < d) { out[d] = null; continue; }
+        let best = 0;
+        for(let i = d; i <= powers.length; i++) { const s = prefix[i] - prefix[i - d]; if(s > best) best = s; }
+        out[d] = best > 0 ? Math.round(best / d) : null;
+    }
+    return out;
+}
 
 function round(x, digits = 1) {
     const f = 10 ** digits;
@@ -23,11 +40,8 @@ function rideSummary(samples, meta = {}) {
         stats.push({power: s.power, heartRate: s.heartRate, cadence: s.cadence});
     }
     const sum = stats.summary();
-    const best = {};
-    for(const seconds of BEST_SECONDS) {
-        const b = sum.best.find(x => x.seconds === seconds);
-        best[seconds] = hasPower && b?.available && b.watts > 0 ? Math.round(b.watts) : null;
-    }
+    const all = bestPowers(samples.map(s => s.power));
+    const best = Object.fromEntries(DURATIONS.map(d => [d, hasPower ? all[d] : null]));
     const power = (x, d) => (hasPower ? round(x, d) : null);
     // heart rate, for a load when there is no power (dropouts don't count)
     let hrSum = 0, hrN = 0, hrMax = 0;
@@ -58,4 +72,4 @@ function rideSummary(samples, meta = {}) {
     };
 }
 
-export { rideSummary, SUMMARY_VERSION, BEST_SECONDS };
+export { rideSummary, SUMMARY_VERSION, BEST_SECONDS, DURATIONS, bestPowers };

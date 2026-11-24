@@ -1,4 +1,4 @@
-import { weeklyVolume, weekCompare, powerCurve, ftpEstimates, zoneTotals } from '../../src/training/progress.js';
+import { weeklyVolume, weekCompare, powerCurve, ftpEstimates, zoneTotals , WINDOWS} from '../../src/training/progress.js';
 
 const best = (b5, b60, b300, b1200, b3600) => ({5: b5, 60: b60, 300: b300, 1200: b1200, 3600: b3600});
 const z = (...s) => [...s, ...Array(7 - s.length).fill(0)];
@@ -32,19 +32,24 @@ describe('weekly volume', () => {
     });
 });
 
+// the five durations these fixtures carry, picked out of the 21 the app keeps
+const FIVE = [5, 60, 300, 1200, 3600];
+const at = (arr, d) => arr[WINDOWS.indexOf(d)];
+const pick = arr => FIVE.map(d => at(arr, d));
+
 describe('power curve', () => {
     test('last 6 weeks against all time, W/kg from the ride the best came from', () => {
         const c = powerCurve(rides, today);
-        expect(c.windows).toEqual([5, 60, 300, 1200, 3600]);
-        expect(c.recent.watts).toEqual([600, 400, 300, 270, 260]);
-        expect(c.recent.wkg[0]).toBeCloseTo(600 / 70);
-        expect(c.recent.wkg[3]).toBeCloseTo(270 / 75);
-        expect(c.allTime.watts).toEqual([900, 450, 320, 300, 280]);
-        expect(c.allTime.wkg[0]).toBeCloseTo(12);
+        expect(c.windows).toEqual(WINDOWS);
+        expect(pick(c.recent.watts)).toEqual([600, 400, 300, 270, 260]);
+        expect(at(c.recent.wkg, 5)).toBeCloseTo(600 / 70);
+        expect(at(c.recent.wkg, 1200)).toBeCloseTo(270 / 75);
+        expect(pick(c.allTime.watts)).toEqual([900, 450, 320, 300, 280]);
+        expect(at(c.allTime.wkg, 5)).toBeCloseTo(12);
     });
     test('no rides', () => {
         const c = powerCurve([], today);
-        expect(c.recent.watts).toEqual([null, null, null, null, null]);
+        expect(c.recent.watts.every(w => w === null)).toBe(true);
     });
 });
 
@@ -101,15 +106,15 @@ describe('where the numbers come from (chart read-outs)', () => {
             r('b', '2026-11-10', best(520, 350, 270, 268, 230), 75, 'Threshold'),
         ];
         const c = powerCurve(list, today);
-        expect(c.allTime.from[3]).toEqual({id: 'b', day: '2026-11-10', name: 'Threshold'});   // 20 min
-        expect(c.allTime.from[1]).toEqual({id: 'a', day: '2026-11-02', name: 'Sweet spot'});  // 1 min, equal: earlier
-        expect(c.recent.from[0].id).toBe('b');
+        expect(at(c.allTime.from, 1200)).toEqual({id: 'b', day: '2026-11-10', name: 'Threshold'});   // 20 min
+        expect(at(c.allTime.from, 60)).toEqual({id: 'a', day: '2026-11-02', name: 'Sweet spot'});  // 1 min, equal: earlier
+        expect(at(c.recent.from, 5).id).toBe('b');
     });
 
     test('W/kg is null when the ride has no weight', () => {
         const c = powerCurve([r('a', '2026-11-20', best(500, 350, 280, 260, 240), null)], today);
-        expect(c.allTime.watts[3]).toBe(260);
-        expect(c.allTime.wkg[3]).toBeNull();
+        expect(at(c.allTime.watts, 1200)).toBe(260);
+        expect(at(c.allTime.wkg, 1200)).toBeNull();
     });
 
     test('an FTP estimate says which effort decided it', () => {

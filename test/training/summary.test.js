@@ -1,7 +1,7 @@
 /**
  * @jest-environment jsdom
  */
-import { rideSummary, SUMMARY_VERSION } from '../../src/training/summary.js';
+import { rideSummary, SUMMARY_VERSION, DURATIONS, bestPowers } from '../../src/training/summary.js';
 import { fitToSamples } from '../../src/training/fit-records.js';
 import { localDay } from '../../src/training/dates.js';
 import { fit } from '../../src/fit/fit.js';
@@ -50,6 +50,29 @@ describe('ride summary', () => {
         expect(s.avgHr).toBe(150);
         expect(s.maxHr).toBe(160);
         expect(rideSummary(steady(10, 200).map(x => ({...x, heartRate: 0})), meta).avgHr).toBeNull();
+    });
+});
+
+describe('best power at every duration the rider model uses', () => {
+    test('21 durations, 1 s to 2 h; version 2 so old rides are read again', () => {
+        expect(DURATIONS).toEqual([1, 2, 5, 10, 15, 20, 30, 60, 120, 180, 240, 300, 420, 600, 900, 1200, 1800, 2700, 3600, 5400, 7200]);
+        expect(SUMMARY_VERSION).toBe(2);
+    });
+    test('rolling best averages', () => {
+        const powers = [...Array(540).fill(200), ...Array(60).fill(400), ...Array(600).fill(150)];
+        const b = bestPowers(powers);
+        expect(b[60]).toBe(400);
+        expect(b[1]).toBe(400);
+        expect(b[600]).toBe(220);                 // 540 s at 200 W and the 60 s at 400 W
+        expect(b[1200]).toBe(Math.round((540 * 200 + 60 * 400 + 600 * 150) / 1200));
+        expect(b[1800]).toBeNull();               // longer than the ride
+    });
+    test('a ride summary keeps them; no power, no bests', () => {
+        const s = rideSummary(Array.from({length: 700}, () => ({power: 250, heartRate: 140, cadence: 90})), {id: 'x', start: Date.UTC(2026, 10, 20), ftp: 250, weight: 75});
+        expect(s.best[600]).toBe(250);
+        expect(s.best[900]).toBeNull();
+        const none = rideSummary(Array.from({length: 700}, () => ({power: 0, heartRate: 140})), {id: 'y', start: Date.UTC(2026, 10, 20), ftp: 250, weight: 75});
+        expect(Object.values(none.best).every(v => v === null)).toBe(true);
     });
 });
 

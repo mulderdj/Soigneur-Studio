@@ -10,7 +10,7 @@
 //
 
 const WINDOW_DAYS = 28;      // days per health request (some endpoints cap a range near a month)
-const WINDOWS = [5, 60, 300, 1200, 3600];
+const { DURATIONS: WINDOWS } = require('./durations.js');
 const SUMMARY_VERSION = 1;
 
 const num = (x) => (typeof x === 'number' && Number.isFinite(x) ? x : (typeof x === 'string' && x.trim() !== '' && Number.isFinite(Number(x)) ? Number(x) : null));

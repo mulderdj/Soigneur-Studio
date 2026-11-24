@@ -8,7 +8,7 @@
 //
 
 const SUMMARY_VERSION = 1;
-const WINDOWS = [5, 60, 300, 1200, 3600];
+const { DURATIONS: WINDOWS } = require('./durations.js');
 const CYCLING = new Set(['Ride', 'VirtualRide', 'GravelRide', 'MountainBikeRide', 'EBikeRide', 'TrackRide']);
 const SWEET_SPOT_ZONE = 3; // Auuki's Z4 "Sweet Spot"
 

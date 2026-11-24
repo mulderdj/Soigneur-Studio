@@ -49,7 +49,9 @@ test('a ride with power', () => {
     assert.equal(s.np, 221);
     assert.equal(s.avgPower, 205);
     assert.equal(s.kj, Math.round(205 * 3700 / 1000));
-    assert.deepEqual(s.best, {5: 612, 60: 402, 300: 301, 1200: 268, 3600: 219});
+    // every duration the app keeps; Garmin's summary fills the ones it has
+    assert.deepEqual(Object.keys(s.best).map(Number), require('./durations.js').DURATIONS);
+    assert.deepEqual([5, 60, 300, 1200, 3600].map(d => s.best[d]), [612, 402, 301, 268, 219]);
     assert.deepEqual(s.zoneSeconds, [300, 900, 1200, 800, 300, 150, 50]);
     assert.equal(s.avgHr, 142);
     assert.equal(s.maxHr, 171);
@@ -69,7 +71,7 @@ test('a run: heart rate, no power', () => {
     assert.equal(s.avgPower, null);
     assert.equal(s.kj, null);
     assert.deepEqual(s.zoneSeconds, [0, 0, 0, 0, 0, 0, 0]);
-    assert.deepEqual(s.best, {5: null, 60: null, 300: null, 1200: null, 3600: null});
+    assert.ok(Object.values(s.best).every(v => v === null));
 });
 
 test('a ride without power has no power numbers', () => {

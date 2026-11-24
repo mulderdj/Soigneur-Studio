@@ -201,6 +201,8 @@ function zonesChart(data, by = 'week', colors = {}) {
 }
 
 const DURATION_LABEL = {5: '5 s', 60: '1 min', 300: '5 min', 1200: '20 min', 3600: '60 min'};
+// 1 s … 59 s, 1 min … 59 min, 1 h, 1.5 h, 2 h
+const durationLabel = s => (DURATION_LABEL[s] ?? (s < 60 ? `${s} s` : s < 3600 ? `${Math.round(s / 60)} min` : `${+(s / 3600).toFixed(1)} h`));
 const recordNote = (from) => (from ? `${shortDay(from.day)}${from.name ? ` · ${from.name}` : ''}` : undefined);
 
 // best power at 5 s … 60 min: the last 6 weeks against all time, as lines
@@ -210,25 +212,29 @@ function curveChart(data, unit = 'w', colors = {}) {
     const key = unit === 'wkg' ? 'wkg' : 'watts';
     const val = (v) => (v === null || v === undefined ? null : key === 'wkg' ? Math.round(v * 100) / 100 : Math.round(v));
     const show = (v) => (v === null ? '–' : key === 'wkg' ? `${v.toFixed(2)} W/kg` : `${v} W`);
-    const recent = c.recent[key].map(val), all = c.allTime[key].map(val);
+    // only the durations with data (older rides keep five of them)
+    const keep = WINDOWS.map((w, i) => i).filter(i => c.recent.watts[i] !== null || c.allTime.watts[i] !== null);
+    const xs = keep.map(i => WINDOWS[i]);
+    const recent = keep.map(i => val(c.recent[key][i])), all = keep.map(i => val(c.allTime[key][i]));
+    const fromRecent = keep.map(i => c.recent.from[i]), fromAll = keep.map(i => c.allTime.from[i]);
     const model = {
-        x: [...WINDOWS],
+        x: xs,
         time: false,
         log: true,
         series: [
             {label: 'Last 6 weeks', color: colors.accent, width: 2.5, points: true, values: recent},
             {label: 'All time', color: colors.muted, width: 1.5, points: true, values: all},
         ],
-        xFormat: (v) => DURATION_LABEL[v] ?? '',
+        xFormat: (v) => durationLabel(v),
     };
     const readout = (i) => {
-        if(i < 0 || i >= WINDOWS.length) return null;
-        const from = c.recent.from[i] ?? c.allTime.from[i];
+        if(i < 0 || i >= xs.length) return null;
+        const from = fromRecent[i] ?? fromAll[i];
         return {
-            title: DURATION_LABEL[WINDOWS[i]],
+            title: durationLabel(xs[i]),
             rows: [
-                {label: 'Last 6 weeks', color: colors.accent, value: show(recent[i]), note: recordNote(c.recent.from[i])},
-                {label: 'All time', color: colors.muted, value: show(all[i]), note: recordNote(c.allTime.from[i])},
+                {label: 'Last 6 weeks', color: colors.accent, value: show(recent[i]), note: recordNote(fromRecent[i])},
+                {label: 'All time', color: colors.muted, value: show(all[i]), note: recordNote(fromAll[i])},
             ],
             more: [],
             day: from?.day,   // the recent record first: today's form

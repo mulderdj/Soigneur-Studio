@@ -8,7 +8,9 @@ import { isCycling } from './merge.js';
 
 // volume counts every sport; power curve, FTP and zones only cycling
 
-const WINDOWS = [5, 60, 300, 1200, 3600];
+import { DURATIONS } from './summary.js';
+
+const WINDOWS = DURATIONS;
 const RECENT_DAYS = 42;
 
 function num(x) {

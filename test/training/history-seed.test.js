@@ -16,7 +16,7 @@ describe('generated training history', () => {
         expect(a.summaries.length).toBeGreaterThanOrEqual(60);
         expect(a.summaries.length).toBeLessThanOrEqual(90);
         for(const s of a.summaries) {
-            expect(s.version).toBe(1);
+            expect(s.version).toBe(2);
             expect(s.day <= today).toBe(true);
             expect(s.duration).toBeGreaterThan(0);
             expect(s.tss).toBeGreaterThan(0);
