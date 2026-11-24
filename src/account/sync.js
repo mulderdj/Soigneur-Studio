@@ -20,6 +20,7 @@ import { api, ApiError } from './api.js';
 import { session, setWprime } from '../views/training-dashboard.js';
 import { history } from '../training/history.js';
 import { thresholds } from '../training/rider-thresholds.js';
+import { layouts } from '../layout/store.js';
 
 const DEFAULT_WORKOUT_CATEGORY = 'Imported';
 
@@ -58,7 +59,7 @@ function handleError(err, what) {
 // --- profile ---------------------------------------------------------------
 
 function localProfile() {
-    return {ftp: db.ftp, weight: db.weight, wprime: session.wprime, hrThresholds: thresholds.own()};
+    return {ftp: db.ftp, weight: db.weight, wprime: session.wprime, hrThresholds: thresholds.own(), layouts: layouts.forProfile()};
 }
 
 async function pullProfile() {
@@ -74,6 +75,7 @@ async function pullProfile() {
                 thresholds.setOwn(remote.data.hrThresholds, {silent: true}); // not pushed back
                 xf.dispatch('training:changed', Date.now());                  // loads change
             }
+            layouts.fromProfile(remote.data);                                  // not pushed back
         } finally {
             applyingRemote = false;
         }
@@ -259,6 +261,7 @@ function start() {
     xf.sub('db:weight', profileChanged);
     xf.sub('dashboard:wprime', profileChanged);
     xf.sub('training:thresholds', profileChanged);
+    xf.sub('layouts:saved', profileChanged);
 
     // a workout added through upload or the editor
     xf.sub('db:workouts', () => {
