@@ -83,8 +83,9 @@ class TestResult extends HTMLElement {
                 ${row('W′bal uses now', now)}${row('90-day model', model)}</dl>${offer}`;
         }
         if(test === 'sprint') {
-            const wkg = x => x !== undefined ? ` (${x} W/kg)` : '';
-            return `<dl class="tr-values tr-main">${row('Peak', `${v.peak} W${wkg(v.peakWkg)}`, 'peak')}${row('Best 5 s', `${v.best5} W${wkg(v.best5Wkg)}`, 'best5')}</dl>
+            const wkg = v.peakWkg !== undefined ?
+                  `<dl class="tr-values">${row('Peak', `${v.peakWkg} W/kg`, 'peak-wkg')}${row('Best 5 s', `${v.best5Wkg} W/kg`, 'best5-wkg')}</dl>` : '';
+            return `<dl class="tr-values tr-main">${row('Peak', `${v.peak} W`, 'peak')}${row('Best 5 s', `${v.best5} W`, 'best5')}</dl>${wkg}
                 <p class="tr-note">From ${v.sprints} sprint${v.sprints === 1 ? '' : 's'}.${v.peakWkg === undefined ? ' Set your weight in Settings to see W/kg.' : ''}</p>`;
         }
         const detail = test === 'ramp' ? row('Best minute', `${v.best60} W`) :

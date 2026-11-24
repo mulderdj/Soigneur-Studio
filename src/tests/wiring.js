@@ -30,7 +30,10 @@ xf.sub('db:workoutStatus', status => {
 });
 
 xf.sub('db:elapsed', elapsed => {
-    if(!run || elapsed <= 0 || db.workoutStatus !== 'started' || db.watchStatus !== 'started') return;
+    if(elapsed <= 0 || db.workoutStatus !== 'started' || db.watchStatus !== 'started') return;
+    // a test picked while a workout was already running starts its run here
+    if(!run && workout?.meta?.test) run = new TestSession(workout);
+    if(!run) return;
     const step = run.tick({i: db.intervalIndex, s: db.stepIndex, power: db.power1s, ftp: db.ftp});
     if(step === 'lap') xf.dispatch('ui:watchLap');
 });

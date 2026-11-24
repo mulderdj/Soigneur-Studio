@@ -69,11 +69,14 @@ describe('<test-result>', () => {
     test('Sprint: peak and best 5 s, W/kg; no setting changes', () => {
         const {el, q} = setup();
         el.open({test: 'sprint', ftp: 250, result: {ok: true, values: {peak: 1100, best5: 970, sprints: 3, peakWkg: 14.7, best5Wkg: 12.9}}});
-        expect(q('[data-k="peak"]').textContent).toBe('1100 W (14.7 W/kg)');
-        expect(q('[data-k="best5"]').textContent).toBe('970 W (12.9 W/kg)');
+        expect(q('[data-k="peak"]').textContent).toBe('1100 W');
+        expect(q('[data-k="best5"]').textContent).toBe('970 W');
+        expect(q('[data-k="peak-wkg"]').textContent).toBe('14.7 W/kg');
+        expect(q('[data-k="best5-wkg"]').textContent).toBe('12.9 W/kg');
         expect(q('[data-tr="use-ftp"], [data-tr="use-model"]')).toBeNull();
         el.open({test: 'sprint', ftp: 250, result: {ok: true, values: {peak: 1100, best5: 970, sprints: 1}}});
         expect(el.textContent).toMatch(/From 1 sprint\. Set your weight/);
+        expect(q('[data-k="peak-wkg"]')).toBeNull();
     });
 
     test('not usable: the reason, nothing to tap but Close', () => {
