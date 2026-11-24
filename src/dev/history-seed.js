@@ -155,6 +155,10 @@ function generateHistory({today, days = 120, ftp = 250, weight = 75, seed = 1} =
         });
     }
 
+    // last night: HRV below the range, so readiness says take care (and the
+    // Ride page offers an easier version of today's hard workout)
+    Object.assign(wellness.at(-1), {hrv: 47, hrvStatus: 'UNBALANCED', sleepSeconds: 6.4 * 3600});
+
     return {summaries, plan, external, wellness, thresholds: {cycling: 165, running: 172}};
 }
 
