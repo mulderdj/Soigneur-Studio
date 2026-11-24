@@ -13,21 +13,24 @@ class ApiError extends Error {
     }
 }
 
-let availability; // Promise<{available, needsSetup, signup}>
+let availability; // Promise<{available, needsSetup, signup}> or {available: false, offline: true}
 
 // is an account server behind /api? (no server -> 404/502 from the static host)
 function probe(force = false) {
     if(availability && !force) return availability;
     availability = (async () => {
+        if(navigator.onLine === false) return {available: false, offline: true};
         try {
             const res = await fetch('/api/setup', {headers: {Accept: 'application/json'}});
             if(!res.ok || !String(res.headers.get('content-type')).includes('json')) return {available: false};
             const s = await res.json();
             return {available: true, needsSetup: !!s.needsSetup, signup: !!s.signup};
         } catch(e) {
-            return {available: false};
+            return {available: false, offline: true};   // no answer at all: not reachable now, not "no server"
         }
     })();
+    // an unreachable server is asked again next time
+    availability.then(s => { if(s.offline) availability = null; });
     return availability;
 }
 
