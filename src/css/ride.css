@@ -16,13 +16,13 @@
 .ride {
     display: grid;
     grid-template-columns: minmax(0, 1fr);
-    grid-template-rows: auto auto minmax(0, 1fr) auto;
+    grid-template-rows: auto auto minmax(0, 1fr);
     grid-template-areas:
         "header"
         "note"
-        "screens"
-        "modes";
-    gap: var(--space-2);
+        "screens";
+    --ride-gap: var(--space-2);
+    gap: var(--ride-gap);
     height: calc(100dvh - var(--app-bar-h) - env(safe-area-inset-bottom, 0px));
     padding: var(--space-2);
     text-align: left;
@@ -32,7 +32,6 @@
 .ride__note    { grid-area: note; }
 .ride__note[hidden] { display: none; }
 .ride__screens { grid-area: screens; }
-.ride__modes   { grid-area: modes; }
 .ride__moxy    { grid-area: screens; }
 .ride__pool    { display: none; }
 
@@ -54,13 +53,294 @@
     color: var(--accent);
 }
 
+/* trainer and heart rate: an icon with the connection state as a badge */
 .ride__header .connection-switch {
     flex: none;
 }
 
-.ride__header .connection-switch--label {
-    text-transform: none;
-    letter-spacing: 0;
+.hdr-icon {
+    position: relative;
+    display: inline-grid;
+    place-items: center;
+    width: var(--tap);
+    height: var(--tap);
+    border: var(--line-w) solid var(--line);
+    border-radius: var(--radius-pill);
+    background-color: var(--surface);
+    color: var(--ink);
+    cursor: pointer;
+}
+
+.hdr-icon:hover { border-color: var(--muted); }
+.hdr-icon:focus-visible { outline: var(--focus-w) solid var(--accent); outline-offset: 2px; }
+
+.hdr-icon__svg {
+    width: 22px;
+    height: 22px;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1.8;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+
+/* the screen indicator: the screen's name and the dots in the middle of the
+   header, hidden while riding; shown for a moment when the screen changes
+   (ride-screens.js hint()), and while editing the layout */
+.ride__header { position: relative; }
+
+.ride__hint {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    z-index: 2;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+    padding: var(--space-1) var(--space-3);
+    border: var(--line-w) solid var(--line);
+    border-radius: var(--radius-m);
+    background-color: var(--surface-2);
+    box-shadow: var(--shadow);
+    transform: translate(-50%, -50%);
+    visibility: hidden;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s, visibility 0s 0.2s;
+}
+
+.ride__hint.is-showing {
+    visibility: visible;
+    opacity: 1;
+    transition: opacity 0.15s;
+}
+
+.ride__hint-name {
+    max-width: 160px;
+    overflow: hidden;
+    color: var(--ink);
+    font-size: var(--text-s);
+    font-weight: var(--weight-bold);
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.ride__hint .rs-dots {
+    gap: 6px;
+    margin: 0;
+}
+
+.ride__hint .rs-dot {
+    width: auto;
+    height: auto;
+    padding: 2px 0;
+}
+
+.ride__hint .rs-dot span {
+    width: 5px;
+    height: 5px;
+    border: 0;
+    background-color: var(--muted);
+}
+
+.ride__hint .rs-dot[aria-current="true"] span {
+    width: 14px;
+    background-color: var(--ink);
+}
+
+/* editing: the dots are there all the time, in the header row (not over the
+   buttons), big enough to grab and drag */
+.ride:has(ride-screens.is-editing) .ride__hint {
+    position: static;
+    margin-left: auto;
+    padding: 0;
+    border: 0;
+    background: none;
+    box-shadow: none;
+    transform: none;
+    visibility: visible;
+    opacity: 1;
+    pointer-events: auto;
+}
+
+.ride:has(ride-screens.is-editing) .ride__hint ~ .ride__layout { margin-left: 0; }
+
+.ride:has(ride-screens.is-editing) .ride__hint-name { display: none; }
+
+.ride:has(ride-screens.is-editing) .ride__hint .rs-dot {
+    width: var(--tap);
+    height: var(--tap);
+}
+
+/* the other sensors, while in use */
+.ride__tray {
+    display: flex;
+    gap: var(--space-2);
+}
+
+.ride__tray[hidden] { display: none; }
+
+.hdr-icon--more {
+    font-size: var(--text-s);
+    font-weight: var(--weight-bold);
+}
+
+.ride__header .ride__layout { flex: none; }
+
+/* filled parts of the sensor icons; the trainer is drawn filled */
+.hdr-icon__svg .fill, .sp-pick__icon .fill { fill: currentColor; stroke: none; }
+.hdr-icon__svg .hole, .sp-pick__icon .hole { fill: var(--surface); stroke: none; }
+.hdr-icon__svg .leg, .sp-pick__icon .leg  { stroke-width: 2.4; }
+.hdr-icon__svg .gap, .sp-pick__icon .gap  { fill: none; stroke: var(--surface); stroke-width: 0.9; }
+.hdr-icon__svg .gap--lever, .sp-pick__icon .gap--lever { stroke-width: 1.2; }
+.hdr-icon__svg--trainer { width: 26px; height: 26px; }
+
+/* ---------- sensor panel ---------- */
+
+.sensor-panel {
+    position: fixed;
+    inset: auto;
+    width: min(320px, calc(100vw - 16px));
+    margin: 0;
+    padding: var(--space-4);
+    border: var(--line-w) solid var(--line);
+    border-radius: var(--radius-m);
+    background-color: var(--surface);
+    color: var(--ink);
+    box-shadow: var(--shadow);
+}
+
+.sensor-panel::backdrop { background: transparent; }
+
+.sensor-panel[open] {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+}
+
+.sp-head {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+}
+
+.sp-title {
+    margin: 0;
+    font-size: var(--text-m, 16px);
+}
+
+.sp-status {
+    color: var(--muted);
+    font-size: var(--text-s);
+}
+
+.sp-status[data-status="on"]      { color: var(--good); }
+.sp-status[data-status="loading"] { color: var(--warn); }
+
+.sp-close {
+    margin: calc(-1 * var(--space-2)) calc(-1 * var(--space-2)) calc(-1 * var(--space-2)) auto;
+}
+
+.sp-rows {
+    display: grid;
+    gap: var(--space-1);
+    margin: 0;
+}
+
+.sp-rows[hidden] { display: none; }
+
+.sp-rows div {
+    display: flex;
+    justify-content: space-between;
+    gap: var(--space-3);
+}
+
+.sp-rows dt { color: var(--muted); }
+.sp-rows dd { margin: 0; text-align: right; overflow-wrap: anywhere; }
+
+.sp-trainer[hidden] { display: none; }
+
+/* "+N": the sensors that didn't fit in the header */
+.sp-list {
+    display: grid;
+    gap: var(--space-1);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.sp-list[hidden] { display: none; }
+
+.sp-pick {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    width: 100%;
+    min-height: 48px;
+    padding: 0 var(--space-2);
+    border: 0;
+    border-radius: var(--radius-s);
+    background: none;
+    color: var(--ink);
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+}
+
+.sp-pick:hover { background-color: var(--surface-2); }
+
+.sp-pick__icon {
+    flex: none;
+    width: 22px;
+    height: 22px;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1.8;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+
+.sp-pick__name { flex: 1; }
+
+.sp-trainer .mode-selector {
+    display: flex;
+    align-items: center;
+}
+
+.sp-trainer .mode {
+    flex: 1;
+    min-height: var(--tap);
+    padding: 0 var(--space-2);
+    font-size: var(--text-xs);
+}
+
+.sp-trainer mode-lock-toggle {
+    display: grid;
+    place-items: center;
+    width: var(--tap);
+    height: var(--tap);
+    color: var(--muted);
+    cursor: pointer;
+}
+
+.sp-trainer .mode-lock--toggle--icon {
+    width: 20px;
+    height: 20px;
+    fill: currentColor;
+}
+
+.sp-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-2);
+}
+
+.hdr-icon__dot {
+    position: absolute;
+    top: 4px;
+    right: 4px;
+    box-shadow: 0 0 0 2px var(--surface);
 }
 
 .ride__header .connection-switch--indicator.loading {
@@ -786,6 +1066,21 @@ ride-screens.is-editing .rs-dot,
     margin: 0;
 }
 
+/* the target (− value +) lives in the trainer's panel (sensor-panel.js):
+   the mode, then the target, 8 px apart; sections of the panel are 12 px apart */
+.sp-trainer [data-sp-trainer] {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+}
+
+.sp-trainer .ride__modes {
+    padding: 0;
+    background: none;
+}
+
+.sp-trainer .ride__modes tab-group { flex: 1; }
+
 /* ---------- statistics panels ---------- */
 
 /* the panels and their dots are one tile */
@@ -1153,7 +1448,8 @@ ride-screens.is-editing .rs-dot,
 
 @media (min-width: 600px) {
     .ride {
-        gap: var(--space-3);
+        --ride-gap: var(--space-3);
+        gap: var(--ride-gap);
         padding: var(--space-3);
     }
 
@@ -1197,29 +1493,7 @@ ride-screens.is-editing .rs-dot,
 @media (min-width: 1200px) {
     .ride .tile { min-height: 96px; }
 
-    /* one header row: rider and connections, the screens' dots, the trainer controls */
-    .ride {
-        grid-template-columns: minmax(0, 1fr) auto;
-        grid-template-areas:
-            "header modes"
-            "note   note"
-            "screens screens";
-        grid-template-rows: auto auto minmax(0, 1fr);
-    }
 
-    .ride__modes {
-        align-self: center;
-        padding: 0;
-        background: none;
-    }
-
-    .ride__modes tab-group { flex: 0 1 240px; }
-
-    .ride__header .rs-dots {
-        margin: 0 auto;
-    }
-
-    .ride__header .rs-dots:not([hidden]) ~ .ride__layout { margin-left: 0; }
 }
 
 /* ---------- phone landscape: handlebar mount ---------- */

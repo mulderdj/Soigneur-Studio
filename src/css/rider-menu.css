@@ -13,8 +13,26 @@ rider-menu {
 
 /* ---------- pill ---------- */
 
+/* the header shows the rider as the avatar with the sync state as a badge;
+   the name is in the label and the title */
 .rm--pill {
-    max-width: 220px;
+    position: relative;
+    justify-content: center;
+    width: var(--tap);
+    padding: 0;
+}
+
+.rm--pill .rm--avatar {
+    width: auto;
+    height: auto;
+    background: none;
+}
+
+.rm--pill .rm--dot {
+    position: absolute;
+    top: 4px;
+    right: 4px;
+    box-shadow: 0 0 0 2px var(--surface);
 }
 
 .rm--name {
@@ -434,10 +452,6 @@ a.rm--sent:hover {
 /* ---------- phones: full-screen dialog ---------- */
 
 @media (max-width: 599px) {
-    .rm--pill {
-        max-width: 160px;
-    }
-
     .rm--dialog {
         width: 100vw;
         max-width: 100vw;

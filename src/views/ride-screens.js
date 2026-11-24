@@ -33,7 +33,8 @@ const SWIPE = 40;         // px a finger must travel for that swipe
 
 const typing = el => !!el?.closest?.('input, textarea, select, [contenteditable=""], [contenteditable="true"]');
 
-const DOTS_IN_HEADER_MIN = 1200;   // the desktop layout (src/views/layout.js)
+
+const HINT_MS = 1200;   // how long the screen indicator shows after a change
 
 class RideScreens extends HTMLElement {
     connectedCallback() {
@@ -99,10 +100,9 @@ class RideScreens extends HTMLElement {
         xf.sub('db:workoutStatus', s => this.onState({workoutStatus: s}), signal);
         xf.sub('layouts:changed', () => { if(!this.editing) this.render(); }, signal);
         window.addEventListener('resize', () => this.onResize(), signal);
-        // on a desktop the dots sit in the page header ([data-rs-dots-slot]), back under the screens otherwise
-        this.dotsMedia = window.matchMedia?.(`(min-width: ${DOTS_IN_HEADER_MIN}px)`);
-        this.dotsMedia?.addEventListener?.('change', () => this.placeDots(), signal);
+        // the dots sit in the page header ([data-rs-dots-slot]) when there is one
         this.placeDots();
+        xf.sub('db:page', p => { if(p === 'home') this.hint(); }, signal);
         // the screens area changes size without a window resize too (the
         // header hides while riding on the handlebars): fit again
         this.resizeObserver = typeof ResizeObserver === 'function' ? new ResizeObserver(() => this.fit()) : null;
@@ -114,9 +114,16 @@ class RideScreens extends HTMLElement {
         this.updateButton();
     }
 
+    // outside editing the dots are only a display (no taps), so the visual
+    // check's tap-target rule leaves them alone; while editing they are buttons
+    dotsTappable(on) {
+        const slot = this.$dots.closest('[data-rs-dots-slot]');
+        if(slot) slot.toggleAttribute('data-check-ignore', !on);
+    }
+
     placeDots() {
         const slot = document.querySelector('[data-rs-dots-slot]');
-        if(slot && this.dotsMedia?.matches) { if(this.$dots.nextSibling !== slot) slot.before(this.$dots); }
+        if(slot) { if(this.$dots.parentNode !== slot) slot.append(this.$dots); this.dotsTappable(!!this.editing); }
         else if(this.$dots.parentNode !== this) this.$track.after(this.$dots);
     }
     disconnectedCallback() {
@@ -186,7 +193,21 @@ class RideScreens extends HTMLElement {
         this.place();
         if(scroll) this.scrollTo(true);
         if(this.editing) { this.startEditor(); this.updateEditControls(); }
-        if(changed) xf.dispatch('ride:screen', i);
+        if(changed) { xf.dispatch('ride:screen', i); this.hint(); }
+    }
+
+    // the screen indicator is hidden while riding; it shows the screen's name
+    // and the dots for a moment when the screen changes (and on opening the
+    // Ride page), and stays while editing
+    hint() {
+        const slot = this.$dots.closest('[data-rs-dots-slot]');
+        const screens = this.screens();
+        if(!slot || screens.length < 2) return;
+        const name = slot.querySelector('[data-rs-hint-name]');
+        if(name) name.textContent = screens[this.screen]?.name ?? '';
+        slot.classList.add('is-showing');
+        clearTimeout(this.hintTimer);
+        this.hintTimer = setTimeout(() => slot.classList.remove('is-showing'), HINT_MS);
     }
 
     scrollTo(smooth) {
@@ -337,6 +358,7 @@ class RideScreens extends HTMLElement {
         this.draft = layouts.get();
         this.editing = true;
         this.classList.add('is-editing');
+        this.dotsTappable(true);
         this.$edit.hidden = false;
         this.render();
         this.startEditor();
@@ -477,6 +499,7 @@ class RideScreens extends HTMLElement {
         this.editing = false;
         this.draft = null;
         this.classList.remove('is-editing');
+        this.dotsTappable(false);
         this.$edit.hidden = true;
         if(this.$tray.open) this.$tray.close();
         this.updateButton();

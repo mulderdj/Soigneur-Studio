@@ -49,19 +49,105 @@
 
                     <header class="ride__header connections-header">
                         <rider-menu id="rider-menu"></rider-menu>
-                        <connection-switch for="ble:controllable" id="switch-controllable" class="connection-switch pill">
-                            <span class="connection-switch--indicator dot off"></span>
-                            <span class="connection-switch--label">Trainer</span>
+                        <connection-switch for="ble:controllable" id="switch-controllable" class="connection-switch hdr-icon" data-panel role="button" tabindex="0" aria-haspopup="dialog" aria-label="Trainer: status and mode" title="Trainer">
+                            <svg class="hdr-icon__svg hdr-icon__svg--trainer" viewBox="0 0 24 24" aria-hidden="true"><path class="fill" d="M2.6 20.6 8.3 4.6c.5-1.4 2-1.8 3-1 .7.5.9 1.3.7 2.1L8.2 20.6z"/><circle class="fill" cx="5.6" cy="16.4" r="3.9"/><circle class="cut" cx="5.6" cy="16.4" r="3.9"/><circle class="hole" cx="10.2" cy="5.2" r=".75"/><path class="leg" d="M9.6 11.4 20 19.4M18.4 20.4h3.6"/></svg>
+                            <span class="connection-switch--indicator dot off hdr-icon__dot"></span>
+                            <span class="connection-switch--label sr-only">Trainer</span>
                         </connection-switch>
-                        <connection-switch for="ble:heartRateMonitor" id="switch-hrm" class="connection-switch pill">
-                            <span class="connection-switch--indicator dot off"></span>
-                            <span class="connection-switch--label">HR</span>
+                        <connection-switch for="ble:heartRateMonitor" id="switch-hrm" class="connection-switch hdr-icon" data-panel role="button" tabindex="0" aria-haspopup="dialog" aria-label="Heart rate: status" title="Heart rate">
+                            <svg class="hdr-icon__svg" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20s-7-4.4-9.2-8.6A5 5 0 0 1 12 6.3a5 5 0 0 1 9.2 5.1C19 15.6 12 20 12 20z"/><path d="M3.5 12.5h4l1.5-2.5 2.5 5 1.5-2.5h7.5"/></svg>
+                            <span class="connection-switch--indicator dot off hdr-icon__dot"></span>
+                            <span class="connection-switch--label sr-only">HR</span>
                         </connection-switch>
-                        <span class="ride__dots-slot" data-rs-dots-slot hidden></span>
+                        <!-- the other sensors, only while in use -->
+                        <sensor-tray class="ride__tray" hidden></sensor-tray>
+                        <!-- the screen indicator: the screen's name and the dots, shown for a moment on a change -->
+                        <div class="ride__hint" data-rs-dots-slot aria-live="polite"><span class="ride__hint-name" data-rs-hint-name></span></div>
                         <button type="button" class="btn btn--icon ride__layout" data-ride-layout aria-label="Edit layout" title="Edit layout">
                             <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 3h8v8H3zm2 2v4h4V5zm8-2h8v5h-8zm2 2v1h4V5zm-2 5h8v11h-8zm2 2v7h4v-7zM3 13h8v8H3zm2 2v4h4v-4z"/></svg>
                         </button>
                     </header>
+                    <!-- the panel under the trainer and heart-rate buttons; the trainer's mode control lives in it -->
+                    <sensor-panel>
+                        <div data-sp-trainer>
+                            <div class="tab-btn-group">
+                                <div id="mode-selector" class="mode-selector segmented">
+                                    <tab-btn id="erg-mode-btn"
+                                            class="mode segmented__opt active"
+                                            prop="mode"
+                                            effect="mode-set"
+                                            param="erg">ERG</tab-btn>
+                                    <tab-btn id="resistance-mode-btn"
+                                            class="mode segmented__opt"
+                                            prop="mode"
+                                            effect="mode-set"
+                                            param="resistance">Resistance</tab-btn>
+                                    <tab-btn id="slope-mode-btn"
+                                            class="mode segmented__opt"
+                                            prop="mode"
+                                            effect="mode-set"
+                                             param="sim">Slope</tab-btn>
+                                    <mode-lock-toggle>
+                                        <svg class="mode-lock--toggle--icon" width="24" height="24">
+                                            <use href="#icon--lock--open"/>
+                                        </svg>
+                                    </mode-lock-toggle>
+                                </div> <!-- end mode selector -->
+                            </div> <!-- tab-btn-group -->
+                            <!-- the target for the mode in use (watts, resistance or slope) -->
+                    <div id="targets" class="ride__modes">
+                        <div class="targets--cont">
+                            <tab-group prop="mode">
+                                <div id="erg-mode-controls" class="tab active mode-controls" tab="erg">
+                                    <power-target-control id="power-control-btn" class="number-btn">
+                                        <div class="number-input">
+                                            <button id="power-target-dec"
+                                                    class="number-input--dec number-input--btn btn">-</button>
+                                            <input id="power-target-input"
+                                                   class="number-input--value"
+                                                   type="number"
+                                                   value="0"
+                                                   autocomplete="off"/>
+                                            <button id="power-target-inc"
+                                                    class="number-input--inc number-input--btn btn">+</button>
+                                        </div>
+                                    </power-target-control>
+                                </div> <!-- end erg mode -->
+                                <div id="resistance-mode-controls" class="tab mode-controls" tab="resistance">
+                                    <resistance-target-control id="resistance-control-btn" class="number-btn">
+                                        <div class="number-input">
+                                            <button id="resistance-target-dec"
+                                                    class="number-input--dec number-input--btn btn">-</button>
+                                            <input id="resistance-target-input"
+                                                   class="number-input--value input"
+                                                   type="number"
+                                                   value="0"
+                                                   autocomplete="off" />
+                                            <button id="resistance-target-inc"
+                                                    class="number-input--inc number-input--btn btn">+</button>
+                                        </div>
+                                    </resistance-target-control>
+                                </div> <!-- end resistance mode -->
+                                <div id="slope-mode-controls" class="tab mode-controls" tab="sim">
+                                    <slope-target-control id="slope-control-btn" class="number-btn">
+                                        <div class="number-input">
+                                            <button id="slope-target-dec"
+                                                    class="number-input--dec number-input--btn btn">-</button>
+                                            <input id="slope-target-input"
+                                                   class="number-input--value input"
+                                                   type="number"
+                                                   value="0"
+                                                   autocomplete="off" />
+                                            <button id="slope-target-inc"
+                                                    class="number-input--inc number-input--btn btn">+</button>
+                                        </div>
+                                    </slope-target-control>
+                                </div> <!-- end slope mode -->
+                            </tab-group>
+                        </div> <!-- end targets--cont -->
+                    </div>
+                        </div>
+                    </sensor-panel>
 
                     <readiness-note class="ride__note" hidden></readiness-note>
                     <test-result></test-result>
@@ -291,83 +377,6 @@
                         <panel-pager for="dash-stats" class="ride__pager"></panel-pager>
                     </div>
                     </div> <!-- end ride__pool -->
-
-                    <div id="targets" class="ride__modes">
-                        <div class="targets--cont">
-                            <div class="tab-btn-group">
-                                <div id="mode-selector" class="mode-selector segmented">
-                                    <tab-btn id="erg-mode-btn"
-                                            class="mode segmented__opt active"
-                                            prop="mode"
-                                            effect="mode-set"
-                                            param="erg">ERG</tab-btn>
-                                    <tab-btn id="resistance-mode-btn"
-                                            class="mode segmented__opt"
-                                            prop="mode"
-                                            effect="mode-set"
-                                            param="resistance">Resistance</tab-btn>
-                                    <tab-btn id="slope-mode-btn"
-                                            class="mode segmented__opt"
-                                            prop="mode"
-                                            effect="mode-set"
-                                             param="sim">Slope</tab-btn>
-                                    <mode-lock-toggle>
-                                        <svg class="mode-lock--toggle--icon" width="24" height="24">
-                                            <use href="#icon--lock--open"/>
-                                        </svg>
-                                    </mode-lock-toggle>
-                                </div> <!-- end mode selector -->
-                            </div> <!-- tab-btn-group -->
-
-                            <tab-group prop="mode">
-                                <div id="erg-mode-controls" class="tab active mode-controls" tab="erg">
-                                    <power-target-control id="power-control-btn" class="number-btn">
-                                        <div class="number-input">
-                                            <button id="power-target-dec"
-                                                    class="number-input--dec number-input--btn btn">-</button>
-                                            <input id="power-target-input"
-                                                   class="number-input--value"
-                                                   type="number"
-                                                   value="0"
-                                                   autocomplete="off"/>
-                                            <button id="power-target-inc"
-                                                    class="number-input--inc number-input--btn btn">+</button>
-                                        </div>
-                                    </power-target-control>
-                                </div> <!-- end erg mode -->
-                                <div id="resistance-mode-controls" class="tab mode-controls" tab="resistance">
-                                    <resistance-target-control id="resistance-control-btn" class="number-btn">
-                                        <div class="number-input">
-                                            <button id="resistance-target-dec"
-                                                    class="number-input--dec number-input--btn btn">-</button>
-                                            <input id="resistance-target-input"
-                                                   class="number-input--value input"
-                                                   type="number"
-                                                   value="0"
-                                                   autocomplete="off" />
-                                            <button id="resistance-target-inc"
-                                                    class="number-input--inc number-input--btn btn">+</button>
-                                        </div>
-                                    </resistance-target-control>
-                                </div> <!-- end resistance mode -->
-                                <div id="slope-mode-controls" class="tab mode-controls" tab="sim">
-                                    <slope-target-control id="slope-control-btn" class="number-btn">
-                                        <div class="number-input">
-                                            <button id="slope-target-dec"
-                                                    class="number-input--dec number-input--btn btn">-</button>
-                                            <input id="slope-target-input"
-                                                   class="number-input--value input"
-                                                   type="number"
-                                                   value="0"
-                                                   autocomplete="off" />
-                                            <button id="slope-target-inc"
-                                                    class="number-input--inc number-input--btn btn">+</button>
-                                        </div>
-                                    </slope-target-control>
-                                </div> <!-- end slope mode -->
-                            </tab-group>
-                        </div> <!-- end targets--cont -->
-                    </div>
 
                     <div id="graph-power" class="graph ride__moxy">
                         <auto-start-counter class="">3</auto-start-counter>
