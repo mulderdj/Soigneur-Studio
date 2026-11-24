@@ -19,6 +19,7 @@ import './progress-cards.js';
 import { TrainingLayout } from './training-layout.js';
 import './readiness-card.js';
 import './model-cards.js';
+import './insight-cards.js';
 
 class TrainingPage extends HTMLElement {
     connectedCallback() {
@@ -47,6 +48,8 @@ class TrainingPage extends HTMLElement {
                 <profile-card class="card"></profile-card>
                 <zones-card class="card"></zones-card>
                 <ftp-card class="card"></ftp-card>
+                <efficiency-card class="card"></efficiency-card>
+                <readiness-perf-card class="card"></readiness-perf-card>
             </div>
             <day-dialog></day-dialog>`;
         this.$status = this.querySelector('.tp-status');
@@ -57,7 +60,8 @@ class TrainingPage extends HTMLElement {
         this.layout = new TrainingLayout({
             tools: this.querySelector('.tp-tools'), bar: this.querySelector('.tp-layout'), grid: this.querySelector('.training'),
             cards: {readiness: card('.tp-readiness'), form: card('.tp-form'), week: card('.tp-week'), health: card('.tp-health'), calendar: card('.tp-calendar'),
-                    volume: card('volume-card'), curve: card('curve-card'), model: card('model-card'), profile: card('profile-card'), zones: card('zones-card'), ftp: card('ftp-card')},
+                    volume: card('volume-card'), curve: card('curve-card'), model: card('model-card'), profile: card('profile-card'), zones: card('zones-card'), ftp: card('ftp-card'),
+                    efficiency: card('efficiency-card'), 'readiness-perf': card('readiness-perf-card')},
         });
         this.querySelector('[data-import-fit]').addEventListener('click', () => this.$file.click());
         this.$file.addEventListener('change', () => this.importFiles());

@@ -8,8 +8,9 @@
 //   chart() -> {model, readout(i)}
 //     model = {
 //       x: number[]                     x values (unix seconds, or seconds for the power curve)
-//       series: [{label, color, values, width?, dash?, kind?: 'line'|'bars', points?: true,
-//                 fill?: colour}]
+//       series: [{label, color, values, width?, dash?, kind?: 'line'|'bars'|'points', points?: true,
+//                 fill?: colour, scale?: 'y2' (a second scale, drawn on the right)}]
+//       y2Format?: v => label (the right-hand axis)
 //       bands?: [[upperSeries, lowerSeries, fill]]   (1-based series index, as in uPlot)
 //       time?: true (default), log?: false, xFormat?: v => label, yFormat?: v => label,
 //       xTicks?: [x] (where the x axis's labels go),
@@ -147,17 +148,21 @@ class UPlotCard extends HTMLElement {
         const axis = {stroke: muted, font, grid: {stroke: line, width: 1}, ticks: {show: false}};
         const bars = U.paths?.bars ? U.paths.bars({size: [0.7, 48], align: 0}) : null;
         const time = model.time !== false;
+        const y2 = model.series.some(s => s.scale === 'y2');
         const series = [{}, ...model.series.map(s => ({
             label: s.label,
             stroke: s.kind === 'bars' ? 'transparent' : (s.color),
             fill: s.kind === 'bars' ? s.color : s.fill,
             width: s.width ?? (s.kind === 'bars' ? 0 : 2),
             dash: s.dash,
-            paths: s.kind === 'bars' ? bars : undefined,
-            points: {show: !!s.points, size: 6, fill: s.color, stroke: s.color},
+            scale: s.scale === 'y2' ? 'y2' : 'y',
+            // points: no line between them (a scatter)
+            paths: s.kind === 'bars' ? bars : s.kind === 'points' ? () => null : undefined,
+            points: {show: !!s.points || s.kind === 'points', size: s.kind === 'points' ? 7 : 6, fill: s.color, stroke: s.color},
             spanGaps: false,
         }))];
-        const span = rangeWindow(model.x, this.range ?? 'all', model.today ?? model.x[model.x.length - 1]);
+        // a window of days only for a time axis (reps, watts: their own range)
+        const span = model.time === false ? null : rangeWindow(model.x, this.range ?? 'all', model.today ?? model.x[model.x.length - 1]);
         const window = span && model.series.some(s => s.kind === 'bars') ? padForBars(span, model.x) : span;
         const marks = model.marks ?? {};
         const opts = {
@@ -169,13 +174,15 @@ class UPlotCard extends HTMLElement {
             // not on local midnights
             tzDate: ts => uPlot.tzDate(new Date(ts * 1e3), 'Etc/UTC'),
             scales: {
-                x: {time, distr: model.log ? 3 : 1},
+                x: {time, distr: model.log ? 3 : 1, ...(model.xRange ? {range: model.xRange} : {})},
                 y: model.yRange ? {range: model.yRange} : {},
+                ...(y2 ? {y2: model.y2Range ? {range: model.y2Range} : {}} : {}),
             },
             axes: [
                 {...axis, ...(model.xTicks ? {splits: () => model.xTicks, filter: (u, splits) => splits} : {}), values: model.xFormat ? (u, ts) => ts.map(model.xFormat) :
                     (time ? (u, ts) => ts.map(t => fmtDay(new Date(t * 1000).toISOString().slice(0, 10), {day: 'numeric', month: 'short'})) : undefined)},
                 {...axis, size: 40, values: model.yFormat ? (u, ts) => ts.map(model.yFormat) : undefined},
+                ...(y2 ? [{...axis, scale: 'y2', side: 1, size: 40, grid: {show: false}, values: model.y2Format ? (u, ts) => ts.map(model.y2Format) : undefined}] : []),
             ],
             cursor: {
                 drag: {x: model.zoom === true && !touchDevice(), y: false},

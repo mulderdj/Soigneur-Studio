@@ -11,6 +11,7 @@ import { xf } from '../../functions.js';
 import { analyseRide } from '../../analysis/ride.js';
 import { esc, fmtDuration, fmtDay, sportLabelFor } from '../training/format.js';
 import './ride-chart.js';
+import './ride-insights.js';
 import './interval-table.js';
 import './ride-cards.js';
 
@@ -177,6 +178,7 @@ class RidePage extends HTMLElement {
             ${workout}
             <section class="card rp-chart"><ride-chart></ride-chart></section>
             <section class="rp-intervals"></section>
+            <ride-insights class="rp-insights"></ride-insights>
             <section class="rp-cards"></section>`;
         this.$chart = this.querySelector('ride-chart');
         this.$chart.data = {samples: this.ride.samples, analysis: a, ftp: this.context.ftp};
@@ -184,6 +186,8 @@ class RidePage extends HTMLElement {
         this.querySelector('.rp-intervals').append(table);
         table.data = {analysis: a, ftp: this.context.ftp};
         table.addEventListener('interval-zoom', e => this.$chart.zoomTo(e.detail.start, e.detail.end));
+        this.querySelector('ride-insights').data = {samples: this.ride.samples, pauses: this.ride.pauses ?? [], analysis: a,
+            ftp: this.context.ftp, summaries: this.context.summaries ?? [], day: this.summary.day, id: this.rideId};
         const cards = document.createElement('ride-cards');
         this.querySelector('.rp-cards').append(cards);
         cards.data = {analysis: a, ftp: this.context.ftp, wbalSource: this.context.wbalSource};

@@ -9,6 +9,7 @@ import { xf } from '../../functions.js';
 import { ftpEstimates } from '../../training/progress.js';
 import { UPlotCard, token } from './uplot-chart.js';
 import { volumeChart, zonesChart, curveChart, ftpChart } from './chart-models.js';
+import { polarisedChart } from '../charts/insight-models.js';
 import { esc } from './format.js';
 
 const NUDGE = 0.05;
@@ -85,8 +86,18 @@ class FtpCard extends ToggleCard {
 class ZonesCard extends ToggleCard {
     get title() { return 'Time in zones'; }
     get defaultOption() { return 'week'; }
-    get options() { return [['week', 'Weeks'], ['month', 'Months']]; }
-    chart() { return zonesChart(this.data, this.option, {zones: zoneColors(this)}); }
+    get options() { return [['week', 'Weeks'], ['month', 'Months'], ['polar', '3 zones']]; }
+    foot() {
+        return this.option === 'polar' ?
+            '<p class="card__note">Each week\'s riding as easy (Z1–Z2), middle (Z3–Z5) and hard (Z6–Z7). Polarised training is mostly easy with some very hard, and little in the middle.</p>' : '';
+    }
+    chart() {
+        if(this.option === 'polar') {
+            const z = zoneColors(this);
+            return polarisedChart(this.data, {easy: z[1], middle: z[4], hard: z[6]});
+        }
+        return zonesChart(this.data, this.option, {zones: zoneColors(this)});
+    }
 }
 
 customElements.define('volume-card', VolumeCard);
@@ -94,4 +105,4 @@ customElements.define('curve-card', CurveCard);
 customElements.define('ftp-card', FtpCard);
 customElements.define('zones-card', ZonesCard);
 
-export { ftpNudge };
+export { ftpNudge, ToggleCard };
