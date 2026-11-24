@@ -193,7 +193,7 @@
 .hdr-icon__svg .hole, .sp-pick__icon .hole { fill: var(--surface); stroke: none; }
 .hdr-icon__svg .leg, .sp-pick__icon .leg  { stroke-width: 2.4; }
 .hdr-icon__svg .gap, .sp-pick__icon .gap  { fill: none; stroke: var(--surface); stroke-width: 0.9; }
-.hdr-icon__svg .gap--wide, .sp-pick__icon .gap--wide { stroke-width: 1.3; }
+.hdr-icon__svg .gap--lever, .sp-pick__icon .gap--lever { stroke-width: 1.2; }
 .hdr-icon__svg--trainer { width: 26px; height: 26px; }
 
 /* ---------- sensor panel ---------- */
