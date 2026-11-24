@@ -178,7 +178,9 @@
 .sp-status[data-status="on"]      { color: var(--good); }
 .sp-status[data-status="loading"] { color: var(--warn); }
 
-.sp-close { margin-left: auto; }
+.sp-close {
+    margin: calc(-1 * var(--space-2)) calc(-1 * var(--space-2)) calc(-1 * var(--space-2)) auto;
+}
 
 .sp-rows {
     display: grid;
@@ -962,8 +964,9 @@ ride-screens.is-editing .rs-dot,
     margin: 0;
 }
 
-/* the target (− value +) lives in the trainer's panel (sensor-panel.js) */
-.sp-trainer {
+/* the target (− value +) lives in the trainer's panel (sensor-panel.js):
+   the mode, then the target, 8 px apart; sections of the panel are 12 px apart */
+.sp-trainer [data-sp-trainer] {
     display: flex;
     flex-direction: column;
     gap: var(--space-2);
