@@ -17,6 +17,14 @@ describe('ride charts', () => {
         expect(recoveryChart({samples: [], analysis: {intervals: []}, ftp: 200}).model.x).toEqual([]);
         expect(powerHrChart({samples: [], pauses: []}).model.x).toEqual([]);
     });
+    test('recovery: the x range reaches the last effort\'s number, also when one was skipped', () => {
+        const hr = t => (t % 600 < 240 && t >= 600 ? 180 : 140);
+        const samples = Array.from({length: 3600}, (_, t) => ({t, power: 200, heartRate: hr(t)}));
+        const ivs = [600, 1200, 1800, 2400].map((s, k) => ({start: s, end: s + (k === 1 ? 20 : 240), kind: 'work', stats: {}}));
+        const {model} = recoveryChart({samples, analysis: {intervals: ivs}, ftp: 200, pauses: []}, {});
+        expect(model.x).toEqual([1, 3, 4]);
+        expect(model.xRange).toEqual([0.5, 4.5]);
+    });
     test('power curve: this ride against the 90 days before it (other rides only)', () => {
         const samples = Array.from({length: 900}, (_, t) => ({t, power: t < 300 ? 300 : 200}));
         const summaries = [

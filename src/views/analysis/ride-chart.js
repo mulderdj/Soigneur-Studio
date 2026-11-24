@@ -40,14 +40,17 @@ class RideChart extends HTMLElement {
             this.$chips = this.querySelector('.rc-chips');
             this.$full = this.querySelector('.rc-full');
             this.$full.addEventListener('click', () => this.full ? this.exitFull() : this.enterFull());
-            document.addEventListener('fullscreenchange', () => { if(this.full && document.fullscreenElement !== this) this.exitFull(); });
-            document.addEventListener('keydown', e => { if(e.key === 'Escape' && this.full) this.exitFull(); });
-            // turning the phone changes the height too, which the ResizeObserver (width) can miss
-            window.addEventListener('resize', () => { if(this.full) this.plot?.setSize(this.size()); });
             this.$plot = this.querySelector('.rc-plot');
             this.$tip = this.querySelector('.rc-tip');
             this.$chips.addEventListener('click', e => this.toggle(e));
         }
+        // page-wide listeners live as long as the chart is on the page
+        this.abort = new AbortController();
+        const signal = {signal: this.abort.signal};
+        document.addEventListener('fullscreenchange', () => { if(this.full && document.fullscreenElement !== this) this.exitFull(); }, signal);
+        document.addEventListener('keydown', e => { if(e.key === 'Escape' && this.full) this.exitFull(); }, signal);
+        // turning the phone changes the height too, which the ResizeObserver (width) can miss
+        window.addEventListener('resize', () => { if(this.full) this.plot?.setSize(this.size()); }, signal);
         this.resize = new ResizeObserver(() => this.plot?.setSize(this.size()));
         this.resize.observe(this.$plot);
         this.theme = new MutationObserver(() => this.build());
@@ -56,6 +59,8 @@ class RideChart extends HTMLElement {
     }
 
     disconnectedCallback() {
+        this.exitFull();                 // also takes back a history entry of the window-filling view
+        this.abort?.abort();
         this.resize?.disconnect();
         this.theme?.disconnect();
         this.plot?.destroy();
@@ -78,13 +83,17 @@ class RideChart extends HTMLElement {
     // --- full screen ---
 
     async enterFull() {
+        const run = this.fullRun = Symbol();          // a Close while this runs ends it
+        const still = () => this.full && this.fullRun === run;
         this.full = true;
         this.classList.add('is-full');
         this.setFullButton();
         try {
             if(this.requestFullscreen) await this.requestFullscreen({navigationUI: 'hide'});
         } catch(e) {}                                     // not allowed: the window-filling view stays
+        if(!still()) { if(document.fullscreenElement === this) document.exitFullscreen?.().catch(() => {}); return; }
         try { await screen.orientation?.lock?.('landscape'); } catch(e) {}   // phones only, in full screen
+        if(!still()) { try { screen.orientation?.unlock?.(); } catch(e) {} return; }
         // a Back on Android closes the view instead of leaving the page
         if(!document.fullscreenElement) { history.pushState({rcFull: true}, ''); this.popped = () => this.exitFull({fromBack: true}); window.addEventListener('popstate', this.popped, {once: true}); }
         this.plot?.setSize(this.size());
@@ -93,6 +102,7 @@ class RideChart extends HTMLElement {
     exitFull({fromBack = false} = {}) {
         if(!this.full) return;
         this.full = false;
+        this.fullRun = null;
         this.classList.remove('is-full');
         this.setFullButton();
         try { screen.orientation?.unlock?.(); } catch(e) {}

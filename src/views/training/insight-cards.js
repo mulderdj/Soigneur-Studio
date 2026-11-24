@@ -37,10 +37,10 @@ class ReadinessPerfCard extends ToggleCard {
     foot() {
         const s = this.result?.stats;
         const what = this.option === 'sleep' ? 'last night\'s sleep' : 'that morning\'s HRV against your normal range';
-        const base = `<p class="card__note">Each point is a steady ride: ${what} (across) and its efficiency against your usual (up).</p>`;
+        const base = `<p class="card__note">Each point is a steady ride (IF 0.60–0.80): ${what} (across) and its efficiency against comparable rides before it (up).</p>`;
         if(!s || !s.n) return base;
-        if(!s.enough) return `${base}<p class="card__note" data-k="stat">${s.n} ride${s.n === 1 ? '' : 's'} so far; from 8 on it says how strong the link is.</p>`;
-        return `${base}<p class="card__note" data-k="stat">r = ${s.r?.toFixed(2) ?? '–'} over ${s.n} rides: ${s.r === null ? 'no clear link' : strength(s.r)}.</p>`;
+        if(!s.enough) return `${base}<p class="card__note" data-k="stat">${s.n} ride${s.n === 1 ? '' : 's'} so far; from 12 on it says how strong the link is.</p>`;
+        return `${base}<p class="card__note" data-k="stat">r = ${s.r?.toFixed(2) ?? '–'} over ${s.n} rides: ${s.r === null ? 'no clear link' : strength(s.r)}. A link, not proof of cause.</p>`;
     }
     chart() {
         this.result = readinessChart(this.data, this.option, colors(this));

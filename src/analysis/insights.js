@@ -15,7 +15,6 @@
 //
 
 import { bestPowers, DURATIONS } from '../training/summary.js';
-import { hrvRangeOn } from '../training/wellness.js';
 
 const num = x => Number.isFinite(x);
 const mean = xs => (xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : null);
@@ -56,8 +55,12 @@ function hrRecovery(samples = [], analysis, ftp, pauses = []) {
     const byT = new Map(samples.map(s => [s.t, s]));
     const hrAt = t => { const h = byT.get(t)?.heartRate; return num(h) && h > 0 ? h : null; };
     const out = [];
-    efforts(analysis, ftp).forEach((iv, i) => {
+    const list = efforts(analysis, ftp);
+    list.forEach((iv, i) => {
         if(iv.end - iv.start < RECOVERY_MIN) return;
+        // the minute after must be recovery: the next effort starts after it
+        const next = list[i + 1];
+        if(next && next.start < iv.end + RECOVERY) return;
         const last = [];
         for(let t = iv.end - 5; t < iv.end; t++) { const h = hrAt(t); if(h) last.push(h); }
         if(!last.length) return;
@@ -84,6 +87,7 @@ function powerHr(samples = [], pauses = [], window = 30) {
     const points = [];
     for(let i = 0; i + window <= ridden.length; i += window) {
         const chunk = ridden.slice(i, i + window);
+        if(chunk[chunk.length - 1].t - chunk[0].t !== window - 1) continue;     // straddles a pause
         const p = chunk.map(s => s.power).filter(x => num(x) && x > 0);
         const h = chunk.map(s => s.heartRate).filter(x => num(x) && x > 0);
         if(p.length < window * 0.8 || h.length < window * 0.8) continue;
@@ -102,9 +106,14 @@ function efficiency(summaries = [], rollDays = 28) {
     const list = summaries.filter(steady)
         .map(s => ({day: s.day, ef: round(s.np / s.avgHr, 2), name: s.name, id: s.id}))
         .sort((a, b) => (a.day < b.day ? -1 : a.day > b.day ? 1 : 0));
-    const rolling = list.map(p => {
+    // a sliding window over the sorted rides (rides on the same day all count)
+    const rolling = [];
+    let lo = 0, sum = 0, hi = 0;
+    list.forEach((p, i) => {
+        while(hi < list.length && list[hi].day <= p.day) { sum += list[hi].ef; hi++; }
         const from = addDays(p.day, -(rollDays - 1));
-        return round(mean(list.filter(q => q.day >= from && q.day <= p.day).map(q => q.ef)), 2);
+        while(list[lo].day < from) { sum -= list[lo].ef; lo++; }
+        rolling[i] = round(sum / (hi - lo), 2);
     });
     return Object.assign(list, {rolling});
 }
@@ -125,26 +134,55 @@ function pearson(points) {
 }
 
 // x: 'hrv' (that morning's HRV against the middle of its normal range, %) or
-// 'sleep' (hours); y: the ride's efficiency against the median of the
-// steady rides in the 42 days before it (%)
-function readinessPairs(summaries = [], wellness = [], x = 'hrv', {minRides = 8, baseDays = 42} = {}) {
-    const rides = efficiency(summaries);
+// 'sleep' (hours); y: the ride's efficiency against the median of comparable
+// rides in the 42 days before it (%). Comparable: steady rides of IF 0.60–0.80
+// only, so an easy spin and a tempo ride (whose NP ÷ HR differ by nature)
+// don't make a link of their own. r from 12 rides.
+const BAND = [0.60, 0.80];
+
+// the HRV normal range on a day, as hrvRangeOn, from days sorted once:
+// Garmin's baseline for that night, else mean ± SD of the 60 days before
+function rangeFinder(wellness) {
+    const days = [...wellness].filter(d => d?.day).sort((a, b) => (a.day < b.day ? -1 : a.day > b.day ? 1 : 0));
+    const byDay = new Map(days.map(d => [d.day, d]));
+    const withHrv = days.filter(d => num(d.hrv));
+    return day => {
+        const b = byDay.get(day)?.hrvBaseline;
+        if(num(b?.low) && num(b?.high)) return {low: b.low, high: b.high};
+        const from = addDays(day, -60);
+        const values = [];
+        for(const d of withHrv) { if(d.day >= day) break; if(d.day >= from) values.push(d.hrv); }
+        if(values.length < 14) return null;
+        const m = mean(values);
+        const sd = Math.sqrt(values.reduce((a, x) => a + (x - m) ** 2, 0) / values.length);
+        return {low: Math.round(m - sd), high: Math.round(m + sd)};
+    };
+}
+
+function readinessPairs(summaries = [], wellness = [], x = 'hrv', {minRides = 12, baseDays = 42} = {}) {
+    const rides = efficiency(summaries.filter(s => num(s.if) && s.if >= BAND[0] && s.if <= BAND[1]));
     const byDay = new Map(wellness.map(d => [d.day, d]));
+    const rangeOn = rangeFinder(wellness);
     const points = [];
-    for(const r of rides) {
-        const before = rides.filter(q => q.day < r.day && q.day >= addDays(r.day, -baseDays)).map(q => q.ef);
-        if(before.length < 3) continue;
+    let lo = 0;
+    rides.forEach((r, i) => {
+        const from = addDays(r.day, -baseDays);
+        while(lo < i && rides[lo].day < from) lo++;
+        // the rides before this one's day (never itself or the same day)
+        const before = [];
+        for(let k = lo; k < i && rides[k].day < r.day; k++) before.push(rides[k].ef);
+        if(before.length < 3) return;
         const base = median(before);
         const night = byDay.get(r.day);
         let xv = null;
         if(x === 'sleep') xv = num(night?.sleepSeconds) && night.sleepSeconds > 0 ? round(night.sleepSeconds / 3600, 1) : null;
         else if(num(night?.hrv)) {
-            const range = hrvRangeOn(r.day, wellness);
+            const range = rangeOn(r.day);
             if(range) xv = round((night.hrv / ((range.low + range.high) / 2) - 1) * 100, 1);
         }
-        if(xv === null) continue;
+        if(xv === null) return;
         points.push({day: r.day, x: xv, y: round((r.ef / base - 1) * 100, 1), name: r.name, id: r.id});
-    }
+    });
     const enough = points.length >= minRides;
     return {points, n: points.length, r: enough ? pearson(points) : null, enough};
 }

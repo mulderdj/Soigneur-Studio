@@ -63,10 +63,11 @@ function recoveryChart({samples, analysis, ftp, pauses}, c = {}) {
         time: false,
         x: list.map(r => r.n),
         xTicks: list.map(r => r.n),
-        xRange: [0.5, list.length + 0.5],
+        xRange: [0.5, list[list.length - 1].n + 0.5],
         xFormat: n => `${n}`,
         series: [{label: 'Drop in 60 s', color: c.good, kind: 'bars', values: list.map(r => r.drop)}],
-        yRange: [0, null],
+        // a heart rate still rising after an effort shows below zero
+        yRange: [Math.min(0, ...list.map(r => r.drop)), null],
         yFormat: v => `${v}`,
     };
     const readout = (i) => {

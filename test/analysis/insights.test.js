@@ -124,3 +124,34 @@ describe('intensity distribution', () => {
         expect(weekOf('2026-11-22')).toBe('2026-11-16');   // a Sunday
     });
 });
+
+describe('review fixes', () => {
+    test('recovery: an effort followed by another within 60 s is left out (30/30)', () => {
+        const ivs = [];
+        for(let k = 0; k < 6; k++) ivs.push(iv(300 + k * 60, 330 + k * 60, 'work'));
+        const samples = ride(1200, () => 300, () => 170);
+        expect(hrRecovery(samples, {intervals: ivs}, 250)).toEqual([]);
+    });
+    test('readiness: only comparable rides (IF 0.60–0.80), at least 12 for r', () => {
+        const wl = Array.from({length: 60}, (_, i) => ({day: new Date(Date.UTC(2026, 8, 1 + i)).toISOString().slice(0, 10), hrv: 60}));
+        const rides = wl.slice(20, 40).map((d, i) => S(d.day, 200, 140, {if: i % 2 ? 0.55 : 0.7}));
+        const out = readinessPairs(rides, wl, 'hrv');
+        expect(out.points.every(p => rides.find(r => r.day === p.day).if === 0.7)).toBe(true);
+        expect(out.enough).toBe(false);            // 10 comparable rides, fewer than 12
+    });
+    test('readiness and efficiency stay fast with years of data', () => {
+        const days = Array.from({length: 1800}, (_, i) => new Date(Date.UTC(2021, 0, 1 + i)).toISOString().slice(0, 10));
+        const wl = days.map(day => ({day, hrv: 55 + (day.charCodeAt(9) % 10), sleepSeconds: 25000}));
+        const rides = days.filter((_, i) => i % 2 === 0).map((day, i) => S(day, 190 + (i % 20), 140, {if: 0.7}));
+        const t0 = Date.now();
+        const out = readinessPairs(rides, wl, 'hrv');
+        efficiency(rides);
+        expect(out.n).toBeGreaterThan(800);
+        expect(Date.now() - t0).toBeLessThan(250);
+    });
+    test('power and heart rate: no 30 s point across a pause', () => {
+        const samples = ride(40 * 60, () => 200, () => 130);
+        const pts = powerHr(samples, [{start: 615, end: 630}]);
+        expect(pts.every(p => p.t < 615 - 29 || p.t >= 630)).toBe(true);
+    });
+});

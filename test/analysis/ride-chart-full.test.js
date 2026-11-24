@@ -59,3 +59,32 @@ describe('the ride chart in full screen', () => {
         expect(el.classList.contains('is-full')).toBe(false);
     });
 });
+
+describe('the ride chart off the page', () => {
+    test('its page-wide listeners go with it', async () => {
+        const el = mount();
+        el.querySelector('.rc-full').click();
+        await flush();
+        el.remove();                                  // the ride page re-renders
+        expect(el.classList.contains('is-full')).toBe(false);
+        el.full = true;                               // even if something set it again…
+        document.dispatchEvent(new KeyboardEvent('keydown', {key: 'Escape'}));
+        expect(el.full).toBe(true);                   // …the removed chart no longer listens
+    });
+    test('Close while full screen is still being granted: ends as closed', async () => {
+        let grant;
+        HTMLElement.prototype.requestFullscreen = function() { return new Promise(r => { grant = () => { Object.defineProperty(document, 'fullscreenElement', {value: this, configurable: true}); r(); }; }); };
+        let exited = 0;
+        document.exitFullscreen = () => { exited++; Object.defineProperty(document, 'fullscreenElement', {value: null, configurable: true}); return Promise.resolve(); };
+        const pushes = jest.spyOn(history, 'pushState');
+        const el = mount();
+        el.querySelector('.rc-full').click();
+        el.querySelector('.rc-full').click();          // Close at once
+        grant();
+        await flush();
+        expect(el.classList.contains('is-full')).toBe(false);
+        expect(exited).toBe(1);
+        expect(pushes).not.toHaveBeenCalled();
+        pushes.mockRestore();
+    });
+});
