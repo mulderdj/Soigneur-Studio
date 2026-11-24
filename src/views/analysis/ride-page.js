@@ -11,6 +11,7 @@ import { xf } from '../../functions.js';
 import { analyseRide } from '../../analysis/ride.js';
 import { esc, fmtDuration, fmtDay, sportLabelFor } from '../training/format.js';
 import './ride-chart.js';
+import './interval-table.js';
 
 const SOURCES = {garmin: 'Garmin', intervals: 'intervals.icu', fit: 'Imported .fit'};
 const sourceOf = s => SOURCES[s?.source] ?? (String(s?.id ?? '').startsWith('garmin-') ? 'Garmin' : String(s?.id ?? '').startsWith('icu-') ? 'intervals.icu' : 'Soigneur');
@@ -94,6 +95,8 @@ class RidePage extends HTMLElement {
         if(token !== this.token) return;
         if(!got.ride) { this.renderProblem(problemText(got.reason, summary)); return; }
         const ride = got.ride;
+        // the FTP the ride was ridden with (kept in its summary), else today's
+        context.ftp = summary.ftp > 0 ? summary.ftp : context.ftp;
         const analysis = analyseRide({
             samples: ride.samples, pauses: ride.pauses ?? [], laps: ride.laps ?? [], workout: context.workout,
             ftp: context.ftp, weight: context.weight, wprime: context.wprime, lthr: context.lthr,
@@ -158,6 +161,10 @@ class RidePage extends HTMLElement {
             <section class="rp-cards"></section>`;
         this.$chart = this.querySelector('ride-chart');
         this.$chart.data = {samples: this.ride.samples, analysis: a, ftp: this.context.ftp};
+        const table = document.createElement('interval-table');
+        this.querySelector('.rp-intervals').append(table);
+        table.data = {analysis: a, ftp: this.context.ftp};
+        table.addEventListener('interval-zoom', e => this.$chart.zoomTo(e.detail.start, e.detail.end));
         this.dispatchEvent(new CustomEvent('ride-analysed', {detail: {analysis: a}}));
     }
 }

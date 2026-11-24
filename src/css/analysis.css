@@ -154,3 +154,89 @@ ride-chart {
 @media (min-width: 600px) {
     .rp-title { font-size: var(--text-2xl, 28px); }
 }
+
+/* ---------- intervals ---------- */
+
+.it { display: grid; gap: var(--space-2); }
+
+.it-scroll {
+    overflow-x: auto;
+    scrollbar-width: thin;
+}
+
+.it-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: var(--text-s);
+    font-variant-numeric: tabular-nums;
+}
+
+.it-table th,
+.it-table td {
+    padding: var(--space-1) var(--space-2);
+    border-bottom: var(--line-w) solid var(--line);
+    text-align: right;
+    white-space: nowrap;
+}
+
+.it-table thead th {
+    color: var(--muted);
+    font-size: var(--text-xs);
+    font-weight: var(--weight-medium);
+}
+
+.it-table th:first-child,
+.it-table td:first-child { text-align: left; }
+
+.it-table td { font-family: var(--font-num); }
+.it-table td small { color: var(--muted); }
+
+.it-row.is-rest { color: var(--muted); }
+.it-row.is-work .it-name { color: var(--ink); }
+
+.it-zoom {
+    min-height: var(--tap);
+    padding: 0 var(--space-2);
+    margin-left: calc(-1 * var(--space-2));
+    border: 0;
+    border-radius: var(--radius-s);
+    background: none;
+    color: inherit;
+    font: inherit;
+    font-weight: var(--weight-bold);
+    cursor: zoom-in;
+}
+
+.it-zoom:hover { background-color: var(--surface-2); }
+
+.it-status[data-status="cut-short"] { color: var(--warn); }
+.it-status[data-status="skipped"] { color: var(--danger); }
+
+/* a phone: each rep a card, its numbers labelled */
+@media (max-width: 599px) {
+    .it-table thead { display: none; }
+    .it-table,
+    .it-table tbody,
+    .it-table tr { display: block; }
+    .it-table tr {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: var(--space-1) var(--space-2);
+        padding: var(--space-2) 0;
+        border-bottom: var(--line-w) solid var(--line);
+    }
+    .it-table th,
+    .it-table td {
+        padding: 0;
+        border: 0;
+        text-align: left;
+    }
+    .it-table th { grid-column: 1 / -1; }
+    .it-table td::before {
+        content: attr(data-l);
+        display: block;
+        color: var(--muted);
+        font-family: var(--font-text);
+        font-size: var(--text-xs);
+    }
+}

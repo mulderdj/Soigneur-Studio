@@ -105,4 +105,22 @@ describe('opening a ride', () => {
         await flush();
         expect(pageSets.at(-1)).toBe('training');
     });
+
+    test('the intervals table: a row zooms the chart to that interval', async () => {
+        const el = page(source({rides: {r1: {...rideOf(workout()), laps: []}}}));
+        await el.open('r1'); await flush(); await flush();
+        expect(el.querySelectorAll('interval-table .it-row.is-work')).toHaveLength(5);
+        el.querySelector('.it-row.is-work [data-zoom]').click();
+        const x = made.at(-1).scales.x;
+        expect(x.min).toBeLessThanOrEqual(300);
+        expect(x.max).toBeGreaterThanOrEqual(540);
+        expect(x.max - x.min).toBeLessThan(400);
+    });
+
+    test('the analysis uses the FTP the ride was ridden with, not today\'s', async () => {
+        SUMMARIES.r2 = {...SUMMARIES.r1, id: 'r2', ftp: 300};
+        const el = page(source({rides: {r2: {...rideOf(workout(), {ftp: 300}), laps: []}}}));
+        await el.open('r2'); await flush(); await flush();
+        expect(el.analysis.intervals.find(i => i.kind === 'work').target).toBe(330);
+    });
 });

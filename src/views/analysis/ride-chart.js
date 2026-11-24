@@ -14,6 +14,12 @@ import { esc, fmtDuration } from '../training/format.js';
 
 const token = (el, name, fallback = '#888') => getComputedStyle(el).getPropertyValue(name).trim() || fallback;
 const clock = s => (Number.isFinite(s) ? fmtDuration(Math.round(s)) : '');
+// the read-out: 4:05 or 1:02:30
+const exact = s => {
+    if(!Number.isFinite(s)) return '';
+    const t = Math.round(s), h = Math.floor(t / 3600), m = Math.floor(t / 60) % 60, sec = t % 60;
+    return h ? `${h}:${String(m).padStart(2, '0')}:${String(sec).padStart(2, '0')}` : `${m}:${String(sec).padStart(2, '0')}`;
+};
 const num = x => Number.isFinite(x);
 
 function tipLeft(x, w, width) {
@@ -162,7 +168,7 @@ class RideChart extends HTMLElement {
         const rows = this.list.map((s, k) => ({s, v: u.data[k + 1][i]}))
             .filter(({s, v}) => u.series[this.list.indexOf(s) + 1]?.show !== false && num(v))
             .map(({s, v}) => `<div><dt><i style="background:${esc(c[s.key])}"></i>${esc(s.label)}</dt><dd>${(s.digits ? v.toFixed(s.digits) : Math.round(v))} <small>${esc(s.unit)}</small></dd></div>`);
-        this.$tip.innerHTML = `<div class="rc-tip__title">${clock(u.data[0][i])}</div>${rows.length ? `<dl>${rows.join('')}</dl>` : '<p>No data here (paused)</p>'}`;
+        this.$tip.innerHTML = `<div class="rc-tip__title">${exact(u.data[0][i])}</div>${rows.length ? `<dl>${rows.join('')}</dl>` : '<p>No data here (paused)</p>'}`;
         this.$tip.hidden = false;
         const plot = this.$plot.getBoundingClientRect(), box = this.getBoundingClientRect();
         const x = plot.left - box.left + (u.over?.offsetLeft ?? 0) + u.cursor.left;
