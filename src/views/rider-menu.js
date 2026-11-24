@@ -144,6 +144,12 @@ class RiderMenu extends HTMLElement {
         });
 
         api.probe().then(s => { this.server = s; this.renderPill(); });
+        // back online: ask the server again, so the Account tab shows the account
+        window.addEventListener('online', () => api.probe(true).then(s => {
+            this.server = s;
+            this.renderPill();
+            if(this.$dialog.open) this.render();
+        }));
         this.renderPill();
 
         if(connectReturn) {
@@ -234,6 +240,20 @@ class RiderMenu extends HTMLElement {
 
     render_account() {
         const r = riders.current();
+        if(this.server.offline) {
+            const s = syncStatus();
+            this.$body.innerHTML = r.account?.token ? `
+                <div class="rm--card">
+                    <span class="rm--avatar rm--big">${initial(r.name)}</span>
+                    <span class="rm--who"><b>${esc(r.name)}</b><small>@${esc(r.account.username)}</small></span>
+                    <span class="rm--sync" data-sync="offline">${esc(s.state === 'offline' && s.message ? s.message : SYNC_LABEL.offline)}</span>
+                </div>
+                <p class="rm--lead" data-k="offline">Your account server can't be reached right now.</p>
+                <p class="rm--note">You're still signed in. Rides and changes are kept on this device and sync when it can reach your Soigneur server again. Connected services and account settings come back then too.</p>` : `
+                <p class="rm--lead" data-k="offline">Your account server can't be reached right now.</p>
+                <p class="rm--note">Riders still work on this device. Sign in when this device can reach your Soigneur server again.</p>`;
+            return;
+        }
         if(!this.server.available) {
             this.$body.innerHTML = `
                 <p class="rm--lead">No account server found at this address.</p>
