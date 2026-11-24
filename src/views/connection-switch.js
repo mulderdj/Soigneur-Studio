@@ -30,6 +30,10 @@ class ConnectionSwitch extends HTMLElement {
         this.$indicator = this.querySelector(`.${this.indicatorClass}`) ?? this;
 
         this.addEventListener('pointerup', this.onEffect.bind(this), this.signal);
+        // as a button from the keyboard too
+        this.addEventListener('keydown', e => {
+            if(e.key === 'Enter' || e.key === ' ') { e.preventDefault(); this.onEffect(e); }
+        }, this.signal);
         xf.sub(`${this.for}:connected`,    this.on.bind(this), this.signal);
         xf.sub(`${this.for}:disconnected`, this.off.bind(this), this.signal);
         xf.sub(`${this.for}:connecting`,   this.loading.bind(this), this.signal);

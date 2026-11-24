@@ -15,6 +15,7 @@ import './ant-device-scan.js';
 import './keyboard.js';
 import './training-dashboard.js';
 import './ride-screens.js';
+import './mode-select.js';
 import '../training/wiring.js';
 import '../training/rider-model-wiring.js';
 import '../tests/wiring.js';

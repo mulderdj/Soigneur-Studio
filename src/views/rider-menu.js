@@ -100,7 +100,7 @@ class RiderMenu extends HTMLElement {
         this.innerHTML = `
             <button type="button" class="rm--pill pill" aria-haspopup="dialog">
                 <span class="rm--avatar"></span>
-                <span class="rm--name"></span>
+                <span class="rm--name sr-only"></span>
                 <span class="rm--dot" aria-hidden="true"></span>
             </button>
             <dialog class="rm--dialog" aria-label="Riders and account">
@@ -176,6 +176,7 @@ class RiderMenu extends HTMLElement {
         this.$pill.dataset.sync = s;
         const label = r.account && !r.account.token ? 'Signed out' : SYNC_LABEL[s];
         this.$pill.title = `${r.name}: ${label}. Click to switch rider or manage your account.`;
+        this.$pill.setAttribute('aria-label', `${r.name}, ${label}: riders and account`);
     }
 
     // --- dialog ---

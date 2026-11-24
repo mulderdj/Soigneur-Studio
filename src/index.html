@@ -49,13 +49,15 @@
 
                     <header class="ride__header connections-header">
                         <rider-menu id="rider-menu"></rider-menu>
-                        <connection-switch for="ble:controllable" id="switch-controllable" class="connection-switch pill">
-                            <span class="connection-switch--indicator dot off"></span>
-                            <span class="connection-switch--label">Trainer</span>
+                        <connection-switch for="ble:controllable" id="switch-controllable" class="connection-switch hdr-icon" role="button" tabindex="0" aria-label="Trainer: connect or disconnect" title="Trainer">
+                            <svg class="hdr-icon__svg" viewBox="0 0 24 24" aria-hidden="true"><circle cx="5.5" cy="16.5" r="3.5"/><circle cx="18.5" cy="16.5" r="3.5"/><path d="M5.5 16.5 9 9h6l3.5 7.5M9 9 12 16.5h-6.5M15 9l-1-2.5h-2.5"/></svg>
+                            <span class="connection-switch--indicator dot off hdr-icon__dot"></span>
+                            <span class="connection-switch--label sr-only">Trainer</span>
                         </connection-switch>
-                        <connection-switch for="ble:heartRateMonitor" id="switch-hrm" class="connection-switch pill">
-                            <span class="connection-switch--indicator dot off"></span>
-                            <span class="connection-switch--label">HR</span>
+                        <connection-switch for="ble:heartRateMonitor" id="switch-hrm" class="connection-switch hdr-icon" role="button" tabindex="0" aria-label="Heart rate: connect or disconnect" title="Heart rate">
+                            <svg class="hdr-icon__svg" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20s-7-4.4-9.2-8.6A5 5 0 0 1 12 6.3a5 5 0 0 1 9.2 5.1C19 15.6 12 20 12 20z"/><path d="M3.5 12.5h4l1.5-2.5 2.5 5 1.5-2.5h7.5"/></svg>
+                            <span class="connection-switch--indicator dot off hdr-icon__dot"></span>
+                            <span class="connection-switch--label sr-only">HR</span>
                         </connection-switch>
                         <span class="ride__dots-slot" data-rs-dots-slot hidden></span>
                         <button type="button" class="btn btn--icon ride__layout" data-ride-layout aria-label="Edit layout" title="Edit layout">
@@ -317,6 +319,12 @@
                                         </svg>
                                     </mode-lock-toggle>
                                 </div> <!-- end mode selector -->
+                                <!-- phones: one button for the mode (the segmented control above on wider screens) -->
+                                <select id="mode-select" class="mode-select" aria-label="Trainer mode">
+                                    <option value="erg">ERG</option>
+                                    <option value="resistance">Resistance</option>
+                                    <option value="sim">Slope</option>
+                                </select>
                             </div> <!-- tab-btn-group -->
 
                             <tab-group prop="mode">
