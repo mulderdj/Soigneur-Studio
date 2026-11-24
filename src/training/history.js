@@ -448,6 +448,23 @@ async function movePlanEntry(id, day) {
     if(e) await putEntry({...e, day});
 }
 
+// readiness: another workout for a planned day (easier, a recovery spin);
+// the original is kept once, so it can come back (and syncs back to
+// intervals.icu through its .zwo)
+async function replacePlanWorkout(id, workout) {
+    const e = await idb.get(PLAN, id);
+    if(!e) return null;
+    const original = e.original ?? {workout: e.workout, zwo: e.zwo ?? null, name: e.name ?? null};
+    return putEntry({...e, workout: structuredCloneSafe(workout), zwo: zwoOf(workout), name: workout?.meta?.name ?? null, original});
+}
+
+async function restorePlanWorkout(id) {
+    const e = await idb.get(PLAN, id);
+    if(!e?.original) return e ?? null;
+    const {original, ...rest} = e;
+    return putEntry({...rest, workout: original.workout, zwo: original.zwo, name: original.name, original: null});
+}
+
 async function removePlanEntry(id) {
     const e = await idb.get(PLAN, id);
     if(e) await putEntry({...e, deleted: true});
@@ -531,6 +548,8 @@ const history = Object.freeze({
     rateRide,
     ratings,
     rideWorkout,
+    replacePlanWorkout,
+    restorePlanWorkout,
     wellnessDays,
     pullWellness,
     requestGarminSync,
