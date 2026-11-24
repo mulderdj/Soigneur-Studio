@@ -351,7 +351,8 @@ ride-screens {
 
 /* editing: dots are big enough to grab and drag */
 ride-screens.is-editing .rs-dots { margin-top: 0; }
-ride-screens.is-editing .rs-dot { cursor: grab; }
+ride-screens.is-editing .rs-dot,
+.ride:has(ride-screens.is-editing) .ride__header .rs-dot { cursor: grab; }
 
 /* ---------- edit layout ---------- */
 
@@ -1195,6 +1196,30 @@ ride-screens.is-editing .rs-dot { cursor: grab; }
 
 @media (min-width: 1200px) {
     .ride .tile { min-height: 96px; }
+
+    /* one header row: rider and connections, the screens' dots, the trainer controls */
+    .ride {
+        grid-template-columns: minmax(0, 1fr) auto;
+        grid-template-areas:
+            "header modes"
+            "note   note"
+            "screens screens";
+        grid-template-rows: auto auto minmax(0, 1fr);
+    }
+
+    .ride__modes {
+        align-self: center;
+        padding: 0;
+        background: none;
+    }
+
+    .ride__modes tab-group { flex: 0 1 240px; }
+
+    .ride__header .rs-dots {
+        margin: 0 auto;
+    }
+
+    .ride__header .rs-dots:not([hidden]) ~ .ride__layout { margin-left: 0; }
 }
 
 /* ---------- phone landscape: handlebar mount ---------- */

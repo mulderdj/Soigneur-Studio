@@ -33,6 +33,8 @@ const SWIPE = 40;         // px a finger must travel for that swipe
 
 const typing = el => !!el?.closest?.('input, textarea, select, [contenteditable=""], [contenteditable="true"]');
 
+const DOTS_IN_HEADER_MIN = 1200;   // the desktop layout (src/views/layout.js)
+
 class RideScreens extends HTMLElement {
     connectedCallback() {
         if(this.$track) { this.resizeObserver?.observe(this.$track); return; }
@@ -97,6 +99,10 @@ class RideScreens extends HTMLElement {
         xf.sub('db:workoutStatus', s => this.onState({workoutStatus: s}), signal);
         xf.sub('layouts:changed', () => { if(!this.editing) this.render(); }, signal);
         window.addEventListener('resize', () => this.onResize(), signal);
+        // on a desktop the dots sit in the page header ([data-rs-dots-slot]), back under the screens otherwise
+        this.dotsMedia = window.matchMedia?.(`(min-width: ${DOTS_IN_HEADER_MIN}px)`);
+        this.dotsMedia?.addEventListener?.('change', () => this.placeDots(), signal);
+        this.placeDots();
         // the screens area changes size without a window resize too (the
         // header hides while riding on the handlebars): fit again
         this.resizeObserver = typeof ResizeObserver === 'function' ? new ResizeObserver(() => this.fit()) : null;
@@ -108,6 +114,11 @@ class RideScreens extends HTMLElement {
         this.updateButton();
     }
 
+    placeDots() {
+        const slot = document.querySelector('[data-rs-dots-slot]');
+        if(slot && this.dotsMedia?.matches) { if(this.$dots.nextSibling !== slot) slot.before(this.$dots); }
+        else if(this.$dots.parentNode !== this) this.$track.after(this.$dots);
+    }
     disconnectedCallback() {
         if(this.editing) { this.end(); layouts.endEdit(); }
         this.abort?.abort();
