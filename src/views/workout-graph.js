@@ -35,7 +35,9 @@ function Interval(acc, interval, width, ftp, powerMax, viewPort) {
     const stepsLength = interval.steps.length;
 
     return acc + interval.steps.reduce((a, step) => {
-        const power    = models.ftp.toAbsolute(step.power, ftp) ?? 0;
+        // an all-out sim step (built-in tests) has no power: drawn at 120 % FTP
+        const power    = models.ftp.toAbsolute(step.power, ftp) ??
+                         (exists(step.slope) && !exists(step.power) ? Math.round(ftp * 1.2) : 0);
         const cadence  = step.cadence;
         const slope    = step.slope;
         const duration = step.duration;
@@ -44,7 +46,7 @@ function Interval(acc, interval, width, ftp, powerMax, viewPort) {
         const zone     = (models.ftp.powerToZone(power, ftp)).name;
         const infoTime = formatTime({value: duration, format: 'mm:ss'});
 
-        const powerAttr    = exists(power)    ? `power="${escapeHtml(power)}"` : '';
+        const powerAttr    = exists(step.power) ? `power="${escapeHtml(power)}"` : '';
         const cadenceAttr  = exists(cadence)  ? `cadence="${escapeHtml(cadence)}"` : '';
         const slopeAttr    = exists(slope)    ? `slope="${escapeHtml(slope)}"` : '';
         const durationAttr = exists(duration) ? `duration="${escapeHtml(infoTime)}"` : '';
