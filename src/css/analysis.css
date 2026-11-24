@@ -284,6 +284,17 @@ ride-chart:fullscreen { background-color: var(--surface); }
     }
 }
 
+/* ---------- extra charts (ride-insights.js) ---------- */
+
+ride-insights {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 420px), 1fr));
+    gap: var(--space-3);
+    align-items: start;
+}
+
+ride-insights[hidden] { display: none; }
+
 /* ---------- cards ---------- */
 
 ride-cards {

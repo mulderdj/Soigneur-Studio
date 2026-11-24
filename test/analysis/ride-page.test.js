@@ -5,14 +5,21 @@ import '../training/browser-stubs.js';
 import { xf } from '../../src/functions.js';
 import { RidePage, openRide } from '../../src/views/analysis/ride-page.js';
 import { RideChart } from '../../src/views/analysis/ride-chart.js';
+import { UPlotCard } from '../../src/views/training/uplot-chart.js';
 const { workout, rideOf, steady } = require('./fixtures.js');
 
 // uPlot stub: records what it was given
 const made = [];
 RideChart.uPlot = class {
-    constructor(opts, data, el) { this.opts = opts; this.data = data; this.over = document.createElement('div'); this.root = document.createElement('div'); el.append(this.root); this.scales = {x: {}}; made.push(this); }
+    constructor(opts, data, el) { this.el = el; this.opts = opts; this.data = data; this.over = document.createElement('div'); this.root = document.createElement('div'); el.append(this.root); this.scales = {x: {}}; made.push(this); }
     destroy() { this.root.remove(); } setSize() {} setSeries() {} setScale(k, s) { this.scales[k] = s; }
 };
+
+// the ride chart's plot (the extra charts below it draw too)
+const rideChartPlot = () => [...made].reverse().find(p => p.el?.closest?.('ride-chart'));
+
+// the extra charts (ride-insights.js) draw with the same stub
+UPlotCard.uPlot = RideChart.uPlot;
 
 const SUMMARIES = {
     'r1': {id: 'r1', name: 'VO2 max 5x4', day: '2026-11-20', start: Date.UTC(2026, 10, 20, 7), duration: 3540, tss: 80, np: 230, if: 0.92, avgHr: 140},
@@ -58,14 +65,14 @@ describe('opening a ride', () => {
         expect(el.textContent).toMatch(/Reading the ride/);
         release(); await opening;
         expect(el.querySelector('ride-chart')).not.toBeNull();
-        expect(made.at(-1).opts.series.map(s => s.label)).toEqual(expect.arrayContaining(['Power', 'Target', 'Heart rate', 'W′bal']));
+        expect(rideChartPlot().opts.series.map(s => s.label)).toEqual(expect.arrayContaining(['Power', 'Target', 'Heart rate', 'W′bal']));
         expect(el.textContent).not.toMatch(/NaN|undefined/);
     });
 
     test('a ride without power: heart rate, speed and elevation, no power series', async () => {
         const el = page(source({rides: {'garmin-7': {samples: steady({withPower: false}), pauses: [], laps: []}}}));
         await el.open('garmin-7'); await flush(); await flush();
-        const labels = made.at(-1).opts.series.map(s => s.label);
+        const labels = rideChartPlot().opts.series.map(s => s.label);
         expect(labels).toEqual(expect.arrayContaining(['Heart rate', 'Speed', 'Elevation']));
         expect(labels).not.toContain('Power');
         expect(labels).not.toContain('W′bal');
@@ -111,7 +118,7 @@ describe('opening a ride', () => {
         await el.open('r1'); await flush(); await flush();
         expect(el.querySelectorAll('interval-table .it-row.is-work')).toHaveLength(5);
         el.querySelector('.it-row.is-work [data-zoom]').click();
-        const x = made.at(-1).scales.x;
+        const x = rideChartPlot().scales.x;
         expect(x.min).toBeLessThanOrEqual(300);
         expect(x.max).toBeGreaterThanOrEqual(540);
         expect(x.max - x.min).toBeLessThan(400);

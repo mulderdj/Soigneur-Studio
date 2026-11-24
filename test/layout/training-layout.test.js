@@ -71,7 +71,8 @@ describe('editing the Training cards', () => {
         const saved = layouts.get().training.large.cards;
         expect(saved.find(c => c.id === 'week').size).toBe('full');
         expect(saved.find(c => c.id === 'zones').hidden).toBe(true);
-        expect(saved.filter(c => !c.hidden).map(c => c.id).slice(-2)).toEqual(['ftp', 'profile']);
+        // the cards that came later (efficiency, readiness-perf) stay after the moved one
+        expect(saved.filter(c => !c.hidden && !['efficiency', 'readiness-perf'].includes(c.id)).map(c => c.id).slice(-2)).toEqual(['ftp', 'profile']);
         expect(grid.classList.contains('is-editing')).toBe(false);
     });
 

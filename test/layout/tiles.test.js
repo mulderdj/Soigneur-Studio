@@ -14,7 +14,7 @@ describe('the defaults', () => {
         expect(ids(D.ride.phone.screens[2])).toContain('chart');
     });
     test('every Training card once, in today\'s order', () => {
-        expect(D.training.large.cards.map(c => c.id)).toEqual(['readiness', 'form', 'week', 'health', 'calendar', 'volume', 'curve', 'model', 'profile', 'zones', 'ftp']);
+        expect(D.training.large.cards.map(c => c.id)).toEqual(['readiness', 'form', 'week', 'health', 'calendar', 'volume', 'curve', 'model', 'profile', 'zones', 'ftp', 'efficiency', 'readiness-perf']);
         expect(D.training.phone.cards.every(c => c.size === 'full')).toBe(true);
     });
     test('a fresh copy every time', () => {
@@ -29,7 +29,7 @@ describe('reading a saved layout', () => {
         for(const bad of [null, undefined, 'x', 42, [], {version: 9}, {version: 1, ride: 'no'}]) {
             const r = readLayout(bad);
             expect(r.ride.phone.screens).toHaveLength(3);
-            expect(r.training.large.cards).toHaveLength(11);
+            expect(r.training.large.cards).toHaveLength(13);
         }
     });
     test('an unknown tile is dropped, a bad size becomes the tile\'s own', () => {
@@ -61,7 +61,8 @@ describe('reading a saved layout', () => {
 
     test('Training: unknown cards dropped, missing cards appended hidden', () => {
         const r = readLayout({version: 1, training: {large: {cards: [{id: 'ftp', size: 'full'}, {id: 'nope'}, {id: 'form', size: 'x', hidden: true}]}}});
-        const cards = r.training.large.cards.filter(c => !['readiness', 'model', 'profile'].includes(c.id));
+        // cards added by updates (shown at once) are left out here: see below
+        const cards = r.training.large.cards.filter(c => !['readiness', 'model', 'profile', 'efficiency', 'readiness-perf'].includes(c.id));
         expect(cards.slice(0, 2)).toEqual([{id: 'ftp', size: 'full', hidden: false}, {id: 'form', size: 'narrow', hidden: true}]);
         expect(cards).toHaveLength(8);
         expect(cards.slice(2).every(c => c.hidden)).toBe(true);
@@ -73,11 +74,14 @@ describe('a card added by an update', () => {
         const saved = {version: 1, training: {large: {cards: ['form', 'week', 'health', 'calendar', 'volume', 'curve', 'zones', 'ftp'].map(id => ({id, size: 'narrow'}))}}};
         const cards = readLayout(saved).training.large.cards;
         expect(cards[0]).toMatchObject({id: 'readiness', hidden: false});
-        expect(cards).toHaveLength(11);
+        expect(cards).toHaveLength(13);
         // the rider model's cards too, after the power curve
         const ids = cards.filter(c => !c.hidden).map(c => c.id);
         expect(ids.indexOf('model')).toBe(ids.indexOf('curve') + 1);
         expect(ids.indexOf('profile')).toBe(ids.indexOf('curve') + 2);
+        // and the trend cards, shown
+        expect(cards.find(c => c.id === 'efficiency')).toMatchObject({hidden: false});
+        expect(cards.find(c => c.id === 'readiness-perf')).toMatchObject({hidden: false});
     });
     test('a rider who hid it keeps it hidden', () => {
         const saved = {version: 1, training: {large: {cards: [{id: 'form', size: 'narrow'}, {id: 'readiness', size: 'wide', hidden: true}]}}};

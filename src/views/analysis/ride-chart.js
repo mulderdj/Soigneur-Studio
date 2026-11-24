@@ -128,7 +128,7 @@ class RideChart extends HTMLElement {
         return {
             power: token(this, '--accent'), target: token(this, '--muted'), hr: token(this, '--hr', '#e5484d'),
             cadence: token(this, '--zone-3', '#2bb3a3'), wbal: token(this, '--zone-6', '#f5a623'),
-            speed: token(this, '--zone-2', '#4c9aff'), alt: token(this, '--line', '#555'),
+            speed: token(this, '--zone-2', '#4c9aff'), alt: token(this, '--muted', '#8c98a8'),
             zones: [1, 2, 3, 4, 5, 6, 7].map(i => token(this, `--zone-${i}`)),
             shade: token(this, '--band', 'rgba(76,154,255,0.12)'), muted: token(this, '--muted'), line: token(this, '--line'),
         };
@@ -176,7 +176,7 @@ class RideChart extends HTMLElement {
             series: [{}, ...list.map(s => ({
                 label: s.label, scale: s.scale, show: s.show, width: s.width, dash: s.dash, spanGaps: false,
                 stroke: s.key === 'power' ? zoneStroke : c[s.key],
-                fill: s.fill ? `${c[s.key]}55` : undefined,
+                fill: s.fill ? `${c[s.key]}33` : undefined,
                 points: {show: false},
             }))],
             axes: [
