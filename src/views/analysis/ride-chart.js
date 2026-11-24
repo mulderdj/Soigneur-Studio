@@ -3,7 +3,9 @@
 // rate, cadence, W′bal, speed and elevation, each on its own scale; the
 // intervals shaded; a read-out per second; drag to zoom, double-click back;
 // a chip per series to show or hide it. zoomTo(start, end) zooms to an
-// interval (seconds from the start).
+// interval (seconds from the start). The full-screen button opens the chart
+// over the whole screen, in landscape on a phone (where the browser allows
+// it; otherwise it fills the window); Close or Back returns.
 //
 //   el.data = {samples, analysis, ftp}
 //
@@ -32,8 +34,16 @@ class RideChart extends HTMLElement {
 
     connectedCallback() {
         if(!this.$plot) {
-            this.innerHTML = `<div class="rc-chips" role="group" aria-label="Series"></div><div class="rc-plot"></div><div class="rc-tip" hidden></div>`;
+            this.innerHTML = `<div class="rc-head"><div class="rc-chips" role="group" aria-label="Series"></div>
+                <button type="button" class="btn btn--icon rc-full" aria-label="Full screen" title="Full screen"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg></button></div>
+                <div class="rc-plot"></div><div class="rc-tip" hidden></div>`;
             this.$chips = this.querySelector('.rc-chips');
+            this.$full = this.querySelector('.rc-full');
+            this.$full.addEventListener('click', () => this.full ? this.exitFull() : this.enterFull());
+            document.addEventListener('fullscreenchange', () => { if(this.full && document.fullscreenElement !== this) this.exitFull(); });
+            document.addEventListener('keydown', e => { if(e.key === 'Escape' && this.full) this.exitFull(); });
+            // turning the phone changes the height too, which the ResizeObserver (width) can miss
+            window.addEventListener('resize', () => { if(this.full) this.plot?.setSize(this.size()); });
             this.$plot = this.querySelector('.rc-plot');
             this.$tip = this.querySelector('.rc-tip');
             this.$chips.addEventListener('click', e => this.toggle(e));
@@ -57,7 +67,45 @@ class RideChart extends HTMLElement {
 
     size() {
         const w = this.$plot?.clientWidth || 800;
+        if(this.full) {
+            // the whole screen, less the chips row
+            const head = this.querySelector('.rc-head')?.offsetHeight ?? 0;
+            return {width: w, height: Math.max(160, (window.innerHeight || 400) - head - 24)};
+        }
         return {width: w, height: Math.max(220, Math.min(480, Math.round(w * 0.42)))};
+    }
+
+    // --- full screen ---
+
+    async enterFull() {
+        this.full = true;
+        this.classList.add('is-full');
+        this.setFullButton();
+        try {
+            if(this.requestFullscreen) await this.requestFullscreen({navigationUI: 'hide'});
+        } catch(e) {}                                     // not allowed: the window-filling view stays
+        try { await screen.orientation?.lock?.('landscape'); } catch(e) {}   // phones only, in full screen
+        // a Back on Android closes the view instead of leaving the page
+        if(!document.fullscreenElement) { history.pushState({rcFull: true}, ''); this.popped = () => this.exitFull({fromBack: true}); window.addEventListener('popstate', this.popped, {once: true}); }
+        this.plot?.setSize(this.size());
+    }
+
+    exitFull({fromBack = false} = {}) {
+        if(!this.full) return;
+        this.full = false;
+        this.classList.remove('is-full');
+        this.setFullButton();
+        try { screen.orientation?.unlock?.(); } catch(e) {}
+        if(document.fullscreenElement === this) document.exitFullscreen?.().catch(() => {});
+        if(this.popped && !fromBack) { window.removeEventListener('popstate', this.popped); this.popped = null; history.back(); }
+        this.popped = null;
+        this.plot?.setSize(this.size());
+    }
+
+    setFullButton() {
+        this.$full.setAttribute('aria-label', this.full ? 'Close full screen' : 'Full screen');
+        this.$full.title = this.full ? 'Close' : 'Full screen';
+        this.$full.innerHTML = this.full ? '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg>' : '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg>';
     }
 
     // the series this ride has, with their default visibility
