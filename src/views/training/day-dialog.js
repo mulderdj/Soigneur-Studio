@@ -114,28 +114,34 @@ class DayDialog extends HTMLElement {
 
     render() {
         const {summaries = [], allSummaries, plan = [], today} = this.data;
-        const rides = (allSummaries ?? summaries).filter(s => s.day === this.day);
-        const entries = plan.filter(e => !e.deleted && e.day === this.day);
+        const allRides = (allSummaries ?? summaries).filter(s => s.day === this.day);
+        const allEntries = plan.filter(e => !e.deleted && e.day === this.day);
+        // a planned workout that was ridden is one item: the ride, with its plan
+        const planOf = r => r.hidden ? null : allEntries.find(e => e.rideId && e.rideId === r.id) ?? null;
+        const rides = allRides;
+        const entries = allEntries.filter(e => !allRides.some(r => planOf(r) === e));
+        const graph = e => e.workout?.intervals?.length ? `<div class="dd-graph workout-list--graph-cont" data-graph="${esc(e.id)}" role="img"
+                        aria-label="${esc(`Workout profile, ${minutes(workoutSeconds(e.workout))}`)}"></div>` : '';
+        const planned = e => e?.workout ? ` (planned ${Math.round(plannedTss(e.workout, this.data.ftp))})` : '';
         this.$dialog.innerHTML = `
             <div class="dd-head">
                 <h2 class="card__title">${esc(fmtDay(this.day, {weekday: 'long', day: 'numeric', month: 'long'}))}</h2>
                 <button type="button" class="btn btn--icon" data-close aria-label="Close">×</button>
             </div>
-            ${rides.length ? `<h3 class="dd-sub">Rides</h3><ul class="dd-list">${rides.map(r => `
-                <li class="list-row dd-ride${r.hidden ? ' is-hidden' : ''}"><div class="list-row__main"><div class="list-row__title">${esc(r.name)}</div>
-                    <div class="list-row__meta">${sportLabelFor(r) ? `${esc(sportLabelFor(r))} · ` : ''}${fmtDuration(r.duration)} · ${fmtTss(r.tss)} TSS${loadTag(r.loadSource) ? ` <span class="badge cal-load" title="${esc(loadTitle(r.loadSource))}">${loadTag(r.loadSource)}</span>` : ''}${Number.isFinite(r.np) ? ` · NP ${Math.round(r.np)} W` : ''}${r.hidden ? ' · hidden' : ''}</div>${zoneBar(r)}</div>
+            ${rides.length ? `<h3 class="dd-sub">Rides</h3><ul class="dd-list">${rides.map(r => { const e = planOf(r); return `
+                <li class="list-row dd-ride${r.hidden ? ' is-hidden' : ''}${e ? ' dd-done' : ''}"><div class="list-row__main"><div class="list-row__title">${esc(r.name)}</div>
+                    <div class="list-row__meta">${e ? `<span class="badge">done</span> ` : ''}${sportLabelFor(r) ? `${esc(sportLabelFor(r))} · ` : ''}${fmtDuration(r.duration)} · ${fmtTss(r.tss)} TSS${planned(e)}${loadTag(r.loadSource) ? ` <span class="badge cal-load" title="${esc(loadTitle(r.loadSource))}">${loadTag(r.loadSource)}</span>` : ''}${Number.isFinite(r.np) ? ` · NP ${Math.round(r.np)} W` : ''}${r.hidden ? ' · hidden' : ''}${e?.origin === 'intervals' ? ' <span class="badge badge-icu">intervals.icu</span>' : ''}</div>${zoneBar(r)}${e ? graph(e) : ''}</div>
                     ${r.hidden ? '' : `<button type="button" class="btn btn--primary" data-analyse="${esc(r.id)}">Analyse ride</button>`}
                     ${r.hidden ?
                       `<button type="button" class="btn" data-show="${esc(r.id)}">Show</button>` :
                       `<button type="button" class="btn" data-hide="${esc(r.id)}">Hide this ride</button>`}
-                    ${r.loadSource === 'rpe' || r.loadSource === 'estimate' ? rating(r) : ''}</li>`).join('')}</ul>` : ''}
+                    ${r.loadSource === 'rpe' || r.loadSource === 'estimate' ? rating(r) : ''}</li>`; }).join('')}</ul>` : ''}
             ${entries.length ? `<h3 class="dd-sub">Planned</h3><ul class="dd-list">${entries.map(e => `
                 <li class="list-row"><div class="list-row__main"><div class="list-row__title">${esc(e.workout?.meta?.name ?? e.name ?? 'Workout')}</div>
                     <div class="list-row__meta"><span class="badge">${planStatus(e, today)}</span>
                         ${e.workout ? `${Math.round(plannedTss(e.workout, this.data.ftp))} TSS` : 'The workout from intervals.icu could not be read, so it can\'t be ridden here.'}
                         ${e.origin === 'intervals' ? '<span class="badge badge-icu">intervals.icu</span>' : ''}</div>
-                    ${e.workout?.intervals?.length ? `<div class="dd-graph workout-list--graph-cont" data-graph="${esc(e.id)}" role="img"
-                        aria-label="${esc(`Workout profile, ${minutes(workoutSeconds(e.workout))}`)}"></div>` : ''}</div>
+                    ${graph(e)}</div>
                     <label class="field dd-move">Move to<input type="date" class="input" data-move="${esc(e.id)}" value="${esc(e.day)}"></label>
                     ${e.workout && !e.rideId ? `<button type="button" class="btn btn--primary" data-ride="${esc(e.id)}">Ride this workout</button>` : ''}
                     <button type="button" class="btn btn--danger" data-remove="${esc(e.id)}">Remove</button></li>`).join('')}</ul>` : ''}
