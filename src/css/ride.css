@@ -22,7 +22,8 @@
         "note"
         "screens"
         "modes";
-    gap: var(--space-2);
+    --ride-gap: var(--space-2);
+    gap: var(--ride-gap);
     height: calc(100dvh - var(--app-bar-h) - env(safe-area-inset-bottom, 0px));
     padding: var(--space-2);
     text-align: left;
@@ -85,20 +86,147 @@
     stroke-linejoin: round;
 }
 
-/* the screens' dots, between the connections and the layout button */
-.ride__header .rs-dots {
-    flex: 0 1 auto;
-    min-width: 0;
-    margin: 0 auto;
-    overflow-x: auto;
-    scrollbar-width: none;
+/* the screens' dots: no room of their own, centred in the gap just above
+   the tiles; each dot keeps a 44 px tap area over that gap */
+.ride__dots {
+    grid-area: screens;
+    align-self: start;
+    position: relative;
+    z-index: 1;
+    top: calc(-0.5 * var(--ride-gap, var(--space-2)));
+    height: 0;
+    pointer-events: none;
 }
 
-.ride__header .rs-dots:not([hidden]) ~ .ride__layout { margin-left: 0; }
+.ride__dots .rs-dot { pointer-events: auto; }
 
-/* never squeezed below a tap target: many screens scroll sideways */
-.ride__header .rs-dot,
+.ride__dots .rs-dots {
+    position: absolute;
+    inset: 0;
+    align-items: center;
+    margin: 0;
+    overflow: visible;
+}
+
+.ride__dots .rs-dots[hidden] { display: none; }
+
+.ride__dots .rs-dot {
+    flex: none;
+    height: var(--tap);
+}
+
+.ride__dots .rs-dot span {
+    width: 6px;
+    height: 6px;
+    border-width: var(--line-w);
+}
+
+.ride__dots .rs-dot[aria-current="true"] span { width: 16px; }
+
 .ride__header .ride__layout { flex: none; }
+
+/* the trainer: a direct-drive trainer, drawn filled */
+.hdr-icon__svg--trainer .fill { fill: currentColor; stroke: none; }
+.hdr-icon__svg--trainer .cut  { fill: none; stroke: var(--surface); stroke-width: 1.2; }
+.hdr-icon__svg--trainer .hole { fill: var(--surface); stroke: none; }
+.hdr-icon__svg--trainer .leg  { stroke-width: 2.4; }
+.hdr-icon__svg--trainer { width: 26px; height: 26px; }
+
+/* ---------- sensor panel ---------- */
+
+.sensor-panel {
+    position: fixed;
+    inset: auto;
+    width: min(320px, calc(100vw - 16px));
+    margin: 0;
+    padding: var(--space-4);
+    border: var(--line-w) solid var(--line);
+    border-radius: var(--radius-m);
+    background-color: var(--surface);
+    color: var(--ink);
+    box-shadow: var(--shadow);
+}
+
+.sensor-panel::backdrop { background: transparent; }
+
+.sensor-panel[open] {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+}
+
+.sp-head {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+}
+
+.sp-title {
+    margin: 0;
+    font-size: var(--text-m, 16px);
+}
+
+.sp-status {
+    color: var(--muted);
+    font-size: var(--text-s);
+}
+
+.sp-status[data-status="on"]      { color: var(--good); }
+.sp-status[data-status="loading"] { color: var(--warn); }
+
+.sp-close { margin-left: auto; }
+
+.sp-rows {
+    display: grid;
+    gap: var(--space-1);
+    margin: 0;
+}
+
+.sp-rows[hidden] { display: none; }
+
+.sp-rows div {
+    display: flex;
+    justify-content: space-between;
+    gap: var(--space-3);
+}
+
+.sp-rows dt { color: var(--muted); }
+.sp-rows dd { margin: 0; text-align: right; overflow-wrap: anywhere; }
+
+.sp-trainer[hidden] { display: none; }
+
+.sp-trainer .mode-selector {
+    display: flex;
+    align-items: center;
+}
+
+.sp-trainer .mode {
+    flex: 1;
+    min-height: var(--tap);
+    padding: 0 var(--space-2);
+    font-size: var(--text-xs);
+}
+
+.sp-trainer mode-lock-toggle {
+    display: grid;
+    place-items: center;
+    width: var(--tap);
+    height: var(--tap);
+    color: var(--muted);
+    cursor: pointer;
+}
+
+.sp-trainer .mode-lock--toggle--icon {
+    width: 20px;
+    height: 20px;
+    fill: currentColor;
+}
+
+.sp-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-2);
+}
 
 .hdr-icon__dot {
     position: absolute;
@@ -830,48 +958,11 @@ ride-screens.is-editing .rs-dot,
     margin: 0;
 }
 
-/* phones: the mode is one button (a menu) and the bar has no card around it */
-.ride__modes .mode-select { display: none; }
-
+/* phones: the bar (− target +) has no card around it */
 @media (max-width: 599px) {
     .ride__modes {
         padding: 0;
         background: none;
-    }
-
-    .ride__modes .mode { display: none; }
-
-    /* the mode button, then the lock; the segmented control's card goes */
-    .ride__modes .tab-btn-group {
-        display: flex;
-        align-items: center;
-        gap: var(--space-1);
-    }
-
-    .ride__modes .mode-selector {
-        order: 2;
-        padding: 0;
-        border: 0;
-        background: none;
-    }
-
-    .ride__modes .mode-select {
-        display: block;
-        min-height: var(--tap);
-        min-width: 7.5rem;
-        padding: 0 var(--space-6, 28px) 0 var(--space-3);
-        border: var(--line-w) solid var(--line);
-        border-radius: var(--radius-s);
-        background-color: var(--surface);
-        background-image: linear-gradient(45deg, transparent 50%, var(--muted) 50%), linear-gradient(-45deg, transparent 50%, var(--muted) 50%);
-        background-position: right 14px center, right 9px center;
-        background-size: 5px 5px;
-        background-repeat: no-repeat;
-        color: var(--ink);
-        font: inherit;
-        font-size: var(--text-s);
-        font-weight: var(--weight-bold);
-        appearance: none;
     }
 }
 
@@ -1242,7 +1333,8 @@ ride-screens.is-editing .rs-dot,
 
 @media (min-width: 600px) {
     .ride {
-        gap: var(--space-3);
+        --ride-gap: var(--space-3);
+        gap: var(--ride-gap);
         padding: var(--space-3);
     }
 

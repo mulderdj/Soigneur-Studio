@@ -98,7 +98,7 @@ class RideScreens extends HTMLElement {
         xf.sub('db:workoutStatus', s => this.onState({workoutStatus: s}), signal);
         xf.sub('layouts:changed', () => { if(!this.editing) this.render(); }, signal);
         window.addEventListener('resize', () => this.onResize(), signal);
-        // the dots sit in the page header ([data-rs-dots-slot]) when there is one
+        // the dots sit in their strip under the page header ([data-rs-dots-slot]) when there is one
         this.placeDots();
         // the screens area changes size without a window resize too (the
         // header hides while riding on the handlebars): fit again
@@ -113,7 +113,7 @@ class RideScreens extends HTMLElement {
 
     placeDots() {
         const slot = document.querySelector('[data-rs-dots-slot]');
-        if(slot) { if(this.$dots.nextSibling !== slot) slot.before(this.$dots); }
+        if(slot) { if(this.$dots.parentNode !== slot) slot.append(this.$dots); }
         else if(this.$dots.parentNode !== this) this.$track.after(this.$dots);
     }
     disconnectedCallback() {

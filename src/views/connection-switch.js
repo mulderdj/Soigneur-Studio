@@ -29,7 +29,8 @@ class ConnectionSwitch extends HTMLElement {
 
         this.$indicator = this.querySelector(`.${this.indicatorClass}`) ?? this;
 
-        this.addEventListener('pointerup', this.onEffect.bind(this), this.signal);
+        // a panel button acts on click: on pointerup the tap's own click would land on the panel's backdrop
+        this.addEventListener(this.hasAttribute('data-panel') ? 'click' : 'pointerup', this.onEffect.bind(this), this.signal);
         // as a button from the keyboard too
         this.addEventListener('keydown', e => {
             if(e.key === 'Enter' || e.key === ' ') { e.preventDefault(); this.onEffect(e); }
@@ -54,6 +55,8 @@ class ConnectionSwitch extends HTMLElement {
         return ;
     }
     onEffect(e) {
+        // in the Ride header: a panel with the status and settings (sensor-panel.js)
+        if(this.hasAttribute('data-panel')) return xf.dispatch('ui:sensor-panel', {for: this.for, anchor: this});
         xf.dispatch(`ui:${this.for}:switch`);
     }
     on(e) {

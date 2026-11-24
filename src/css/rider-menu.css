@@ -22,6 +22,12 @@ rider-menu {
     padding: 0;
 }
 
+.rm--pill .rm--avatar {
+    width: auto;
+    height: auto;
+    background: none;
+}
+
 .rm--pill .rm--dot {
     position: absolute;
     top: 4px;
