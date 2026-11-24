@@ -98,7 +98,12 @@ function samplesFromRecords(records = [], lapRecords = []) {
         prev = t;
     }
     const laps = (lapRecords ?? [])
-        .map(l => ({start: toMs(l?.start_time), end: toMs(l?.timestamp)}))
+        .map(l => {
+            const start = toMs(l?.start_time);
+            const elapsed = Number.isFinite(l?.total_elapsed_time) ? start + l.total_elapsed_time * 1000 : null;
+            // Garmin's lap timestamp can read as the ride's start: start + elapsed time first
+            return {start, end: elapsed ?? toMs(l?.timestamp)};
+        })
         .filter(l => Number.isFinite(l.start) && Number.isFinite(l.end) && l.end > l.start)
         .map(l => ({start: Math.max(0, sec(l.start)), end: sec(l.end)}));
     return {start, samples, laps, pauses, recorded: rows.length};

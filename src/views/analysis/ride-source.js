@@ -30,7 +30,8 @@ const rideSource = {
         const own = summary?.workoutId ? (db.workouts ?? []).find(w => w.id === summary.workoutId) : null;
         return {
             ftp: db.ftp, weight: db.weight, wprime: session.wprime,
-            lthr: thresholds.effective().cycling ?? null,
+            // a run's heart-rate zones from the running threshold
+            lthr: (/run/.test(summary?.sport ?? '') ? thresholds.effective().running : thresholds.effective().cycling) ?? null,
             workout: planned ?? own ?? null,
             summaries: await history.summaries(),
         };

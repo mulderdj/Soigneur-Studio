@@ -40,6 +40,12 @@ describe('records to 1 s samples', () => {
         expect(r.laps).toEqual([{start: 0, end: 300}, {start: 300, end: 600}]);
     });
 
+    test('Garmin laps: the end from start + elapsed time (their timestamp reads as the ride\'s start)', () => {
+        const r = samplesFromRecords([rec(0, {power: 1}), rec(3000, {power: 1})],
+            [{start_time: T, timestamp: T, total_elapsed_time: 1282.1}, {start_time: T + 1283000, timestamp: T, total_elapsed_time: 1689.2}]);
+        expect(r.laps).toEqual([{start: 0, end: 1282}, {start: 1283, end: 2972}]);
+    });
+
     test('no records: an empty ride', () => {
         expect(samplesFromRecords([]).samples).toEqual([]);
     });
