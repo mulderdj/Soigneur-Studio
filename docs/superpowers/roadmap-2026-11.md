@@ -156,6 +156,22 @@ The rider rides a **Tacx trainer with Garmin sensors** and has an ANT+ stick, bu
   - **Stability is the goal:** reconnecting after dropouts, and a connection log.
   - **Testing:** a packet recorder turns the rider's real devices into test fixtures; the final check is a session on the rider's own trainer.
   - **Tests to write:** upstream's power and speed/cadence parser tests were removed in 12a (written for an older API); 12b writes new ones for those services.
+- **Device coverage, checked against the code (2026-11-24),** from the rider's list of devices, protocols and developer docs:
+
+  | Device / protocol | In Soigneur today | In 12b |
+  |---|---|---|
+  | Bluetooth standard: FTMS (trainer control), Cycling Power, CSC, Heart Rate (+ Battery, Device Info) | all, incl. ERG and resistance through FTMS | the core: rebuilt first |
+  | Tacx (the rider's trainer) | FTMS, and FE-C over Bluetooth | FTMS in the core; FE-C over Bluetooth as an add-on |
+  | Garmin HR strap (the rider's) | standard HR over Bluetooth | core (HR carries RR intervals, for a morning HRV measurement later) |
+  | Elite, Saris, Wattbike, Magene…; power meters (Quarq, Assioma, Stages, 4iiii, Rotor) | through FTMS and Cycling Power | core |
+  | Wahoo legacy trainer protocol | yes | add-on |
+  | Zwift Click / Ride (proprietary shifting) | code present (`obc`), untested | add-on, tested with a device first |
+  | CORE body temperature, Moxy SmO2 | yes, over Bluetooth | add-ons |
+  | ANT+ (USB stick) | FE-C and HR only; no Bike Power or Speed & Cadence | stays upstream's (12d); power and speed/cadence only if the rider rides with the stick |
+  | Polar PMD (raw ECG / HRV) | no | not needed: standard HR gives RR intervals |
+  | Running (RSC), Stryd | no | out of scope (cycling) |
+
+  Note on the list: "Garmin cloud APIs need a business partner application" is true of the partner Health API; the Personal API (since October 2026, own key, personal use) is what Soigneur uses.
 - **12c: FIT.** Noted in 12a: every exported record carries latitude/longitude 0,0 and zero values for absent sensors (altitude, grade, Moxy, core temperature) instead of FIT's "invalid" value; some apps may place the ride off the coast of Africa. Exports are otherwise valid (checked with an independent decoder). Garmin's official FIT JavaScript SDK (reads and writes FIT) is **ruled out**. Its FIT Protocol License §2(d) forbids distributing it under a licence that requires source disclosure or the right to modify, which AGPL does. MIT alternatives (fit-file-parser) carry Garmin's profile tables too. So upstream's FIT code stays for now, later trimmed to the messages we use.
 - **12d: ANT+ stays upstream's,** as a backup for the rider's stick, with no development. Garmin's ANT+ terms limit sharing the network key.
 
