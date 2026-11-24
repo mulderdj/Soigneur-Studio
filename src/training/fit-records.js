@@ -1,7 +1,11 @@
 //
-// Reads a .fit activity back into per-second samples, so rides saved
-// before ride summaries existed can get one. Never throws: a file that
-// can't be read gives no samples.
+// Reads a .fit activity back into per-second samples.
+//
+//   fitToSamples(view): what the ride summaries use (0 for a missing value)
+//   readRide(view):     for ride analysis — 1 s samples from the start, with
+//                       null for a missing value, laps, pauses, the sport
+//
+// Neither throws: a file that can't be read gives no samples.
 //
 
 import { FITjs } from '../fit/fitjs.js';
@@ -40,4 +44,78 @@ function fitToSamples(view) {
     return {start: toMs(data[0].fields.timestamp), distance: lastDistance, samples};
 }
 
-export { fitToSamples };
+// --- ride analysis ---------------------------------------------------------
+
+const HOLD_S = 15;      // a value is held this long (smart recording writes every few seconds); a longer gap is a pause
+
+const FIELDS = {
+    power:     f => valid(f.power, 4000),
+    heartRate: f => valid(f.heart_rate, 255),
+    cadence:   f => valid(f.cadence, 255),
+    speed:     f => valid(f.speed, 100) ?? valid(f.enhanced_speed, 100),
+    distance:  f => valid(f.distance, 1e7),
+    altitude:  f => altitude(f.altitude) ?? altitude(f.enhanced_altitude),
+};
+const KEYS = Object.keys(FIELDS);
+
+function altitude(x) {
+    return Number.isFinite(x) && x > -500 && x < 9000 ? x : null;
+}
+
+// records ({timestamp, power, heart_rate, …}) → 1 s samples {t, power, heartRate, cadence,
+// speed, distance, altitude}; laps ({start_time, timestamp}) → [{start, end}] in seconds
+function samplesFromRecords(records = [], lapRecords = []) {
+    const rows = records
+        .map(f => ({ms: toMs(f?.timestamp), f}))
+        .filter(r => Number.isFinite(r.ms))
+        .sort((a, b) => a.ms - b.ms);
+    if(rows.length === 0) return {start: null, samples: [], laps: [], pauses: [], recorded: 0};
+
+    const start = rows[0].ms;
+    const sec = ms => Math.round((ms - start) / 1000);
+    const last = {}, seen = {};
+    const samples = [];
+    const pauses = [];
+    const sample = t => {
+        const s = {t};
+        for(const k of KEYS) s[k] = seen[k] !== undefined && t - seen[k] <= HOLD_S ? last[k] : null;
+        return s;
+    };
+    let prev = -1;
+    for(const {ms, f} of rows) {
+        const t = sec(ms);
+        if(t < prev) continue;
+        if(t === prev) {                                  // two records in one second: merge
+            for(const k of KEYS) { const v = FIELDS[k](f); if(v !== null) { last[k] = v; seen[k] = t; } }
+            samples[t] = sample(t);
+            continue;
+        }
+        const pause = prev >= 0 && t - prev > HOLD_S;
+        if(pause) pauses.push({start: prev + 1, end: t});
+        for(let g = prev + 1; g < t; g++) samples[g] = pause ? {t: g, ...Object.fromEntries(KEYS.map(k => [k, null]))} : sample(g);
+        for(const k of KEYS) { const v = FIELDS[k](f); if(v !== null) { last[k] = v; seen[k] = t; } }
+        samples[t] = sample(t);
+        prev = t;
+    }
+    const laps = (lapRecords ?? [])
+        .map(l => ({start: toMs(l?.start_time), end: toMs(l?.timestamp)}))
+        .filter(l => Number.isFinite(l.start) && Number.isFinite(l.end) && l.end > l.start)
+        .map(l => ({start: Math.max(0, sec(l.start)), end: sec(l.end)}));
+    return {start, samples, laps, pauses, recorded: rows.length};
+}
+
+function readRide(view) {
+    let decoded;
+    try {
+        decoded = FITjs.decode(view) ?? [];
+    } catch(e) {
+        decoded = [];
+    }
+    const data = decoded.filter(r => r?.type === 'data' && r.fields);
+    const of = name => data.filter(r => r.name === name).map(r => r.fields);
+    const out = samplesFromRecords(of('record'), of('lap'));
+    const sport = of('session')[0]?.sport ?? of('sport')[0]?.sport ?? null;
+    return {...out, sport: typeof sport === 'string' ? sport : null};
+}
+
+export { fitToSamples, readRide, samplesFromRecords, HOLD_S };
