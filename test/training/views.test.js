@@ -327,6 +327,42 @@ describe('ride a planned workout', () => {
     });
 });
 
+describe('a ridden plan entry and its ride are one item', () => {
+    function open(plan, summaries = data.summaries) {
+        document.body.innerHTML = '<day-dialog></day-dialog>';
+        const el = document.querySelector('day-dialog');
+        el.actions = {};
+        el.open('2026-11-24', {...data, ftp: 250, summaries, plan});
+        return el;
+    }
+    const done = {id: 'p1', day: '2026-11-24', workout: workout('w1', 'Sweet spot'), rideId: 'r1', deleted: false, origin: 'intervals'};
+
+    test('one item: the ride, done, its planned TSS and the workout profile; no Move or Remove', () => {
+        const el = open([done]);
+        expect(el.querySelectorAll('.dd-list > li')).toHaveLength(1);
+        const item = el.querySelector('.dd-done');
+        expect(item.textContent).toMatch(/done/);
+        expect(item.textContent).toMatch(/70 TSS \(planned \d+\)/);
+        expect(item.querySelector('.badge-icu')).not.toBeNull();
+        expect(item.querySelector('[data-graph="p1"]')).not.toBeNull();
+        expect(item.querySelector('[data-analyse="r1"]')).not.toBeNull();
+        expect(el.querySelector('[data-move], [data-remove]')).toBeNull();
+        expect(el.textContent).not.toMatch(/Planned/);
+    });
+
+    test('a hidden ride and its plan entry stay apart', () => {
+        const el = open([done], [{...data.summaries[0], hidden: true}]);
+        expect(el.querySelector('.dd-done')).toBeNull();
+        expect(el.querySelector('[data-remove="p1"]')).not.toBeNull();
+    });
+
+    test('an open entry the same day stays under Planned', () => {
+        const el = open([done, {id: 'p9', day: '2026-11-24', workout: workout('w9', 'Extra'), rideId: null, deleted: false}]);
+        expect(el.querySelectorAll('.dd-done')).toHaveLength(1);
+        expect(el.querySelector('[data-ride="p9"]')).not.toBeNull();
+    });
+});
+
 describe('small graphs in the day dialog', () => {
     function open(day, extra) {
         document.body.innerHTML = '<day-dialog></day-dialog>';
