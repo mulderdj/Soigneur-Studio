@@ -114,6 +114,12 @@ async function shots(browser) {
     await start(page);
     await ride(page, 75);
     await shot(page, 'ride-desktop');
+    // the second built-in screen, then back
+    await page.evaluate(() => document.querySelector('ride-screens').show(1));
+    await pause(page, 900);
+    await shot(page, 'ride-big-numbers');
+    await page.evaluate(() => document.querySelector('ride-screens').show(0));
+    await pause(page, 600);
 
     await tab(page, '#training-tab-btn');
     await pause(page, 1500);
@@ -173,12 +179,35 @@ async function shots(browser) {
         await context.close();
     }
 
+    // --- edit layout (not while riding, so on a fresh page) ---
+    {
+        const {context, page} = await newPage(browser, {viewport: DESKTOP});
+        // no simulated rider: it pedals, the clock starts by itself, and editing locks while riding
+        await page.goto(`${url}/?history`, {waitUntil: 'networkidle'});
+        await pause(page, 1500);
+        await page.click('[data-ride-layout]');
+        await pause(page, 400);
+        await shot(page, 'ride-edit');
+        await page.click('[data-rs="cancel"]');
+        await tab(page, '#training-tab-btn');
+        await pause(page, 1500);
+        await page.click('[data-tl-edit]');
+        await pause(page, 400);
+        await shot(page, 'training-edit');
+        await context.close();
+    }
+
     // --- phone ---
     {
         const {context, page} = await newPage(browser, {viewport: PHONE, phone: true});
         await start(page);
         await ride(page, 30);
         await shot(page, 'ride-phone');
+        await page.evaluate(() => document.querySelector('ride-screens').show(1));
+        await pause(page, 900);
+        await shot(page, 'ride-phone-big');
+        await page.evaluate(() => document.querySelector('ride-screens').show(0));
+        await pause(page, 600);
         await tab(page, '#training-tab-btn', true);
         await pause(page, 1500);
         await shot(page, 'training-phone');

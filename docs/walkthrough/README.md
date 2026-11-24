@@ -6,7 +6,7 @@ A tour of what the app does, page by page. Click a picture to see it full size. 
 
 <a href="img/walkthrough.gif"><img src="img/walkthrough.gif" alt="The walkthrough as an animation" width="560"></a>
 
-Contents: [Getting started](#getting-started) · [Ride](#ride) · [Training](#training) · [intervals.icu](#intervalsicu) · [Garmin](#garmin) · [Workouts](#workouts) · [Riders and accounts](#riders-and-accounts) · [Settings](#settings) · [Phones](#phones) · [Light theme](#light-theme) · [Updating these pictures](#updating-these-pictures)
+Contents: [Getting started](#getting-started) · [Ride](#ride) · [Screens and Edit layout](#screens) · [Training](#training) · [intervals.icu](#intervalsicu) · [Garmin](#garmin) · [Workouts](#workouts) · [Riders and accounts](#riders-and-accounts) · [Settings](#settings) · [Phones](#phones) · [Light theme](#light-theme) · [Updating these pictures](#updating-these-pictures)
 
 ---
 
@@ -24,7 +24,7 @@ Without a trainer, `npm start` with `?simulate` in the address gives you a simul
 <a href="img/ride-desktop.png"><img src="img/ride-desktop.png" alt="The Ride page on a desktop while riding a workout" width="720"></a>
 
 - **Power** is the big tile. It takes the colour of your current power zone and shows the zone name and live W/kg. **Target** is next to it.
-- **The metric tiles** show interval time, elapsed time, heart rate, cadence, speed, distance, slope and lap power. The two dots switch between tile sets.
+- **The metric tiles** show interval time, elapsed time, heart rate, cadence and speed; tap a tile to see its other values (3 s power, lap and average power, average and max heart rate…). Distance, slope, Moxy and CORE tiles can be added in Edit layout.
 - **The live chart** shows power by zone, target, heart rate, cadence and W′bal. Each series can be switched on or off, and it can show the last 5 min, the last 20 min or the whole ride.
 - **The workout graph** below the chart shows where you are in the workout.
 - **The controls** switch between ERG, resistance and slope, with − / + for the target.
@@ -33,6 +33,31 @@ Without a trainer, `npm start` with `?simulate` in the address gives you a simul
   - *Anaerobic reserve*: W′bal, matches burned, the lowest point, work above FTP
   - *Training load*: TSS, IF, NP, BikeScore, xPower, work, and the aerobic / anaerobic split
   - *Power*, *Heart*, *Time in zone* and *Best efforts*
+
+### Screens
+
+| | |
+|---|---|
+| <a href="img/ride-big-numbers.png"><img src="img/ride-big-numbers.png" alt="The Big numbers screen: power, heart rate, cadence and interval time" width="460"></a> | <a href="img/ride-phone-big.png"><img src="img/ride-phone-big.png" alt="Big numbers on a phone" width="190"></a> |
+
+- **Swipe** left or right to the next screen, or tap the dots under the tiles (← → on a keyboard). The controls and the bottom bar stay put.
+- **Three screens to start:** *Ride* (everything, as above), *Big numbers* (power, heart rate, cadence and interval time, as large as the screen allows) and *Chart* (the live chart full size).
+- **On the live chart** a sideways finger moves the chart's read-out; swipe from the screen's edge to change screens there.
+- The app remembers which screen you were on, per device.
+
+### Edit layout
+
+<a href="img/ride-edit.png"><img src="img/ride-edit.png" alt="Edit layout on the Ride page: a handle, a size button and remove on every tile" width="720"></a>
+
+The layout button at the top right (next to the connections) opens Edit layout. It is off while you ride: stop the clock first.
+
+- **Move** a tile by its handle (⠿). With a mouse, drag at once; with a finger, hold the handle a moment, then drag. With a keyboard: focus the handle, then the arrow keys. Drop a tile on the screen's left or right edge to move it to the screen next to it.
+- **Size:** the button in the middle switches between *Small*, *Wide* and *Large* (the live chart, workout and statistics: *Wide* and *Large*). Numbers grow with their tile.
+- **Remove** with ×; **Add tile** lists every tile that isn't on this screen, including distance, slope, lap power, SmO2, THb and core and skin temperature. A tile can be on several screens.
+- **Screens:** rename the screen in view, *Add screen* (up to 8), *Remove screen*, and drag a dot to move a screen (or Shift + ← / → on the dot).
+- **Done** saves, **Cancel** throws the changes away, **Reset** goes back to the three built-in screens.
+- Phones (and the phone on the handlebars) have their own layout; tablets, desktops and TVs share the other. Signed in, your layouts follow you to every device.
+- **On the handlebars** (a phone in landscape) a screen shows the tiles that fit; put the rest on another screen.
 
 ## Training
 
@@ -115,6 +140,12 @@ Fitness, fatigue and form need a training load (TSS) for every workout, also one
 - **Power curve**: your best 5 s, 1, 5, 20 and 60 min over the last 6 weeks against all time, in W or W/kg.
 - **Time in zones**: per week or per month, the zones stacked.
 - **FTP trend**: estimated from your best 20 and 60 minutes; the read-out names the effort each estimate comes from. When the estimate is more than 5 % off your FTP, the card offers to update it ("Use 213 W").
+
+### Edit layout
+
+<a href="img/training-edit.png"><img src="img/training-edit.png" alt="Edit layout on the Training page" width="720"></a>
+
+*Edit layout* (top right) works on the Training page too: move the cards, make them *Narrow* (a third), *Wide* (two thirds) or *Full* width, remove cards you don't use and bring them back with *Add card*. On a phone every card is full width, so you only choose the order.
 
 ### Import .fit files
 

@@ -11,10 +11,11 @@ Soigneur Studio is based on [Auuki](https://github.com/dvmarinoff/Auuki) by Dimi
 <a href="docs/walkthrough/README.md"><img src="docs/walkthrough/img/walkthrough.gif" alt="Riding a workout, then the Training page: form, calendar, planning, progress" width="560"></a>
 
 **The Ride page**
-* **One layout from phone to TV**: power as a large tile that takes the colour of your current power zone (with zone name and live W/kg), the other metrics in a compact grid, connections in a slim header and one bottom bar for the ride controls and the pages (Ride, Training, Workouts, Settings).
-  * *Phone, portrait*: everything on one screen while riding; the statistics panels below are swiped one at a time. While a ride runs, the bottom bar shows only the ride controls; the pages are behind the menu button.
-  * *Phone, landscape* (on the handlebars; replaces the old dock mode): power, target and six metrics, the chart and the ERG / resistance / slope controls.
-  * *Tablet*: scrolls; statistics in two columns. *Desktop and TV*: statistics in a sidebar, scaled up on large screens.
+* **One layout from phone to TV**: power as a large tile that takes the colour of your current power zone (with zone name and live W/kg), the other metrics in a grid of tiles, connections in a slim header and one bottom bar for the ride controls and the pages (Ride, Training, Workouts, Settings).
+  * *Screens*: swipe between Ride screens (dots and ← → too); you choose the tiles, their order and size in Edit layout (see *Your own layout* below).
+  * *Phone, portrait*: the statistics panels are swiped one at a time. While a ride runs, the bottom bar shows only the ride controls; the pages are behind the menu button.
+  * *Phone, landscape* (on the handlebars; replaces the old dock mode): the tiles of the screen that fit, and the ERG / resistance / slope controls; swipe for the next screen.
+  * *Tablet, desktop and TV*: more columns, statistics side by side, scaled up on large screens.
 * **Live ride chart**: power coloured by zone, target power, heart rate and cadence, with 5 min, 20 min or whole-ride views, a hover read-out and series toggles. Your choices are remembered.
 * **Live training statistics**:
   * *This interval*: average power against target, the share of time within 5 % of target, and pacing cues ("Above target by 20 W — ease off", low cadence under load, heart-rate drift)
@@ -28,6 +29,8 @@ Soigneur Studio is based on [Auuki](https://github.com/dvmarinoff/Auuki) by Dimi
   * *Training load*: BikeScore and xPower next to TSS and NP, plus the aerobic / anaerobic split from Skiba's TISS.
   * W′bal line on the ride chart, and peak power for 5 s, 30 s, 1, 5, 10, 20 and 60 min.
 * Light and dark theme, 4K / TV scaling, and statistics rebuilt from the recorded session after a page reload.
+
+* **Your own layout**: several Ride screens to swipe between (Ride, Big numbers, Chart to start), and an Edit layout mode on Ride and Training to move, size, add and remove tiles and cards. Separate layouts for phones and larger screens, synced through your account.
 
 **Training page.** Your riding at a glance, on every screen size:
 * *Form*: fitness (42-day), fatigue (7-day) and form, over 3 months, a year or all your history, and a 4-week forecast from your plan.

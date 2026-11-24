@@ -226,6 +226,45 @@ async function main() {
             await context.close();
         }
     }
+    // a custom layout: three screens (a large heart rate, no chart), every
+    // screen and edit mode inspected at every size
+    const custom = {version: 1, ride: Object.fromEntries(['phone', 'large'].map(cls => [cls, {screens: [
+        {id: 'a', name: 'Numbers', tiles: [{id: 'heart-rate', size: 'large'}, {id: 'power', size: 'wide'}, {id: 'cadence', size: 'small'}, {id: 'interval-time', size: 'small'}, {id: 'elapsed-time', size: 'small'}, {id: 'speed', size: 'small'}]},
+        {id: 'b', name: 'Climb', tiles: [{id: 'slope', size: 'wide'}, {id: 'power', size: 'small'}, {id: 'workout', size: 'large'}, {id: 'stats', size: 'large'}]},
+        {id: 'c', name: 'Empty', tiles: []},
+    ]}]))};
+    for(const [sizeName, size] of Object.entries(SIZES)) {
+        const context = await browser.newContext({viewport: {width: size.width, height: size.height}, hasTouch: !!size.phone});
+        await context.addInitScript((layout) => {
+            try { localStorage.setItem('layouts', layout); } catch(e) {}
+            if(!('bluetooth' in navigator)) {
+                Object.defineProperty(navigator, 'bluetooth', {value: {
+                    getAvailability: async () => false, getDevices: async () => [],
+                    addEventListener() {}, removeEventListener() {},
+                }});
+            }
+        }, JSON.stringify(custom));
+        const page = await context.newPage();
+        const errors = [];
+        page.on('pageerror', e => errors.push(e.message));
+        await page.goto(`${url}/?simulate`, {waitUntil: 'networkidle'});
+        await page.waitForTimeout(800);
+        for(const i of [0, 1, 2]) {
+            await page.evaluate(i => document.querySelector('ride-screens').show(i), i);
+            await page.waitForTimeout(700);
+            const problems = await page.evaluate(inspect, {isPhone: !!size.phone, longValues: true});
+            await page.screenshot({path: path.join(outDir, `ride-custom-${i}-${sizeName}.png`)});
+            for(const p of problems) failures.push(`ride custom screen ${i + 1} @ ${sizeName}: ${p}`);
+        }
+        await page.evaluate(() => document.querySelector('ride-screens').show(0));
+        await page.click('[data-ride-layout]');
+        await page.waitForTimeout(400);
+        for(const p of await page.evaluate(inspect, {isPhone: !!size.phone, longValues: false})) failures.push(`ride edit layout @ ${sizeName}: ${p}`);
+        await page.screenshot({path: path.join(outDir, `ride-edit-${sizeName}.png`)});
+        for(const e of new Set(errors)) failures.push(`ride custom @ ${sizeName}: console: ${e}`);
+        await context.close();
+    }
+
     // the phone's default Ride screen: the tiles of the old fixed layout, live
     // (not placeholders), and a broken saved layout still gives tiles
     for(const saved of [null, '{"version":1,"ride":"broken"}']) {

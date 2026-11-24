@@ -192,6 +192,17 @@ ride-screens {
     scrollbar-color: var(--line) transparent;
 }
 
+/* a screen of numbers only fills the height: big numbers, no empty half */
+.rs-screen:not(.is-editing):not(:has(.rs-slot[data-tile="chart"], .rs-slot[data-tile="workout"], .rs-slot[data-tile="stats"])) {
+    grid-auto-rows: minmax(min-content, 1fr);
+    align-content: stretch;
+}
+
+.rs-screen:not(.is-editing):not(:has(.rs-slot[data-tile="chart"], .rs-slot[data-tile="workout"], .rs-slot[data-tile="stats"]))
+    .rs-slot:is([data-size="wide"], [data-size="large"]) .tile__value {
+    font-size: clamp(40px, min(26cqi, 16dvh), 240px);
+}
+
 .rs-slot {
     position: relative;
     display: flex;
@@ -239,7 +250,7 @@ ride-screens {
 }
 
 .rs-slot[data-size="wide"] .tile__value {
-    font-size: clamp(28px, 24cqi, 110px);
+    font-size: clamp(28px, 24cqi, 180px);
 }
 
 .rs-slot[data-size="large"] .tile__value,
