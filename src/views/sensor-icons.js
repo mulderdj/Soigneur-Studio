@@ -1,6 +1,7 @@
 //
 // The sensors: their names and icons (24 × 24, drawn in the header buttons'
-// line style; .fill / .hole parts are styled in ride.css). Trainer: a
+// line style; .fill / .hole / .gap parts are styled in ride.css: a .gap is a
+// thin line in the button's colour that separates two filled parts). Trainer: a
 // direct-drive trainer; Moxy: oxygen bubbles; bike controls: a road shifter.
 //
 
@@ -25,7 +26,7 @@ const PATHS = {
     'ble:speedCadenceSensor': '<path d="M4 17a8.5 8.5 0 1 1 16 0"/><path d="M12 15.2 16.2 9.6"/><circle class="fill" cx="12" cy="15.4" r="1.6"/><path d="M5.6 13.2h1.2M7.8 7.8l.8.8M12 5.6v1.2M17.4 13.2h1.2"/>',
     'ble:smo2': '<circle cx="9" cy="15" r="5"/><circle cx="16.8" cy="8.6" r="3.2"/><circle cx="10.6" cy="5" r="1.6"/><circle cx="18.6" cy="16.6" r="1.4"/><path d="M6.4 13.2a3 3 0 0 1 2.2-1.6"/>',
     'ble:coreTemp': '<path d="M14 14.3V5a2 2 0 1 0-4 0v9.3a4 4 0 1 0 4 0z"/><circle class="fill" cx="12" cy="17.6" r="2.1"/><path d="M12 15.6V9"/><path d="M17 6h2M17 9h2M17 12h2"/>',
-    'ble:openBikeControl': '<g transform="translate(-1.9 -1.4) scale(1.16)"><rect class="fill" x="2.2" y="6.7" width="2.6" height="2.6" rx=".5" transform="rotate(-12 3.5 8)"/><path class="fill" d="M5.4 5.9c2.2-.6 4.6.4 6.6 1.3 1.4-1.1 3.2-1.7 4.8-1 1 .5 2.4 1.2 3.3 2.1l-.5 1.6-3.6.6c-.8.4-1.2 1.4-1.8 2H9.3c-1.8 0-3-1.3-3.4-2.9z"/><path class="fill" d="M15.2 12.3c-1.2 3-2.8 5.4-3.4 8.3-.3 1.2-1.6 1.4-2.1.4-.4-2.6 1.1-5.8 2.6-8.9z"/><path class="fill" d="M11.6 13c-2 .8-2.9 2.9-2.8 5 1.5-1.1 2.4-2.8 3-4.7z"/></g>',
+    'ble:openBikeControl': '<rect class="fill" x="3.6" y="4.3" width="2.4" height="2.4" rx=".4" transform="rotate(-16 4.8 5.5)"/><path class="fill" d="M6.6 2.2C8.6 2.2 10.8 3.6 13 4.2c1.3-.8 2.6-1.9 4.1-1.9 1.6.1 2.9 1.5 3.5 2.9l-.3 3.3c-1.7.2-3.4.4-5 .7L9.2 9C7.7 8.9 6.7 7.6 6.3 5.9 6.1 4.6 6 3.2 6.6 2.2z"/><path class="gap" d="M20.6 5.6c-1.5.1-3 .3-3.8.6-.8.7-1 2-1.5 3"/><path class="fill" d="M13 11.7c-1.7.6-3.7 1.8-4.4 3.8-.3.8-.2 1.6-.1 2.3 1.7-1.2 3.2-3.2 4.5-6.1z"/><path class="gap gap--wide" d="M14.1 9.5l2.6.8C15.6 12.8 14 14.8 12.8 17c-.6 1.2-.9 2.6-1 3.9-.1 1-1 1.4-1.5.6-.6-1-.7-2.4-.3-3.7.9-2.9 2.8-5.5 4.1-8.3z"/><path class="fill" d="M14.1 9.5l2.6.8C15.6 12.8 14 14.8 12.8 17c-.6 1.2-.9 2.6-1 3.9-.1 1-1 1.4-1.5.6-.6-1-.7-2.4-.3-3.7.9-2.9 2.8-5.5 4.1-8.3z"/>',
 };
 
 // the sensors that show in the header only while in use
