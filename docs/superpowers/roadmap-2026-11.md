@@ -169,7 +169,7 @@ The rider rides a **Tacx trainer with Garmin sensors** and has an ANT+ stick, bu
   | CORE body temperature, Moxy SmO2 | yes, over Bluetooth | add-ons |
   | ANT+ (USB stick) | FE-C and HR only; no Bike Power or Speed & Cadence | stays upstream's (12d); power and speed/cadence only if the rider rides with the stick |
   | Polar PMD (raw ECG / HRV) | no | not needed: standard HR gives RR intervals |
-  | Running (RSC), Stryd | no | out of scope (cycling) |
+  | Running: foot pods and Stryd (RSC 0x1814; Stryd's power through the Cycling Power service), treadmills (FTMS Treadmill Data, speed and incline control) | no | not in 12b; the layer is built so these fit as services later (subproject 13) |
 
   Note on the list: "Garmin cloud APIs need a business partner application" is true of the partner Health API; the Personal API (since October 2026, own key, personal use) is what Soigneur uses.
 - **12c: FIT.** Noted in 12a: every exported record carries latitude/longitude 0,0 and zero values for absent sensors (altitude, grade, Moxy, core temperature) instead of FIT's "invalid" value; some apps may place the ride off the coast of Africa. Exports are otherwise valid (checked with an independent decoder). Garmin's official FIT JavaScript SDK (reads and writes FIT) is **ruled out**. Its FIT Protocol License §2(d) forbids distributing it under a licence that requires source disclosure or the right to modify, which AGPL does. MIT alternatives (fit-file-parser) carry Garmin's profile tables too. So upstream's FIT code stays for now, later trimmed to the messages we use.
@@ -186,6 +186,18 @@ Other projects looked at:
   - `pycycling` is Python.
 
 None is a better browser engine than the current one.
+
+### 13. Running (future)
+- **Why:** the rider also runs; Garmin already brings the runs in, and load, readiness and heart-rate zones (with the running threshold) already count them.
+- **Outdoor runs, analysed:** pace and grade-adjusted pace, cadence, stride length, ground contact time and vertical oscillation (where the watch or HRM-Pro records them), running power (Stryd or Garmin), heart-rate zones from the running threshold, splits per km and laps, decoupling of pace against heart rate. The ride page (subproject 7) becomes an activity page that knows the sport.
+- **Running load:** pace-based load (rTSS from threshold pace) next to the heart-rate load already used; a running threshold pace and power in the rider model (6).
+- **Indoor treadmill running:** a Run page like the Ride page: speed, pace, incline, distance, heart rate, cadence and running power; structured run workouts that set the treadmill's speed and incline.
+- **Sensors (on the 12b layer):**
+  - treadmills through **FTMS** (Treadmill Data; the control point sets target speed and incline);
+  - foot pods through **Running Speed and Cadence** (RSC, 0x1814): speed, cadence, stride, distance;
+  - **Stryd**: RSC plus running power (through the Cycling Power service, with Stryd's extensions);
+  - heart-rate straps as today (Garmin HRM-Pro running dynamics are ANT+ only; over Bluetooth it gives heart rate, and pace/cadence where it offers RSC).
+- **Order:** after 12b (the Bluetooth layer); outdoor run analysis can come earlier, since Garmin's files already hold the data.
 
 ## Why this order
 
