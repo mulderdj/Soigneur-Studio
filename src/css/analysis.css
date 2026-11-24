@@ -25,6 +25,7 @@
     gap: var(--space-2);
 }
 
+.rp-back { flex: none; min-width: var(--tap); }
 .rp-back svg { width: 24px; height: 24px; fill: currentColor; }
 
 .rp-titles { min-width: 0; }

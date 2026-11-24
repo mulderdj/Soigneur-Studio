@@ -6,7 +6,7 @@ A tour of what the app does, page by page. Click a picture to see it full size. 
 
 <a href="img/walkthrough.gif"><img src="img/walkthrough.gif" alt="The walkthrough as an animation" width="560"></a>
 
-Contents: [Getting started](#getting-started) · [Ride](#ride) · [Screens and Edit layout](#screens) · [Training](#training) · [intervals.icu](#intervalsicu) · [Garmin](#garmin) · [Workouts](#workouts) · [Riders and accounts](#riders-and-accounts) · [Settings](#settings) · [Phones](#phones) · [Light theme](#light-theme) · [Updating these pictures](#updating-these-pictures)
+Contents: [Getting started](#getting-started) · [Ride](#ride) · [Screens and Edit layout](#screens) · [Training](#training) · [Ride analysis](#ride-analysis) · [intervals.icu](#intervalsicu) · [Garmin](#garmin) · [Workouts](#workouts) · [Riders and accounts](#riders-and-accounts) · [Settings](#settings) · [Phones](#phones) · [Light theme](#light-theme) · [Updating these pictures](#updating-these-pictures)
 
 ---
 
@@ -150,6 +150,34 @@ Fitness, fatigue and form need a training load (TSS) for every workout, also one
 ### Import .fit files
 
 **Import .fit files** (top right of the Training page) adds rides recorded somewhere else, for example a Garmin export. Pick several files at once. Files already on the calendar are skipped, and files that can't be read are listed. Signed in, imported rides reach your other devices too.
+
+## Ride analysis
+
+<a href="img/analysis-desktop.png"><img src="img/analysis-desktop.png" alt="A ride's page: the summary and the whole ride on one chart" width="720"></a>
+
+**Analyse ride** in a day's dialog (and **Analyse** under *Workouts → Your rides*) opens a ride on its own page. It works for every ride: recorded in Soigneur, from Garmin, from intervals.icu, or an imported `.fit`. The back arrow returns to where you came from, and the page has its own link (`#ride=…`).
+
+- **The chart:** power (coloured by zone), target, heart rate, cadence and W′bal; speed and elevation for an outdoor ride. Intervals are shaded. Hover (or touch) for a read-out per second, drag to zoom in, double-click to zoom out, and switch series on and off with the chips above it. Pauses stay gaps.
+- **Where the file comes from:** a ride on this device is read here. Garmin and intervals.icu rides are fetched by your account server the first time you open them and kept there. intervals.icu doesn't hand out rides that came from Strava; the page says so and still shows the ride's summary.
+
+<a href="img/analysis-intervals.png"><img src="img/analysis-intervals.png" alt="The intervals table: per rep power, NP, % FTP, target, difference, time on target, fade and heart rate" width="720"></a>
+
+- **Intervals:** from the workout you rode (planned against actual per rep: target, done, difference, time within 5 % of target, *Done*, *Cut short* or *Skipped*), else from the laps in the file, else found from your power (30 s or more at 88 % of FTP). Each row shows time, average power, NP, % FTP, fade (second half against first), heart rate and its drift, and cadence. Tap a row to zoom the chart to it. On a phone the rows are cards.
+
+<a href="img/analysis-cards.png"><img src="img/analysis-cards.png" alt="Endurance, W′bal and matches, best efforts and time in zones" width="720"></a>
+
+- **Endurance:** decoupling (power per heartbeat, second half against first, the first 10 minutes left out; only on steady rides of 45 minutes or more) and efficiency factor (NP ÷ average heart rate).
+- **W′bal and matches:** the lowest point and each match (an effort above FTP that cost 2 kJ or more); tap a match to zoom to it. The analysis uses the FTP the ride was ridden with.
+- **Durability:** your best 5 and 20 minutes after 1,000, 2,000 and 3,000 kJ, against your best fresh in the same ride.
+- **Best efforts** from 5 s to 60 min, marked *Best ever* or *Best in 6 weeks*, and **time in zones** for power and heart rate (from your threshold heart rate).
+
+<a href="img/analysis-outdoor.png"><img src="img/analysis-outdoor.png" alt="An outdoor ride without power: heart rate, speed and elevation, with a café stop as a gap" width="720"></a>
+
+A ride without power (most outdoor rides) shows heart rate, speed, elevation, heart-rate zones and laps; the power cards are left out.
+
+| | |
+|---|---|
+| <a href="img/analysis-phone.png"><img src="img/analysis-phone.png" alt="A ride's page on a phone" width="220"></a> | |
 
 ## intervals.icu
 

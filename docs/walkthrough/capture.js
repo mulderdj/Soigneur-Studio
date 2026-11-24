@@ -144,6 +144,32 @@ async function shots(browser) {
     await pause(page, 500);
     await shotOf(page.locator('day-dialog dialog'), 'day-dialog');
     await page.keyboard.press('Escape');
+    // ride analysis: today's workout ride (Analyse ride in the day dialog)
+    await page.locator('.cal-day.is-today .cal-open').first().click();
+    await pause(page, 500);
+    const analyse = page.locator('day-dialog [data-analyse]').first();
+    if(await analyse.count()) {
+        await analyse.click();
+        await pause(page, 2500);
+        await shot(page, 'analysis-desktop');
+        await shotOf(page.locator('interval-table'), 'analysis-intervals');
+        await shotOf(page.locator('ride-cards'), 'analysis-cards');
+        // the outdoor ride without power
+        const outdoor = await page.evaluate(async () => {
+            const db = await new Promise(r => { const q = indexedDB.open('store'); q.onsuccess = () => r(q.result); });
+            const keys = await new Promise(r => { const q = db.transaction('activity').objectStore('activity').getAllKeys(); q.onsuccess = () => r(q.result); });
+            return keys.find(k => String(k).startsWith('seed-outdoor')) ?? null;
+        });
+        if(outdoor) {
+            await page.evaluate(id => { location.hash = `#ride=${encodeURIComponent(id)}`; }, outdoor);
+            await pause(page, 2500);
+            await shotOf(page.locator('.rp-chart'), 'analysis-outdoor');
+        }
+        await page.locator('[data-rp-back]').first().click();
+        await pause(page, 600);
+    } else {
+        await page.keyboard.press('Escape');
+    }
     // a gym session from Garmin without heart rate: rate how hard it was
     await page.locator('.cal-day', {hasText: 'Strength'}).first().locator('.cal-open').first().click();
     await pause(page, 500);
@@ -213,6 +239,19 @@ async function shots(browser) {
         await shot(page, 'training-phone');
         await page.locator('training-calendar').scrollIntoViewIfNeeded();
         await shot(page, 'training-phone-calendar');
+        // the ride page on a phone
+        const id = await page.evaluate(async () => {
+            const db = await new Promise(r => { const q = indexedDB.open('store'); q.onsuccess = () => r(q.result); });
+            const keys = await new Promise(r => { const q = db.transaction('activity').objectStore('activity').getAllKeys(); q.onsuccess = () => r(q.result); });
+            return keys.find(k => /^seed-2/.test(String(k))) ?? null;
+        });
+        if(id) {
+            await page.evaluate(id => { location.hash = `#ride=${encodeURIComponent(id)}`; }, id);
+            await pause(page, 2500);
+            await shot(page, 'analysis-phone');
+            await page.locator('[data-rp-back]').first().click();
+            await pause(page, 600);
+        }
         await context.close();
     }
 }

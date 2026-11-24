@@ -23,6 +23,9 @@ const PAGES = {
     'training-day': '#training-tab-btn', // today's day dialog on the Training page
     workouts: '#workouts-tab-btn',
     settings: '#settings-tab-btn',
+    // the ride page (#ride=<id>), for the seeded workout ride and the outdoor ride without power
+    'ride-analysis': 'ride:seed-2',
+    'ride-analysis-outdoor': 'ride:seed-outdoor',
 };
 const SIZES = {
     'phone':           {width: 390,  height: 844, phone: true},
@@ -199,7 +202,18 @@ async function main() {
             for(const name of pages) {
                 const where = `${name} @ ${sizeName} ${theme}`;
                 if(!PAGES[name]) { failures.push(`${where}: unknown page`); continue; }
-                if(!(await openTab(page, PAGES[name], size.phone))) { missing.add(name); continue; }
+                if(PAGES[name].startsWith('ride:')) {
+                    // the dev seed's ride files: open the one whose id starts this way
+                    const prefix = PAGES[name].slice(5);
+                    const id = await page.evaluate(async prefix => {
+                        const db = await new Promise(r => { const q = indexedDB.open('store'); q.onsuccess = () => r(q.result); });
+                        const keys = await new Promise(r => { const q = db.transaction('activity').objectStore('activity').getAllKeys(); q.onsuccess = () => r(q.result); });
+                        return keys.find(k => String(k).startsWith(prefix)) ?? null;
+                    }, prefix).catch(() => null);
+                    if(!id) { missing.add(name); continue; }
+                    await page.evaluate(id => { location.hash = `#ride=${encodeURIComponent(id)}`; }, id);
+                    await page.waitForTimeout(1500);
+                } else if(!(await openTab(page, PAGES[name], size.phone))) { missing.add(name); continue; }
                 if(name === 'training-day') {
                     await page.locator('.cal-day.is-today .cal-open').first().click();
                     await page.waitForTimeout(400);
