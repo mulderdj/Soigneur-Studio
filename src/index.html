@@ -59,6 +59,10 @@
                             <span class="connection-switch--indicator dot off hdr-icon__dot"></span>
                             <span class="connection-switch--label sr-only">HR</span>
                         </connection-switch>
+                        <!-- the other sensors, only while in use -->
+                        <sensor-tray class="ride__tray" hidden></sensor-tray>
+                        <!-- the screen indicator: the screen's name and the dots, shown for a moment on a change -->
+                        <div class="ride__hint" data-rs-dots-slot aria-live="polite"><span class="ride__hint-name" data-rs-hint-name></span></div>
                         <button type="button" class="btn btn--icon ride__layout" data-ride-layout aria-label="Edit layout" title="Edit layout">
                             <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 3h8v8H3zm2 2v4h4V5zm8-2h8v5h-8zm2 2v1h4V5zm-2 5h8v11h-8zm2 2v7h4v-7zM3 13h8v8H3zm2 2v4h4v-4z"/></svg>
                         </button>
@@ -144,8 +148,6 @@
                     </div>
                         </div>
                     </sensor-panel>
-                    <!-- the screens' dots: a narrow strip between the header and the tiles -->
-                    <div class="ride__dots" data-rs-dots-slot></div>
 
                     <readiness-note class="ride__note" hidden></readiness-note>
                     <test-result></test-result>

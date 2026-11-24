@@ -16,6 +16,7 @@ import './keyboard.js';
 import './training-dashboard.js';
 import './ride-screens.js';
 import './sensor-panel.js';
+import './sensor-tray.js';
 import '../training/wiring.js';
 import '../training/rider-model-wiring.js';
 import '../tests/wiring.js';

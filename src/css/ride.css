@@ -84,56 +84,114 @@
     stroke-linejoin: round;
 }
 
-/* the screens' dots: no room of their own, centred between the header and
-   the tiles (two grid gaps: the readiness note's empty row lies between);
-   each dot keeps a 44 px tap area over that space */
-.ride__dots {
-    grid-area: screens;
-    align-self: start;
-    position: relative;
-    z-index: 1;
-    top: calc(-1 * var(--ride-gap, var(--space-2)));
-    height: 0;
-    pointer-events: none;
-}
+/* the screen indicator: the screen's name and the dots in the middle of the
+   header, hidden while riding; shown for a moment when the screen changes
+   (ride-screens.js hint()), and while editing the layout */
+.ride__header { position: relative; }
 
-/* with the readiness note showing, only one gap is left above the tiles */
-.ride:has(> .ride__note:not([hidden])) .ride__dots {
-    top: calc(-0.5 * var(--ride-gap, var(--space-2)));
-}
-
-.ride__dots .rs-dot { pointer-events: auto; }
-
-.ride__dots .rs-dots {
+.ride__hint {
     position: absolute;
-    inset: 0;
+    left: 50%;
+    top: 50%;
+    z-index: 2;
+    display: flex;
+    flex-direction: column;
     align-items: center;
-    margin: 0;
-    overflow: visible;
+    gap: 2px;
+    padding: var(--space-1) var(--space-3);
+    border: var(--line-w) solid var(--line);
+    border-radius: var(--radius-m);
+    background-color: var(--surface-2);
+    box-shadow: var(--shadow);
+    transform: translate(-50%, -50%);
+    visibility: hidden;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s, visibility 0s 0.2s;
 }
 
-.ride__dots .rs-dots[hidden] { display: none; }
+.ride__hint.is-showing {
+    visibility: visible;
+    opacity: 1;
+    transition: opacity 0.15s;
+}
 
-.ride__dots .rs-dot {
-    flex: none;
+.ride__hint-name {
+    max-width: 160px;
+    overflow: hidden;
+    color: var(--ink);
+    font-size: var(--text-s);
+    font-weight: var(--weight-bold);
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.ride__hint .rs-dots {
+    gap: 6px;
+    margin: 0;
+}
+
+.ride__hint .rs-dot {
+    width: auto;
+    height: auto;
+    padding: 2px 0;
+}
+
+.ride__hint .rs-dot span {
+    width: 5px;
+    height: 5px;
+    border: 0;
+    background-color: var(--muted);
+}
+
+.ride__hint .rs-dot[aria-current="true"] span {
+    width: 14px;
+    background-color: var(--ink);
+}
+
+/* editing: the dots are there all the time, in the header row (not over the
+   buttons), big enough to grab and drag */
+.ride:has(ride-screens.is-editing) .ride__hint {
+    position: static;
+    margin-left: auto;
+    padding: 0;
+    border: 0;
+    background: none;
+    box-shadow: none;
+    transform: none;
+    visibility: visible;
+    opacity: 1;
+    pointer-events: auto;
+}
+
+.ride:has(ride-screens.is-editing) .ride__hint ~ .ride__layout { margin-left: 0; }
+
+.ride:has(ride-screens.is-editing) .ride__hint-name { display: none; }
+
+.ride:has(ride-screens.is-editing) .ride__hint .rs-dot {
+    width: var(--tap);
     height: var(--tap);
 }
 
-.ride__dots .rs-dot span {
-    width: 6px;
-    height: 6px;
-    border-width: var(--line-w);
+/* the other sensors, while in use */
+.ride__tray {
+    display: flex;
+    gap: var(--space-2);
 }
 
-.ride__dots .rs-dot[aria-current="true"] span { width: 16px; }
+.ride__tray[hidden] { display: none; }
+
+.hdr-icon--more {
+    font-size: var(--text-s);
+    font-weight: var(--weight-bold);
+}
 
 .ride__header .ride__layout { flex: none; }
 
-/* the trainer: a direct-drive trainer, drawn filled */
-.hdr-icon__svg--trainer .fill { fill: currentColor; stroke: none; }
-.hdr-icon__svg--trainer .cut  { fill: none; stroke: var(--surface); stroke-width: 1.2; }
-.hdr-icon__svg--trainer .hole { fill: var(--surface); stroke: none; }
-.hdr-icon__svg--trainer .leg  { stroke-width: 2.4; }
+/* filled parts of the sensor icons; the trainer is drawn filled */
+.hdr-icon__svg .fill, .sp-pick__icon .fill { fill: currentColor; stroke: none; }
+.hdr-icon__svg .hole, .sp-pick__icon .hole { fill: var(--surface); stroke: none; }
+.hdr-icon__svg .leg, .sp-pick__icon .leg  { stroke-width: 2.4; }
 .hdr-icon__svg--trainer { width: 26px; height: 26px; }
 
 /* ---------- sensor panel ---------- */
@@ -200,6 +258,48 @@
 .sp-rows dd { margin: 0; text-align: right; overflow-wrap: anywhere; }
 
 .sp-trainer[hidden] { display: none; }
+
+/* "+N": the sensors that didn't fit in the header */
+.sp-list {
+    display: grid;
+    gap: var(--space-1);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.sp-list[hidden] { display: none; }
+
+.sp-pick {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    width: 100%;
+    min-height: 48px;
+    padding: 0 var(--space-2);
+    border: 0;
+    border-radius: var(--radius-s);
+    background: none;
+    color: var(--ink);
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+}
+
+.sp-pick:hover { background-color: var(--surface-2); }
+
+.sp-pick__icon {
+    flex: none;
+    width: 22px;
+    height: 22px;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1.8;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+
+.sp-pick__name { flex: 1; }
 
 .sp-trainer .mode-selector {
     display: flex;
