@@ -60,6 +60,19 @@ describe('TestSession', () => {
         expect(late.finish({stopped: true})).toBeNull();
     });
 
+    test('Back to redo an effort: only the new pass counts', () => {
+        const w = protocol('20min');
+        const run = new TestSession(w);
+        const e = w.intervals.findIndex(x => x.steps[0].effort === 'p20');
+        for(let t = 0; t < 300; t++) run.tick({i: e, s: 0, power: 200, ftp: 250});   // a bad start
+        for(let t = 0; t < 1200; t++) run.tick({i: e, s: 0, power: 200, ftp: 250});  // still the same pass
+        expect(run.log).toHaveLength(1500);
+        run.tick({i: e - 1, s: 0, power: 150, ftp: 250});                              // Back
+        expect(run.log.some(x => x.i === e)).toBe(false);
+        for(let t = 0; t < 1200; t++) run.tick({i: e, s: 0, power: 300, ftp: 250});
+        expect(run.finish()).toEqual({ok: true, values: {p20: 300, ftp: 285}});
+    });
+
     test('done: the result with the weight', () => {
         const w = protocol('sprint');
         const run = new TestSession(w);

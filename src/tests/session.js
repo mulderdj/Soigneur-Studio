@@ -20,6 +20,11 @@ class TestSession {
     }
     tick({i, s, power, ftp}) {
         if(!this.test) return null;
+        // Back to an earlier step: that step is ridden again, only the new pass counts
+        const last = this.log[this.log.length - 1];
+        if(last && (i < last.i || (i === last.i && s < last.s))) {
+            this.log = this.log.filter(x => x.i < i || (x.i === i && x.s < s));
+        }
         this.log.push({i, s, power});
         if(this.test !== 'ramp' || this.ramp.ended) return null;
         const interval = this.workout.intervals[i];
