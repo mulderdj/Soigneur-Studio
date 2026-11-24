@@ -161,7 +161,8 @@ class UPlotCard extends HTMLElement {
             points: {show: !!s.points || s.kind === 'points', size: s.kind === 'points' ? 7 : 6, fill: s.color, stroke: s.color},
             spanGaps: false,
         }))];
-        const span = rangeWindow(model.x, this.range ?? 'all', model.today ?? model.x[model.x.length - 1]);
+        // a window of days only for a time axis (reps, watts: their own range)
+        const span = model.time === false ? null : rangeWindow(model.x, this.range ?? 'all', model.today ?? model.x[model.x.length - 1]);
         const window = span && model.series.some(s => s.kind === 'bars') ? padForBars(span, model.x) : span;
         const marks = model.marks ?? {};
         const opts = {

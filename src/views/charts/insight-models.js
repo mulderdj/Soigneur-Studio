@@ -30,6 +30,7 @@ function repsChart({analysis, ftp}, c = {}) {
         time: false,
         x: list.map(r => r.n),
         xTicks: list.map(r => r.n),
+        xRange: [0.5, list.length + 0.5],
         xFormat: n => `${n}`,
         series: [
             {label: 'Power', color: c.accent, kind: 'bars', values: list.map(r => r.power)},
@@ -62,6 +63,7 @@ function recoveryChart({samples, analysis, ftp, pauses}, c = {}) {
         time: false,
         x: list.map(r => r.n),
         xTicks: list.map(r => r.n),
+        xRange: [0.5, list.length + 0.5],
         xFormat: n => `${n}`,
         series: [{label: 'Drop in 60 s', color: c.good, kind: 'bars', values: list.map(r => r.drop)}],
         yRange: [0, null],
