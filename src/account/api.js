@@ -6,9 +6,10 @@
 import { riders } from '../riders.js';
 
 class ApiError extends Error {
-    constructor(status, message) {
+    constructor(status, message, reason = null) {
         super(message);
         this.status = status;
+        this.reason = reason;      // the server's machine-readable reason, where it gives one
     }
 }
 
@@ -56,7 +57,7 @@ async function request(method, path, {body, token = tokenOf(), raw = false} = {}
         if(res.status === 401 && token) {
             window.dispatchEvent(new CustomEvent('account:signed-out', {detail: {data: data?.error}}));
         }
-        throw new ApiError(res.status, data?.error ?? `Request failed (${res.status}).`);
+        throw new ApiError(res.status, data?.error ?? `Request failed (${res.status}).`, data?.reason ?? null);
     }
     return data;
 }

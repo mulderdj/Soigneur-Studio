@@ -1,6 +1,7 @@
 /**
  * @jest-environment jsdom
  */
+import '../training/browser-stubs.js';
 import '../../src/views/activity-list.js';
 
 function render(data) {
@@ -12,8 +13,9 @@ const ride = {id: 'abc', name: 'Sweet <Spot>', timestamp: Date.UTC(2026, 10, 1),
               status: {strava: 'none', intervals: 'none'}};
 
 describe('activity list row', () => {
-    test('offers download and delete only', () => {
+    test('offers analyse, download and delete', () => {
         const html = render(ride);
+        expect(html).toContain('data-analyse="abc"');
         expect(html).toContain('action=":download"');
         expect(html).toContain('action=":remove"');
         expect(html).not.toMatch(/:upload/);
@@ -64,4 +66,12 @@ describe('deleting a ride', () => {
         expect($item.isConnected).toBe(false);
         remove.mockRestore();
     });
+});
+
+test('Analyse opens the ride page, coming from Workouts', () => {
+    document.body.innerHTML = '<activity-list></activity-list>';
+    const list = document.querySelector('activity-list');
+    list.insertAdjacentHTML('beforeend', render(ride));
+    list.querySelector('[data-analyse]').click();
+    expect(location.hash).toBe('#ride=abc');
 });

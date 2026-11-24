@@ -1,4 +1,4 @@
-const cacheName = 'soigneur-studio-v010';
+const cacheName = 'soigneur-studio-v011';
 const resources = [
     './',
     'index.html',
@@ -141,6 +141,7 @@ const resources = [
     'css/components.css',
     'css/ride.css',
     'css/training.css',
+    'css/analysis.css',
     'css/workouts.css',
     'css/settings.css',
     'css/rider-menu.css',

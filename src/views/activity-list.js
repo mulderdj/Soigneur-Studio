@@ -1,6 +1,7 @@
 import { xf, formatDate, escapeHtml, } from '../functions.js';
 import { models } from '../models/models.js';
 import { formatTime, } from '../utils.js';
+import { openRide } from './analysis/ride-page.js';
 
 class ActivityList extends HTMLElement {
     constructor() {
@@ -65,6 +66,7 @@ class ActivityList extends HTMLElement {
                         <span id="i${i}--activity--duration" class="activity--duration">${this.duration(data)}</span>
                     </div>
                 </div>
+                <button type="button" class="btn btn--secondary" data-analyse="${id}" aria-label="Analyse ${name}">Analyse</button>
                 <view-action on="click" action=":download" topic=":activity:${id}">
                     <button type="button" class="btn btn--icon" aria-label="Download ${name} (.fit)">
                         <svg width="24" height="24"><use href="#icon--save-btn" /></svg>
@@ -79,6 +81,12 @@ class ActivityList extends HTMLElement {
         `;
     }
 }
+
+// Analyse: the ride page, coming back to Workouts
+document.addEventListener('click', e => {
+    const b = e.target.closest?.('activity-list [data-analyse]');
+    if(b) openRide(b.dataset.analyse, 'workouts');
+});
 
 customElements.define('activity-list', ActivityList);
 

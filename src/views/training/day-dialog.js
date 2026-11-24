@@ -12,6 +12,7 @@ import { history } from '../../training/history.js';
 import { planStatus, plannedTss } from '../../training/plan.js';
 import { esc, fmtDuration, fmtDay, fmtTss, sportLabelFor, loadTag, loadTitle } from './format.js';
 import { intervalsToGraph } from '../workout-graph.js';
+import { openRide } from '../analysis/ride-page.js';
 
 const GRAPH_HEIGHT = 48;
 const minutes = (s) => `${Math.round(s / 60)} min`;
@@ -85,6 +86,8 @@ class DayDialog extends HTMLElement {
             if(workout) { await this.actions.addPlanEntry(this.day, workout); this.close(); }
             return;
         }
+        const analyse = e.target.closest('[data-analyse]');
+        if(analyse) { this.close(); openRide(analyse.dataset.analyse, 'training'); return; }
         const ride = e.target.closest('[data-ride]');
         if(ride) { this.actions.rideWorkout(ride.dataset.ride); this.close(); return; }
         const rate = e.target.closest('[data-rate]');
@@ -121,6 +124,7 @@ class DayDialog extends HTMLElement {
             ${rides.length ? `<h3 class="dd-sub">Rides</h3><ul class="dd-list">${rides.map(r => `
                 <li class="list-row dd-ride${r.hidden ? ' is-hidden' : ''}"><div class="list-row__main"><div class="list-row__title">${esc(r.name)}</div>
                     <div class="list-row__meta">${sportLabelFor(r) ? `${esc(sportLabelFor(r))} · ` : ''}${fmtDuration(r.duration)} · ${fmtTss(r.tss)} TSS${loadTag(r.loadSource) ? ` <span class="badge cal-load" title="${esc(loadTitle(r.loadSource))}">${loadTag(r.loadSource)}</span>` : ''}${Number.isFinite(r.np) ? ` · NP ${Math.round(r.np)} W` : ''}${r.hidden ? ' · hidden' : ''}</div>${zoneBar(r)}</div>
+                    ${r.hidden ? '' : `<button type="button" class="btn btn--primary" data-analyse="${esc(r.id)}">Analyse ride</button>`}
                     ${r.hidden ?
                       `<button type="button" class="btn" data-show="${esc(r.id)}">Show</button>` :
                       `<button type="button" class="btn" data-hide="${esc(r.id)}">Hide this ride</button>`}

@@ -158,6 +158,44 @@ function generateHistory({today, days = 120, ftp = 250, weight = 75, seed = 1} =
     return {summaries, plan, external, wellness, thresholds: {cycling: 165, running: 172}};
 }
 
+// .fit files for the ride page: the latest VO2 max workout (following its
+// steps) and an outdoor ride without power (smart recording every 4 s, a
+// café stop), so Analyse ride has something on this device to read
+async function seedRideFiles(summaries, {ftp, weight, idb, history}) {
+    const { fit } = await import('../fit/fit.js');
+    const { rideSummary } = await import('../training/summary.js');
+    const rnd = random(7);
+    const put = async (summary, records) => {
+        const view = fit.localActivity.encode({records, laps: [], events: [], ftp});
+        await idb.put('activity', {id: summary.id, blob: new Blob([view.buffer]),
+                                   summary: {name: summary.name, timestamp: summary.start + summary.duration * 1000, duration: summary.duration, workoutId: summary.workoutId}});
+    };
+    const vo2 = [...summaries].reverse().find(x => x.workoutId === 'seed-vo2');
+    if(vo2) {
+        const samples = samplesFor('vo2', vo2.ftp ?? ftp, rnd);
+        await put(vo2, samples.map((x, i) => ({timestamp: vo2.start + i * 1000, power: x.power, heart_rate: x.heartRate + Math.round(i / 400),
+                                               cadence: x.cadence, speed: 9 + x.power / 100, distance: i * 10})));
+    }
+    // outdoors: 2 h of hills, heart rate, speed and elevation, no power
+    const day = summaries.at(-2)?.day ?? summaries.at(-1)?.day;
+    const start = new Date(`${day}T09:00:00`).getTime();
+    const records = [];
+    let dist = 0;
+    for(let t = 0; t < 7200; t += 4) {
+        if(t >= 3600 && t < 3600 + 900) continue;                   // a café stop
+        const climb = Math.sin(t / 900);
+        const speed = Math.max(3, 8.5 - climb * 4 + (rnd() - 0.5));
+        dist += speed * 4;
+        records.push({timestamp: start + t * 1000, heart_rate: Math.round(128 + climb * 22 + t / 600), cadence: 82,
+                      speed, distance: dist, altitude: 320 + Math.round((1 - Math.cos(t / 900)) * 180)});
+    }
+    const outdoor = {...rideSummary(records.map(r => ({power: 0, heartRate: r.heart_rate, cadence: r.cadence})),
+                                    {id: `seed-outdoor-${day}`, start, name: 'Hills outdoors', ftp, weight, distance: dist}),
+                     duration: 7200 - 900};
+    await idb.put('rideSummaries', outdoor);
+    await put(outdoor, records);
+}
+
 async function seedHistory({ftp, weight} = {}) {
     const { history } = await import('../training/history.js');
     const { idb } = await import('../storage/idb.js');
@@ -169,6 +207,7 @@ async function seedHistory({ftp, weight} = {}) {
     for(const d of wellness) await idb.put('wellness', d);
     (await import('../training/rider-thresholds.js')).thresholds.setGarmin(thresholds);
     for(const e of plan) await idb.put('plan', e);
+    await seedRideFiles(summaries, {ftp: ftp || 250, weight: weight || 75, idb, history});
     await history.saveSummary(summaries.at(-1)); // announce the change once
     console.log(`:dev :history ${summaries.length} rides, ${plan.length} plan entries`);
     return true;

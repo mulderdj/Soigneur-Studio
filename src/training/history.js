@@ -384,6 +384,23 @@ async function allPlanEntries() {
 // parser was there, or by an older app) is read from its .zwo now
 const needsSteps = (e) => e.origin === 'intervals' && e.zwo && e.workout && !(e.workout.intervals?.length > 0);
 
+// a ride's .fit for the ride page: this device's copy (own rides), else the
+// account server (which fetches Garmin and intervals.icu rides). Never
+// throws: {view} or {reason, message}
+async function rideFile(id) {
+    try {
+        const local = await idb.get('activity', id);
+        if(local?.blob) return {view: await toDataView(local.blob)};
+    } catch(e) { /* not on this device */ }
+    if(!remote.linked() || !remote.api) return {reason: 'no-account', message: 'Sign in to your account to open this ride.'};
+    try {
+        const res = await remote.api.raw(`/me/rides/${encodeURIComponent(id)}/file`);
+        return {view: new DataView(await res.arrayBuffer())};
+    } catch(e) {
+        return {reason: e.reason ?? (e.status === 0 ? 'offline' : 'refused'), message: e.message};
+    }
+}
+
 async function planEntries() {
     return (await allPlanEntries())
         .filter(e => !e.deleted)
@@ -525,6 +542,7 @@ const history = Object.freeze({
     backfill,
     recordRide,
     planEntries,
+    rideFile,
     addPlanEntry,
     movePlanEntry,
     removePlanEntry,

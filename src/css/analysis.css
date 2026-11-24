@@ -1,0 +1,156 @@
+/*
+ * The ride page (src/views/analysis/): one ride, analysed.
+ */
+
+.analysis-content {
+    max-width: 1280px;
+}
+
+.rp {
+    display: grid;
+    gap: var(--space-3);
+    text-align: left;
+}
+
+.rp-body {
+    display: grid;
+    gap: var(--space-3);
+}
+
+/* ---------- header ---------- */
+
+.rp-head {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--space-2);
+}
+
+.rp-back svg { width: 24px; height: 24px; fill: currentColor; }
+
+.rp-titles { min-width: 0; }
+
+.rp-title {
+    font-size: var(--text-xl);
+    font-weight: var(--weight-bold);
+    line-height: 1.2;
+    overflow-wrap: anywhere;
+}
+
+.rp-sub {
+    margin-top: var(--space-1);
+    color: var(--muted);
+    font-size: var(--text-s);
+}
+
+.rp-source { margin-left: var(--space-1); }
+
+.rp-facts {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(96px, 1fr));
+    gap: var(--space-2) var(--space-3);
+}
+
+.rp-facts div { text-align: left; }
+
+.rp-facts dt {
+    color: var(--muted);
+    font-size: var(--text-xs);
+}
+
+.rp-facts dd {
+    margin: 0;
+    text-align: left;
+    white-space: nowrap;
+    font-family: var(--font-num);
+    font-size: var(--text-xl);
+    font-weight: var(--weight-bold);
+    font-variant-numeric: tabular-nums;
+}
+
+.rp-facts dd small {
+    color: var(--muted);
+    font-family: var(--font-text);
+    font-size: var(--text-s);
+    font-weight: var(--weight-medium);
+}
+
+.rp-problem {
+    padding: var(--space-4);
+    border-left: var(--stripe-w) solid var(--warn);
+}
+
+.rp-workout { margin-top: calc(-1 * var(--space-1)); }
+
+/* ---------- the chart ---------- */
+
+.rp-chart { padding: var(--space-3); }
+
+ride-chart {
+    position: relative;
+    display: grid;
+    gap: var(--space-2);
+}
+
+.rc-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-1);
+}
+
+.rc-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-2);
+    min-height: var(--tap);
+    padding: 0 var(--space-3);
+    border: var(--line-w) solid var(--line);
+    border-radius: var(--radius-pill);
+    background: transparent;
+    color: var(--muted);
+    font-size: var(--text-xs);
+    font-weight: var(--weight-medium);
+    cursor: pointer;
+}
+
+.rc-chip[aria-pressed="true"] {
+    background-color: var(--surface-2);
+    color: var(--ink);
+}
+
+.rc-swatch {
+    width: 12px;
+    height: 4px;
+    border-radius: 2px;
+}
+
+.rc-chip[aria-pressed="false"] .rc-swatch { opacity: 0.35; }
+
+.rc-plot { min-width: 0; }
+
+.rc-tip {
+    position: absolute;
+    z-index: 3;
+    min-width: 170px;
+    max-width: min(300px, calc(100% - 16px));
+    padding: var(--space-2) var(--space-3);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-s, 8px);
+    background: var(--surface-2);
+    color: var(--ink);
+    box-shadow: 0 6px 20px rgb(0 0 0 / 0.25);
+    font-size: var(--text-s);
+    pointer-events: none;
+}
+
+.rc-tip[hidden] { display: none; }
+.rc-tip__title { font-weight: 700; margin-bottom: var(--space-1); font-family: var(--font-num); }
+.rc-tip dl { display: grid; gap: 2px; margin: 0; }
+.rc-tip dl div { display: flex; justify-content: space-between; gap: var(--space-3); }
+.rc-tip dt { color: var(--muted); display: flex; align-items: center; gap: 6px; }
+.rc-tip dt i { display: inline-block; width: 10px; height: 3px; border-radius: 2px; }
+.rc-tip dd { margin: 0; font-family: var(--font-num); font-weight: 700; text-align: right; }
+.rc-tip dd small { color: var(--muted); font-weight: 400; font-family: var(--font-text); }
+
+@media (min-width: 600px) {
+    .rp-title { font-size: var(--text-2xl, 28px); }
+}

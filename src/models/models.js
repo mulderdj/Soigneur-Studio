@@ -315,7 +315,7 @@ class Mode extends Model {
 
 class Page extends Model {
     postInit(args) {
-        this.values = ['settings', 'home', 'training', 'workouts'];
+        this.values = ['settings', 'home', 'training', 'workouts', 'analysis'];
     }
     defaultValue() { return 'home'; }
     defaultIsValid(value) { return this.values.includes(value); }

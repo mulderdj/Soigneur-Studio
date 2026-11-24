@@ -30,6 +30,18 @@ function calendar(layout) {
     return el;
 }
 
+describe('the day dialog and ride analysis', () => {
+    test('every ride has Analyse ride, which opens its page', () => {
+        document.body.innerHTML = '<day-dialog></day-dialog>';
+        const el = document.querySelector('day-dialog');
+        el.open('2026-11-24', data);
+        const b = el.querySelector('[data-analyse="r1"]');
+        expect(b.textContent).toMatch(/Analyse ride/);
+        b.click();
+        expect(location.hash).toBe('#ride=r1');
+    });
+});
+
 describe('calendar', () => {
     test('moved to another place on the page (a layout edit), it keeps its month and steps once', () => {
         const el = calendar('desktop');

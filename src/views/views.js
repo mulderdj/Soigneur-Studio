@@ -17,9 +17,13 @@ import './training-dashboard.js';
 import './ride-screens.js';
 import '../training/wiring.js';
 import './training/training-page.js';
+import { RidePage } from './analysis/ride-page.js';
+import { rideSource } from './analysis/ride-source.js';
 import '../sensors.js';
 import '../account/sync.js';
 import './rider-menu.js';
+
+RidePage.source = rideSource;
 
 function start() {
     console.log('start views.');
