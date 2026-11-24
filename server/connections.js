@@ -268,6 +268,8 @@ function createConnections({db, fail, options = {}}) {
 
     // --- routes ------------------------------------------------------------
 
+    let onRemove = () => {};
+    function setOnRemove(fn) { onRemove = fn; }
     let intervalsStatus = () => null;
     function setIntervalsStatus(fn) { intervalsStatus = fn; }
     let garminStatus = () => ({connected: false});
@@ -377,6 +379,7 @@ function createConnections({db, fail, options = {}}) {
                 } catch(e) { /* removing locally is what matters */ }
             }
             q.remove.run(auth.user.id, service);
+            onRemove(auth.user.id, service);
             return describe(auth.user.id);
         }, {auth: true});
 
@@ -395,7 +398,7 @@ function createConnections({db, fail, options = {}}) {
         timers.clear();
     }
 
-    return {routes, onRideSaved, uploadsFor, resume, close, stravaConfigured, setIntervalsStatus, setGarminStatus};
+    return {routes, onRideSaved, uploadsFor, resume, close, stravaConfigured, setIntervalsStatus, setGarminStatus, setOnRemove};
 }
 
 module.exports = { createConnections };

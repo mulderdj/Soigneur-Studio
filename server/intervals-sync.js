@@ -105,7 +105,7 @@ function createIntervalsSync({db, options = {}}) {
         const auth = 'Basic ' + Buffer.from(`API_KEY:${key}`).toString('base64');
         let limited = 0;
         let last = 0;
-        return async function request(method, path, body) {
+        return async function request(method, path, body, {raw = false} = {}) {
             for(;;) {
                 const gap = last + pauseMs - Date.now();
                 if(gap > 0) await wait(gap);
@@ -127,6 +127,10 @@ function createIntervalsSync({db, options = {}}) {
                     continue;
                 }
                 limited = 0;
+                if(raw) {
+                    if(!res.ok) { const err = new SyncError(`intervals.icu answered ${res.status}.`); err.status = res.status; throw err; }
+                    return Buffer.from(await res.arrayBuffer());
+                }
                 const data = await res.json().catch(() => null);
                 if(!res.ok) {
                     const err = new SyncError(`intervals.icu answered ${res.status}.`);
@@ -352,6 +356,26 @@ function createIntervalsSync({db, options = {}}) {
         timer = null;
     }
 
+    // one activity's .fit, for ride analysis; a ride that came from Strava
+    // is refused by intervals.icu (Strava's terms)
+    async function download(userId, n) {
+        const key = apiKey(userId);
+        if(!key) throw Object.assign(new Error('intervals.icu is not connected.'), {reason: 'not-connected'});
+        const request = client(key);
+        const id = encodeURIComponent(n);
+        try {
+            const fit = await request('GET', `/api/v1/activity/${id}/fit-file`, undefined, {raw: true});
+            if(fit.length > 0) return fit;
+        } catch(e) {
+            if(e.revoked) throw Object.assign(new Error(e.message), {reason: 'refused'});
+            if(e.status === 404) throw Object.assign(new Error('intervals.icu doesn\'t know this ride.'), {reason: 'not-found'});
+        }
+        // no file: from Strava, or refused
+        const a = await request('GET', `/api/v1/activity/${id}`).catch(() => null);
+        if(String(a?.source ?? '').toUpperCase() === 'STRAVA') throw Object.assign(new Error('intervals.icu doesn\'t hand out rides that came from Strava.'), {reason: 'strava'});
+        throw Object.assign(new Error('intervals.icu refused to send this ride.'), {reason: 'refused'});
+    }
+
     function routes(route, {fail, validId}) {
         route('GET', '/api/me/external-rides', ({auth, url}) => {
             const since = Number(url.searchParams.get('since') ?? 0) || 0;
@@ -378,7 +402,7 @@ function createIntervalsSync({db, options = {}}) {
         }, {auth: true});
     }
 
-    return {run, status, start, close, routes};
+    return {run, status, start, close, routes, download};
 }
 
 module.exports = { createIntervalsSync, SyncError };

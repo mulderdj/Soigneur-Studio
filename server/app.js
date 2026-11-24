@@ -16,6 +16,7 @@ const { DatabaseSync } = require('node:sqlite');
 const { createConnections } = require('./connections.js');
 const { createIntervalsSync } = require('./intervals-sync.js');
 const { createGarminSync } = require('./garmin-sync.js');
+const { createRideFiles } = require('./ride-files.js');
 
 const SESSION_DAYS = 90;
 const MAX_JSON_BYTES = 1 * 1024 * 1024;       // profile, workouts, user edits
@@ -543,6 +544,13 @@ function createApp(options = {}) {
         return {ok: true};
     }, {auth: true});
 
+    const rideFiles = createRideFiles({
+        db, garmin: garminSync, intervals: intervalsSync, ...(options.rideFiles ?? {}),
+        ownFit: (userId, id) => q.activity.get(userId, id)?.fit ?? null,
+    });
+    garminSync.setOnDisconnect((userId, service) => rideFiles.forget(userId, service));
+    connections.setOnRemove((userId, service) => rideFiles.forget(userId, service));
+    rideFiles.routes(route, {validId});
     garminSync.routes(route, {fail, validId}); // before the generic /api/me/connections/:service routes
     connections.routes(route, {validId});
     intervalsSync.routes(route, {fail, validId});

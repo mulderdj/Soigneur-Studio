@@ -143,12 +143,12 @@ function createGarminSync({db, options = {}}) {
             return fresh.token;
         }
 
-        return async function get(path, {raw = false} = {}) {
+        return async function get(path, {raw = false, accept = 'application/json'} = {}) {
             for(;;) {
                 const gap = last + pauseMs - Date.now();
                 if(gap > 0) await wait(gap);
                 last = Date.now();
-                const res = await fetchImpl(base + path, {headers: {Accept: 'application/json', Authorization: `Bearer ${await token()}`}});
+                const res = await fetchImpl(base + path, {headers: {Accept: accept, Authorization: `Bearer ${await token()}`}});
                 if(res.status === 401 || res.status === 403) {
                     // a token can stop working before it expires: renew it once. Only the
                     // token endpoint refusing the key means the key is gone (newToken
@@ -301,6 +301,23 @@ function createGarminSync({db, options = {}}) {
         timer = null;
     }
 
+    // one activity's original file (a ZIP with the .fit), for ride analysis
+    async function download(userId, n) {
+        const conn = connection(userId);
+        if(!conn?.apiKey) throw Object.assign(new Error('Garmin is not connected.'), {reason: 'not-connected'});
+        try {
+            const res = await client(userId, conn.apiKey)(`/download-service/files/activity/${encodeURIComponent(n)}`,
+                {raw: true, accept: 'application/zip, application/x-zip-compressed, application/octet-stream'});
+            return Buffer.from(await res.arrayBuffer());
+        } catch(e) {
+            if(e.status === 404) throw Object.assign(new Error('Garmin doesn\'t know this ride.'), {reason: 'not-found'});
+            throw Object.assign(new Error(e.message || 'Garmin refused this ride.'), {reason: 'refused'});
+        }
+    }
+
+    let onDisconnect = () => {};
+    function setOnDisconnect(fn) { onDisconnect = fn; }
+
     function routes(route, {fail}) {
         route('PUT', '/api/me/connections/garmin', async ({auth, body}) => {
             const apiKey = typeof body?.apiKey === 'string' ? body.apiKey.trim() : '';
@@ -325,6 +342,7 @@ function createGarminSync({db, options = {}}) {
 
         route('DELETE', '/api/me/connections/garmin', ({auth}) => {
             q.removeConn.run(auth.user.id);
+            onDisconnect(auth.user.id, 'garmin');
             q.ensure.run(auth.user.id);
             q.setToken.run(null, null, auth.user.id);
             return {ok: true, garmin: status(auth.user.id)};
@@ -343,7 +361,7 @@ function createGarminSync({db, options = {}}) {
         }, {auth: true});
     }
 
-    return {run, status, start, close, routes};
+    return {run, status, start, close, routes, download, setOnDisconnect};
 }
 
 module.exports = { createGarminSync, GarminError, jwtExp };
