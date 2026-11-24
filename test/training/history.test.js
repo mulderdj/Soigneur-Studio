@@ -66,6 +66,33 @@ describe('backfill', () => {
     });
 });
 
+describe('backfill after a summary version change', () => {
+    test('a re-read keeps the ride\'s own FTP, weight and workout, and gains the new durations', async () => {
+        const t = new Date(2026, 10, 18, 18, 0).getTime();
+        await idb.put('activity', {id: 'r1', blob: fitBlob(t, 200), summary: {id: 'r1', name: 'Rec', timestamp: t + 200000, duration: 200}});
+        await history.saveSummary({...summary('r1', '2026-11-18', t), name: 'Sweet spot', workoutId: 'w9', ftp: 200, weight: 70});
+        await history.backfill({ftp: 280, weight: 80});
+        const s = (await history.summaries()).find(x => x.id === 'r1');
+        expect(s.version).toBe(2);
+        expect(s.ftp).toBe(200);
+        expect(s.weight).toBe(70);
+        expect(s.workoutId).toBe('w9');
+        expect(s.name).toBe('Sweet spot');
+        expect(s.best[120]).toBe(220);
+    });
+    test('a ride that can\'t be re-read keeps its old summary', async () => {
+        const t = new Date(2026, 10, 18, 18, 0).getTime();
+        await idb.put('activity', {id: 'r2', blob: new Blob([new Uint8Array(10)]), summary: {id: 'r2', name: 'Bad', timestamp: t, duration: 3600}});
+        await history.saveSummary({...summary('r2', '2026-11-18', t), avgPower: 210, ftp: 250});
+        const result = await history.backfill({ftp: 280, weight: 80});
+        const s = (await history.summaries()).find(x => x.id === 'r2');
+        expect(s.rawTss).toBe(50);
+        expect(s.avgPower).toBe(210);
+        expect(s.unreadable).toBeUndefined();
+        expect(result.skipped).toEqual([]);
+    });
+});
+
 describe('plan', () => {
     const workout = {id: 'w1', meta: {name: 'Sweet spot'}, intervals: []};
 

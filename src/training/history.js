@@ -315,28 +315,45 @@ async function backfill({ftp, weight, onProgress = () => {}} = {}) {
         added++;
     };
 
+    // a ride with an older summary is read again with what that summary
+    // knew (its FTP, weight, name and workout); when it can't be read, the
+    // old summary stays (and is tried again next time)
+    const known = (id, meta) => {
+        const old = have.get(id);
+        if(!old) return {meta, opts: {ftp, weight}};
+        return {
+            meta: {...meta, name: old.name ?? meta.name, workoutId: old.workoutId ?? meta.workoutId ?? null},
+            opts: {ftp: old.ftp > 0 ? old.ftp : ftp, weight: old.weight > 0 ? old.weight : weight},
+        };
+    };
+    const settle = async (id, meta, opts, s) => {
+        if(s) await keep(s, false);
+        else if(!have.has(id)) await keep(durationOnly(meta, opts), true);
+    };
+
     for(const record of local) {
-        const meta = {...record.summary, id: record.id};
-        const s = await summaryFromFit(record.blob, meta, {ftp, weight});
-        await keep(s ?? durationOnly(meta, {ftp, weight}), !s);
+        const {meta, opts} = known(record.id, {...record.summary, id: record.id});
+        const s = await summaryFromFit(record.blob, meta, opts);
+        await settle(record.id, meta, opts, s);
         done++; progress();
     }
     for(const ride of remoteOnly) {
+        const {meta, opts} = known(ride.id, {...ride, id: ride.id});
         let s = null;
         try {
             const res = await remote.api.raw(`/me/activities/${encodeURIComponent(ride.id)}/fit`);
-            s = await summaryFromFit(await res.arrayBuffer(), {...ride, id: ride.id}, {ftp, weight});
+            s = await summaryFromFit(await res.arrayBuffer(), meta, opts);
         } catch(e) {
             s = null;
         }
-        await keep(s ?? durationOnly({...ride, id: ride.id}, {ftp, weight}), !s);
+        await settle(ride.id, meta, opts, s);
         done++; progress();
     }
     // the server keeps summaries too, for the rider's other devices
     if(remote.linked() && remote.api) {
         for(const ride of serverRides) {
             const s = have.get(ride.id);
-            if(s && ride.training?.version !== SUMMARY_VERSION) {
+            if(s?.version === SUMMARY_VERSION && ride.training?.version !== SUMMARY_VERSION) {
                 try { await remote.api.patch(`/me/activities/${encodeURIComponent(ride.id)}/summary`, {training: s}); } catch(e) {}
             }
         }

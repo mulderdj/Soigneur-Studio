@@ -456,3 +456,43 @@ test('rides stored by an older mapping are mapped again (live check)', async () 
         assert.equal(ride.avgHr, 151);
     } finally { stop(); }
 });
+
+test('a new mapping reaches back to the oldest ride stored by an older one, not only the last week (review)', async () => {
+    const {app, call, token, userId, fake, stop} = await setup();
+    try {
+        await connect(call, token);
+        const old = activity('a0', 60, {average_heartrate: 140});
+        fake.state.activities = [activity('a1', 2), old];
+        await app.intervalsSync.run(userId);
+        // a0 as an older mapping stored it
+        app.db.prepare("UPDATE external_rides SET fingerprint = 'm2|x', summary = ? WHERE user_id = ? AND id = 'icu-a0'")
+            .run(JSON.stringify({id: 'icu-a0', day: old.start_date_local.slice(0, 10), source: 'intervals'}), userId);
+        fake.log.length = 0;
+        await app.intervalsSync.run(userId);
+        const list = fake.log.find(l => l.path === '/api/v1/athlete/0/activities');
+        assert.ok(list.query.oldest <= old.start_date_local.slice(0, 10), `oldest ${list.query.oldest}`);
+        const ride = (await call('GET', '/api/me/external-rides', {token})).json.rides.find(r => r.id === 'icu-a0');
+        assert.equal(ride.avgHr, 140);
+        // once mapped again, later syncs are back to a week
+        fake.log.length = 0;
+        await app.intervalsSync.run(userId);
+        const again = fake.log.find(l => l.path === '/api/v1/athlete/0/activities');
+        assert.ok(again.query.oldest > old.start_date_local.slice(0, 10));
+    } finally { stop(); }
+});
+
+test('a stale ride intervals.icu no longer lists does not keep every sync reaching back (review)', async () => {
+    const {app, call, token, userId, fake, stop} = await setup();
+    try {
+        await connect(call, token);
+        fake.state.activities = [activity('a1', 2), activity('a0', 60)];
+        await app.intervalsSync.run(userId);
+        app.db.prepare("UPDATE external_rides SET fingerprint = 'm2|x' WHERE user_id = ? AND id = 'icu-a0'").run(userId);
+        fake.state.activities = [activity('a1', 2)];            // a0 deleted on intervals.icu
+        await app.intervalsSync.run(userId);
+        fake.log.length = 0;
+        await app.intervalsSync.run(userId);
+        const list = fake.log.find(l => l.path === '/api/v1/athlete/0/activities');
+        assert.ok(Date.parse(list.query.oldest) > Date.now() - 30 * DAY, `oldest ${list.query.oldest}`);
+    } finally { stop(); }
+});

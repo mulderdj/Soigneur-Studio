@@ -37,16 +37,19 @@ function loadWprime() {
 const session = new SessionStats({ftp: db.ftp, weight: db.weight, wprime: loadWprime()});
 
 // W' in joules; used by the panel input and by account sync
+// (while the rider model is in use, W′bal keeps the model's W′; the typed
+// one is stored for when it isn't)
+let modelSource = 'settings';
 function setWprime(joules) {
     if(!(joules >= 5000 && joules <= 60000)) return;
-    session.setWprime(Math.round(joules));
-    try { localStorage.setItem(riders.key('dashboard:wprime'), String(session.wprime)); } catch(e) {}
+    const w = Math.round(joules);
+    if(modelSource !== 'model') session.setWprime(w);
+    try { localStorage.setItem(riders.key('dashboard:wprime'), String(w)); } catch(e) {}
     notify();
 }
 
 // the rider model (src/training/rider-model-wiring.js): W′bal against its CP
 // and W′ when they are in use; the typed W′ stays stored, for when they aren't
-let modelSource = 'settings';
 function applyModel(eff) {
     if(!eff) return;
     modelSource = eff.source;

@@ -22,6 +22,8 @@ const HEALTH_FIRST_DAYS = 90;
 const HEALTH_OVERLAP_DAYS = 3;
 const ACTIVITY_FIRST_DAYS = 730;
 const ACTIVITY_OVERLAP_DAYS = 7;
+// stored with each ride; when toSummary maps more, rides stored before are listed again
+const MAPPING = 'g1';     // g1: best power at 21 durations (rider model)
 const PAGE = 100;
 const MAX_RATE_LIMITS = 3;
 const RENEW_BEFORE_S = 3600;
@@ -93,9 +95,15 @@ function createGarminSync({db, options = {}}) {
         setToken:   db.prepare('UPDATE garmin_sync SET token = ?, token_exp = ? WHERE user_id = ?'),
         setThresh:  db.prepare('UPDATE garmin_sync SET thresholds = ? WHERE user_id = ?'),
         setRun:     db.prepare('UPDATE garmin_sync SET last_run = ?, last_error = ? WHERE user_id = ?'),
-        ride:       db.prepare('SELECT summary FROM external_rides WHERE user_id = ? AND id = ?'),
-        upsertRide: db.prepare(`INSERT INTO external_rides (user_id, id, summary, day, fingerprint, updated_at) VALUES (?, ?, ?, ?, NULL, ?)
-                                ON CONFLICT (user_id, id) DO UPDATE SET summary = excluded.summary, day = excluded.day, updated_at = excluded.updated_at`),
+        ride:       db.prepare('SELECT summary, fingerprint FROM external_rides WHERE user_id = ? AND id = ?'),
+        upsertRide: db.prepare(`INSERT INTO external_rides (user_id, id, summary, day, fingerprint, updated_at) VALUES (?, ?, ?, ?, ?, ?)
+                                ON CONFLICT (user_id, id) DO UPDATE SET summary = excluded.summary, day = excluded.day,
+                                fingerprint = excluded.fingerprint, updated_at = excluded.updated_at`),
+        markRide:   db.prepare('UPDATE external_rides SET fingerprint = ? WHERE user_id = ? AND id = ?'),
+        unlisted:   db.prepare(`UPDATE external_rides SET fingerprint = ? WHERE user_id = ? AND id LIKE 'garmin-%' AND day >= ?
+                                AND (fingerprint IS NULL OR fingerprint <> ?)`),
+        staleRide:  db.prepare(`SELECT MIN(day) AS day FROM external_rides WHERE user_id = ? AND id LIKE 'garmin-%'
+                                AND (fingerprint IS NULL OR fingerprint <> ?)`),
         newestRide: db.prepare("SELECT MAX(day) AS day FROM external_rides WHERE user_id = ? AND id LIKE 'garmin-%'"),
         countRides: db.prepare("SELECT COUNT(*) AS n FROM external_rides WHERE user_id = ? AND id LIKE 'garmin-%'"),
         day:        db.prepare('SELECT data FROM wellness WHERE user_id = ? AND day = ?'),
@@ -221,7 +229,10 @@ function createGarminSync({db, options = {}}) {
 
     async function syncActivities(userId, get) {
         const newest = q.newestRide.get(userId)?.day;
-        const from = newest ? isoDay(Date.parse(newest) - ACTIVITY_OVERLAP_DAYS * DAY_MS) : isoDay(now() - ACTIVITY_FIRST_DAYS * DAY_MS);
+        let from = newest ? isoDay(Date.parse(newest) - ACTIVITY_OVERLAP_DAYS * DAY_MS) : isoDay(now() - ACTIVITY_FIRST_DAYS * DAY_MS);
+        // rides stored by an older mapping: list them again, back to the oldest
+        const stale = q.staleRide.get(userId, MAPPING)?.day;
+        if(stale && stale < from) from = stale;
         const to = isoDay(now() + DAY_MS);
         for(let start = 0; ; start += PAGE) {
             const page = await get(`/activitylist-service/activities/search/activities?start=${start}&limit=${PAGE}&startDate=${from}&endDate=${to}`);
@@ -230,11 +241,17 @@ function createGarminSync({db, options = {}}) {
                 const s = toSummary(a);
                 if(!s) continue;
                 const json = JSON.stringify(s);
-                if(q.ride.get(userId, s.id)?.summary === json) continue; // unchanged
-                q.upsertRide.run(userId, s.id, json, s.day, now());
+                const stored = q.ride.get(userId, s.id);
+                if(stored?.summary === json) {                          // unchanged
+                    if(stored.fingerprint !== MAPPING) q.markRide.run(MAPPING, userId, s.id);
+                    continue;
+                }
+                q.upsertRide.run(userId, s.id, json, s.day, MAPPING, now());
             }
             if(list.length < PAGE) break;
         }
+        // stale rides Garmin didn't list (gone there): not looked for again
+        q.unlisted.run(MAPPING, userId, from, MAPPING);
     }
 
     async function runOnce(userId) {

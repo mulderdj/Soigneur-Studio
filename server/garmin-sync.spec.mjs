@@ -313,3 +313,36 @@ test('a run with an old key never removes a newly pasted key (review)', async ()
         assert.equal((await app.garminSync.run(userId)).error, null);  // the new key works
     } finally { stop(); }
 });
+
+test('rides stored by an older mapping are listed again, back to the oldest of them (review)', async () => {
+    const {app, call, token, userId, fake, stop} = await setup();
+    try {
+        fake.state.activities = [activity(1, 40), activity(2, 2)];
+        await connect(call, token);
+        await app.garminSync.run(userId);
+        // as stored before this mapping: no marker
+        app.db.prepare("UPDATE external_rides SET fingerprint = NULL WHERE user_id = ? AND id = 'garmin-1'").run(userId);
+        const n = fake.log.length;
+        await app.garminSync.run(userId);
+        const later = fake.log.slice(n);
+        assert.equal(later.find(l => l.path === '/activitylist-service/activities/search/activities').query.startDate, daysAgo(40));
+        const m = fake.log.length;
+        await app.garminSync.run(userId);
+        assert.equal(fake.log.slice(m).find(l => l.path === '/activitylist-service/activities/search/activities').query.startDate, daysAgo(9));
+    } finally { stop(); }
+});
+
+test('a stale ride Garmin no longer lists does not keep every run reaching back (review)', async () => {
+    const {app, call, token, userId, fake, stop} = await setup();
+    try {
+        fake.state.activities = [activity(1, 40), activity(2, 2)];
+        await connect(call, token);
+        await app.garminSync.run(userId);
+        app.db.prepare("UPDATE external_rides SET fingerprint = NULL WHERE user_id = ? AND id = 'garmin-1'").run(userId);
+        fake.state.activities = [activity(2, 2)];
+        await app.garminSync.run(userId);
+        const m = fake.log.length;
+        await app.garminSync.run(userId);
+        assert.equal(fake.log.slice(m).find(l => l.path === '/activitylist-service/activities/search/activities').query.startDate, daysAgo(9));
+    } finally { stop(); }
+});

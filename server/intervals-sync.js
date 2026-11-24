@@ -75,6 +75,10 @@ function createIntervalsSync({db, options = {}}) {
                                 fingerprint = excluded.fingerprint, updated_at = excluded.updated_at`),
         rides:      db.prepare('SELECT summary FROM external_rides WHERE user_id = ? AND updated_at > ? ORDER BY updated_at'),
         countRides: db.prepare("SELECT COUNT(*) AS n FROM external_rides WHERE user_id = ? AND id LIKE 'icu-%'"),
+        staleDay:   db.prepare(`SELECT MIN(day) AS day FROM external_rides WHERE user_id = ? AND id LIKE 'icu-%'
+                                AND (fingerprint IS NULL OR fingerprint NOT LIKE ?)`),
+        unlisted:   db.prepare(`UPDATE external_rides SET fingerprint = ? WHERE user_id = ? AND id LIKE 'icu-%' AND day >= ?
+                                AND (fingerprint IS NULL OR fingerprint NOT LIKE ?)`),
         skip:       db.prepare('INSERT OR IGNORE INTO intervals_skipped (user_id, id, source) VALUES (?, ?, ?)'),
         skipped:    db.prepare('SELECT source, COUNT(*) AS n FROM intervals_skipped WHERE user_id = ? GROUP BY source'),
         status:     db.prepare('SELECT * FROM intervals_sync WHERE user_id = ?'),
@@ -143,7 +147,7 @@ function createIntervalsSync({db, options = {}}) {
     }
 
     // what decides "unchanged"; MAPPING changes when toSummary maps more,
-    // so rides stored before are mapped again on the next sync
+    // so rides stored before are listed and mapped again on the next sync
     const MAPPING = 'm3'; // m2: heart rate (live check, 2026-11-23); m3: best power at 21 durations (rider model)
     function fingerprint(a) {
         return [MAPPING, a.start_date_local, a.moving_time, a.elapsed_time, a.icu_training_load,
@@ -152,9 +156,12 @@ function createIntervalsSync({db, options = {}}) {
 
     async function syncActivities(userId, request) {
         const newest = q.newestDay.get(userId)?.day;
-        const oldest = newest ?
+        let oldest = newest ?
               isoDay(Date.parse(newest) - OVERLAP_DAYS * DAY_MS) :
               isoDay(now() - FIRST_DAYS * DAY_MS);
+        // rides stored by an older mapping: list them again, back to the oldest
+        const stale = q.staleDay.get(userId, `${MAPPING}|%`)?.day;
+        if(stale && stale < oldest) oldest = stale;
         const list = await request('GET', `/api/v1/athlete/0/activities?oldest=${oldest}&newest=${isoDay(now() + DAY_MS)}`);
 
         for(const a of Array.isArray(list) ? list : []) {
@@ -182,6 +189,8 @@ function createIntervalsSync({db, options = {}}) {
             const summary = toSummary(a, {powerCurve, auukiRideId});
             q.upsertRide.run(userId, id, JSON.stringify(summary), summary.day, fp, now());
         }
+        // stale rides intervals.icu didn't list (gone there): not looked for again
+        q.unlisted.run(`${MAPPING}|unlisted`, userId, oldest, `${MAPPING}|%`);
     }
 
     //

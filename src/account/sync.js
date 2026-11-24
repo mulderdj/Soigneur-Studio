@@ -2,7 +2,7 @@
 // Account sync
 //
 // When the current rider is linked to a server account:
-// - profile (FTP, weight, W'): newest wins on start, changes are pushed
+// - profile (FTP, weight, the typed W'): newest wins on start, changes are pushed
 // - imported workouts: two-way, incremental, deletions included
 // - rides: every saved ride is uploaded (.fit + summary) and kept on the
 //   server without the 7-ride limit; uploads that fail are retried
@@ -17,7 +17,7 @@ import { models } from '../models/models.js';
 import { idb } from '../storage/idb.js';
 import { riders } from '../riders.js';
 import { api, ApiError } from './api.js';
-import { session, setWprime } from '../views/training-dashboard.js';
+import { session, setWprime, loadWprime } from '../views/training-dashboard.js';
 import { history } from '../training/history.js';
 import { thresholds } from '../training/rider-thresholds.js';
 import { layouts } from '../layout/store.js';
@@ -59,7 +59,7 @@ function handleError(err, what) {
 // --- profile ---------------------------------------------------------------
 
 function localProfile() {
-    return {ftp: db.ftp, weight: db.weight, wprime: session.wprime, hrThresholds: thresholds.own(), layouts: layouts.forProfile()};
+    return {ftp: db.ftp, weight: db.weight, wprime: loadWprime(), hrThresholds: thresholds.own(), layouts: layouts.forProfile()};
 }
 
 async function pullProfile() {
@@ -70,7 +70,7 @@ async function pullProfile() {
         try {
             if(remote.data.ftp > 0 && remote.data.ftp !== db.ftp) xf.dispatch('ui:ftp-set', remote.data.ftp);
             if(remote.data.weight > 0 && remote.data.weight !== db.weight) xf.dispatch('ui:weight-set', remote.data.weight);
-            if(remote.data.wprime > 0 && remote.data.wprime !== session.wprime) setWprime(remote.data.wprime);
+            if(remote.data.wprime > 0 && remote.data.wprime !== loadWprime()) setWprime(remote.data.wprime);   // the typed W′, not the model's
             if(remote.data.hrThresholds) {
                 thresholds.setOwn(remote.data.hrThresholds, {silent: true}); // not pushed back
                 xf.dispatch('training:changed', Date.now());                  // loads change
