@@ -170,3 +170,157 @@ describe('screen sizes', () => {
         expect(ids(screenEl(el, 0))).toEqual(defaultLayouts().ride.phone.screens[0].tiles.map(t => t.id));
     });
 });
+
+describe('several screens', () => {
+    const dots = el => [...el.querySelectorAll('.rs-dots [data-dot]')];
+    test('a dot per screen; a dot switches; the screen in view is the one with the live tiles', () => {
+        const el = page();
+        expect(dots(el).map(d => d.getAttribute('aria-label'))).toEqual(['Ride', 'Big numbers', 'Chart']);
+        expect(dots(el)[0].getAttribute('aria-current')).toBe('true');
+        dots(el)[2].click();
+        expect(el.screen).toBe(2);
+        expect(dots(el)[2].getAttribute('aria-current')).toBe('true');
+        expect(screenEl(el, 2).getAttribute('aria-hidden')).toBeNull();
+        expect(screenEl(el, 0).getAttribute('aria-hidden')).toBe('true');
+        expect(screenEl(el, 2).querySelector('[data-tile="power"]').firstElementChild.id).toBe('data-tile--power');
+    });
+
+    test('← and → switch, not while typing in a field', () => {
+        const el = page();
+        const key = (k, target = document.body) => target.dispatchEvent(new KeyboardEvent('keydown', {key: k, code: k, bubbles: true}));
+        key('ArrowRight');
+        expect(el.screen).toBe(1);
+        key('ArrowRight'); key('ArrowRight');
+        expect(el.screen).toBe(2);                    // stops at the last
+        key('ArrowLeft');
+        expect(el.screen).toBe(1);
+        const input = document.createElement('input');
+        document.body.append(input);
+        key('ArrowLeft', input);
+        expect(el.screen).toBe(1);
+    });
+
+    test('the screen in view is remembered on this device, and falls back to the first', () => {
+        let el = page();
+        el.show(2);
+        el = page();
+        expect(el.screen).toBe(2);
+        const fewer = defaultLayouts(); fewer.ride.large.screens = fewer.ride.large.screens.slice(0, 1);
+        layouts.save(fewer);
+        el = page();
+        expect(el.screen).toBe(0);
+    });
+
+    test('one screen: no dots', () => {
+        const one = defaultLayouts(); one.ride.large.screens = one.ride.large.screens.slice(0, 1);
+        layouts.save(one);
+        const el = page();
+        expect(el.querySelector('.rs-dots').hidden).toBe(true);
+    });
+
+    test('a sideways finger on the live chart is the chart\'s; from the screen edge it switches screens', () => {
+        const el = page();
+        el.show(2);
+        const slot = screenEl(el, 2).querySelector('[data-tile="chart"]');
+        expect(slot.style.touchAction).toBe('pan-y');
+        el.$track.getBoundingClientRect = () => ({left: 0, right: 400, top: 0, bottom: 600, width: 400, height: 600});
+        const touch = (type, x) => {
+            const e = new MouseEvent(type, {bubbles: true, clientX: x, clientY: 300});
+            Object.defineProperty(e, 'pointerType', {value: 'touch'});
+            slot.firstElementChild.dispatchEvent(e);
+        };
+        touch('pointerdown', 200); touch('pointermove', 100); touch('pointerup', 60);
+        expect(el.screen).toBe(2);                    // the chart's read-out, not a screen change
+        touch('pointerdown', 10); touch('pointermove', 80); touch('pointerup', 120);
+        expect(el.screen).toBe(1);                    // from the left edge: the previous screen
+    });
+});
+
+describe('editing screens', () => {
+    beforeEach(() => {
+        HTMLDialogElement.prototype.showModal ??= function() { this.open = true; };
+        HTMLDialogElement.prototype.close ??= function() { this.open = false; };
+    });
+
+    test('add a screen: empty, named Screen N, shown; at most 8', () => {
+        const el = page();
+        el.begin();
+        el.querySelector('[data-rs="add-screen"]').click();
+        expect(el.screens().map(s => s.name)).toEqual(['Ride', 'Big numbers', 'Chart', 'Screen 4']);
+        expect(el.screen).toBe(3);
+        expect(screenEl(el, 3).querySelector('.rs-empty')).not.toBeNull();
+        for(let i = 0; i < 6; i++) el.querySelector('[data-rs="add-screen"]').click();
+        expect(el.screens()).toHaveLength(8);
+        expect(el.querySelector('[data-rs="add-screen"]').disabled).toBe(true);
+    });
+
+    test('rename the screen in view', () => {
+        const el = page();
+        el.begin();
+        const input = el.querySelector('[data-rs="name"]');
+        expect(input.value).toBe('Ride');
+        input.value = 'Climb';
+        input.dispatchEvent(new Event('input', {bubbles: true}));
+        el.done();
+        expect(layouts.get().ride.large.screens[0].name).toBe('Climb');
+        expect(el.querySelector('[data-dot="0"]').getAttribute('aria-label')).toBe('Climb');
+    });
+
+    test('remove a screen: asks when it has tiles; never the last', () => {
+        const el = page();
+        el.begin();
+        el.show(1);
+        window.confirm = () => false;
+        el.querySelector('[data-rs="remove-screen"]').click();
+        expect(el.screens()).toHaveLength(3);
+        window.confirm = () => true;
+        el.querySelector('[data-rs="remove-screen"]').click();
+        expect(el.screens().map(s => s.name)).toEqual(['Ride', 'Chart']);
+        el.querySelector('[data-rs="remove-screen"]').click();
+        expect(el.screens()).toHaveLength(1);
+        expect(el.querySelector('[data-rs="remove-screen"]').disabled).toBe(true);
+    });
+
+    test('move the screen in view left or right with its dot\'s keys', () => {
+        const el = page();
+        el.begin();
+        el.show(2);
+        el.querySelector('[data-dot="2"]').dispatchEvent(new KeyboardEvent('keydown', {key: 'ArrowLeft', shiftKey: true, bubbles: true}));
+        expect(el.screens().map(s => s.name)).toEqual(['Ride', 'Chart', 'Big numbers']);
+        expect(el.screen).toBe(1);
+    });
+
+    test('drag a dot onto another to reorder screens', () => {
+        const el = page();
+        el.begin();
+        [...el.querySelectorAll('[data-dot]')].forEach((d, i) => {
+            d.getBoundingClientRect = () => ({left: i * 50, right: i * 50 + 44, top: 0, bottom: 44, width: 44, height: 44});
+        });
+        const ev = (type, target, x) => {
+            const e = new MouseEvent(type, {bubbles: true, clientX: x, clientY: 20, button: 0});
+            Object.defineProperty(e, 'pointerType', {value: 'mouse'});
+            target.dispatchEvent(e);
+        };
+        const dot0 = el.querySelector('[data-dot="0"]');
+        ev('pointerdown', dot0, 20);
+        ev('pointermove', document, 80);
+        ev('pointerup', document, 120);
+        expect(el.screens().map(s => s.name)).toEqual(['Big numbers', 'Chart', 'Ride']);
+        expect(el.screen).toBe(2);
+    });
+
+    test('a tile dropped on the screen edge goes to the next screen', () => {
+        const el = page();
+        el.begin();
+        el.moveToNeighbour('right', 'speed');
+        expect(el.screens()[0].tiles.map(t => t.id)).not.toContain('speed');
+        expect(el.screens()[1].tiles.map(t => t.id)).toContain('speed');
+        expect(el.screen).toBe(1);
+        el.moveToNeighbour('left', 'heart-rate');      // already there: moved, not doubled
+        expect(el.screens()[0].tiles.filter(t => t.id === 'heart-rate')).toHaveLength(1);
+        expect(el.screens()[1].tiles.map(t => t.id)).not.toContain('heart-rate');
+        el.show(0);
+        el.moveToNeighbour('left', 'power');           // no screen there: nothing happens
+        expect(el.screens()[0].tiles.map(t => t.id)).toContain('power');
+    });
+});

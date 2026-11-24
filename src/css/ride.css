@@ -271,6 +271,43 @@ ride-screens {
     min-height: 88px;
 }
 
+/* the dots under the screens: which one is in view */
+.rs-dots {
+    display: flex;
+    justify-content: center;
+    gap: var(--space-1);
+    margin-top: calc(-1 * var(--space-2));
+}
+
+.rs-dots[hidden] { display: none; }
+
+.rs-dot {
+    display: grid;
+    place-items: center;
+    width: var(--tap);
+    height: var(--tap);
+    border: 0;
+    background: none;
+    cursor: pointer;
+}
+
+.rs-dot span {
+    width: var(--space-2);
+    height: var(--space-2);
+    border: var(--focus-w) solid var(--muted);
+    border-radius: var(--radius-pill);
+}
+
+.rs-dot[aria-current="true"] span {
+    width: var(--space-4);
+    border-color: var(--ink);
+    background-color: var(--ink);
+}
+
+/* editing: dots are big enough to grab and drag */
+ride-screens.is-editing .rs-dots { margin-top: 0; }
+ride-screens.is-editing .rs-dot { cursor: grab; }
+
 /* ---------- edit layout ---------- */
 
 .rs-edit {
@@ -295,7 +332,21 @@ ride-screens {
 .rs-edit__actions {
     display: flex;
     flex-wrap: wrap;
+    align-items: center;
     gap: var(--space-2);
+}
+
+.rs-edit__name {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-2);
+    color: var(--muted);
+    font-size: var(--text-s);
+}
+
+.rs-edit__name input {
+    width: 12em;
+    min-height: var(--tap);
 }
 
 .rs-screen.is-editing .rs-slot {
