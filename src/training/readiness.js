@@ -49,10 +49,10 @@ function readiness({today, days = [], summaries = [], ftp = 250} = {}) {
     const signals = {form, yesterdayTss: yesterday};
 
     if(form < FORM_TIRED) care.push(`Very fatigued from training: form ${signed(form)}`);
-    else fine.push(`Form ${signed(form)}`);
+    const formFine = form < FORM_TIRED ? [] : [`Form ${signed(form)}`];      // last among the good signs
 
     if(!night) {
-        const reasons = [...care, 'No health data from last night: this is from your training load only.', ...fine];
+        const reasons = [...care, 'No health data from last night: this is from your training load only.', ...formFine];
         return {state: care.length ? 'take-care' : 'ready', reasons, signals, basis: 'form'};
     }
 
@@ -105,7 +105,7 @@ function readiness({today, days = [], summaries = [], ftp = 250} = {}) {
     }
 
     const state = rest.length ? 'rest' : care.length ? 'take-care' : 'ready';
-    return {state, reasons: [...rest, ...care, ...fine], signals, basis: 'health'};
+    return {state, reasons: [...rest, ...care, ...fine, ...formFine], signals, basis: 'health'};
 }
 
 // --- hard workouts and easier versions ---------------------------------------

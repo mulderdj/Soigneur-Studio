@@ -20,7 +20,8 @@ describe('the verdict', () => {
         const r = readiness({...base, days: nights()});
         expect(r.state).toBe('ready');
         expect(r.basis).toBe('health');
-        expect(r.reasons.join(' ')).toMatch(/HRV 58 ms in your range \(52–65\)/);
+        expect(r.reasons[0]).toMatch(/HRV 58 ms in your range \(52–65\)/);      // HRV first, form last
+        expect(r.reasons.at(-1)).toMatch(/^Form/);
     });
     test('take care: one signal off', () => {
         expect(readiness({...base, days: nights({hrv: 48})}).state).toBe('take-care');

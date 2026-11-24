@@ -14,7 +14,7 @@ describe('the defaults', () => {
         expect(ids(D.ride.phone.screens[2])).toContain('chart');
     });
     test('every Training card once, in today\'s order', () => {
-        expect(D.training.large.cards.map(c => c.id)).toEqual(['form', 'week', 'health', 'calendar', 'volume', 'curve', 'zones', 'ftp']);
+        expect(D.training.large.cards.map(c => c.id)).toEqual(['readiness', 'form', 'week', 'health', 'calendar', 'volume', 'curve', 'zones', 'ftp']);
         expect(D.training.phone.cards.every(c => c.size === 'full')).toBe(true);
     });
     test('a fresh copy every time', () => {
@@ -29,7 +29,7 @@ describe('reading a saved layout', () => {
         for(const bad of [null, undefined, 'x', 42, [], {version: 9}, {version: 1, ride: 'no'}]) {
             const r = readLayout(bad);
             expect(r.ride.phone.screens).toHaveLength(3);
-            expect(r.training.large.cards).toHaveLength(8);
+            expect(r.training.large.cards).toHaveLength(9);
         }
     });
     test('an unknown tile is dropped, a bad size becomes the tile\'s own', () => {
@@ -61,10 +61,23 @@ describe('reading a saved layout', () => {
 
     test('Training: unknown cards dropped, missing cards appended hidden', () => {
         const r = readLayout({version: 1, training: {large: {cards: [{id: 'ftp', size: 'full'}, {id: 'nope'}, {id: 'form', size: 'x', hidden: true}]}}});
-        const cards = r.training.large.cards;
+        const cards = r.training.large.cards.filter(c => c.id !== 'readiness');
         expect(cards.slice(0, 2)).toEqual([{id: 'ftp', size: 'full', hidden: false}, {id: 'form', size: 'narrow', hidden: true}]);
         expect(cards).toHaveLength(8);
         expect(cards.slice(2).every(c => c.hidden)).toBe(true);
+    });
+});
+
+describe('a card added by an update', () => {
+    test('Readiness is added visible, first, to a saved Training layout without it', () => {
+        const saved = {version: 1, training: {large: {cards: ['form', 'week', 'health', 'calendar', 'volume', 'curve', 'zones', 'ftp'].map(id => ({id, size: 'narrow'}))}}};
+        const cards = readLayout(saved).training.large.cards;
+        expect(cards[0]).toMatchObject({id: 'readiness', hidden: false});
+        expect(cards).toHaveLength(9);
+    });
+    test('a rider who hid it keeps it hidden', () => {
+        const saved = {version: 1, training: {large: {cards: [{id: 'form', size: 'narrow'}, {id: 'readiness', size: 'wide', hidden: true}]}}};
+        expect(readLayout(saved).training.large.cards.find(c => c.id === 'readiness').hidden).toBe(true);
     });
 });
 

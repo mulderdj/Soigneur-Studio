@@ -39,6 +39,7 @@ const RIDE_TILES = [
 
 const CARD = ['narrow', 'wide', 'full'];
 const TRAINING_CARDS = [
+    {id: 'readiness', name: 'Readiness',   sizes: CARD, size: 'wide'},
     {id: 'form',     name: 'Form',          sizes: CARD, size: 'narrow'},
     {id: 'week',     name: 'This week',     sizes: CARD, size: 'wide'},
     {id: 'health',   name: 'Health',        sizes: CARD, size: 'full'},
@@ -48,6 +49,9 @@ const TRAINING_CARDS = [
     {id: 'zones',    name: 'Time in zones', sizes: CARD, size: 'narrow'},
     {id: 'ftp',      name: 'FTP trend',     sizes: CARD, size: 'wide'},
 ];
+
+// cards an update adds that a saved layout should show (not hide): at their default place
+const ADDED_VISIBLE = new Set(['readiness']);
 
 const RIDE_BY_ID = new Map(RIDE_TILES.map(t => [t.id, t]));
 const CARD_BY_ID = new Map(TRAINING_CARDS.map(c => [c.id, c]));
@@ -122,9 +126,11 @@ function readCards(saved, fallback) {
         seen.add(def.id);
         out.push({id: def.id, size: def.sizes.includes(c.size) ? c.size : def.size, hidden: c.hidden === true});
     }
-    for(const def of TRAINING_CARDS) {
-        if(!seen.has(def.id)) out.push({id: def.id, size: def.size, hidden: true});
-    }
+    TRAINING_CARDS.forEach((def, i) => {
+        if(seen.has(def.id)) return;
+        if(ADDED_VISIBLE.has(def.id)) out.splice(Math.min(i, out.length), 0, {id: def.id, size: def.size, hidden: false});
+        else out.push({id: def.id, size: def.size, hidden: true});
+    });
     return out;
 }
 

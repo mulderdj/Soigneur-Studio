@@ -21,6 +21,70 @@
     margin-bottom: var(--space-3);
 }
 
+/* ---------- readiness ---------- */
+
+.rd {
+    --rd-color: var(--good);
+    display: grid;
+    gap: var(--space-2);
+}
+
+.rd[data-state="take-care"] { --rd-color: var(--warn); }
+.rd[data-state="rest"]      { --rd-color: var(--danger); }
+
+.rd-head {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+}
+
+.rd-dot {
+    flex: none;
+    width: 40px;
+    height: 40px;
+    border-radius: var(--radius-pill);
+    background-color: var(--rd-color);
+    box-shadow: 0 0 0 6px color-mix(in srgb, var(--rd-color) 22%, transparent);
+}
+
+.rd-word {
+    color: var(--rd-color);
+    font-size: var(--text-xl);
+    font-weight: var(--weight-bold);
+    line-height: 1.1;
+}
+
+.rd-advice { font-weight: var(--weight-medium); }
+
+.rd-reasons {
+    display: grid;
+    gap: var(--space-1);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    color: var(--muted);
+    font-size: var(--text-s);
+}
+
+.rd-reasons li::before {
+    content: '';
+    display: inline-block;
+    width: 6px;
+    height: 6px;
+    margin-right: var(--space-2);
+    border-radius: 50%;
+    background-color: var(--line);
+    vertical-align: middle;
+}
+
+.rd-reasons li:first-child::before { background-color: var(--rd-color); }
+
+.rd-plan {
+    padding-top: var(--space-2);
+    border-top: var(--line-w) solid var(--line);
+    font-size: var(--text-s);
+}
+
 /* Edit layout (see training-layout.js; the edit bar on each card is .le-bar in ride.css) */
 .tl-edit {
     display: flex;
