@@ -8,6 +8,7 @@
 import { xf } from '../functions.js';
 import { db } from '../db.js';
 import { TestSession } from './session.js';
+import { TEST_IDS } from './protocols.js';
 import { modelNow } from '../training/rider-model-wiring.js';
 
 let workout = null;
@@ -39,4 +40,13 @@ xf.sub('watch:stopped', () => {
     if(!run) return;
     show(run.test, run.finish({stopped: true, weight: db.weight}));   // null if already shown
     run = null;
+});
+
+// "Ride the 3 + 12 min test" (the CP and W′ card): load it on the Ride page,
+// as picked by hand — never during a ride
+xf.sub('tests:ride', test => {
+    if(db.watchStatus === 'started' || db.watchStatus === 'paused') return;
+    if(!TEST_IDS[test]) return;
+    xf.dispatch('ui:workout:select', TEST_IDS[test]);
+    xf.dispatch('ui:page-set', 'home');
 });

@@ -59,6 +59,26 @@ describe('the CP and W′ card', () => {
         expect(el.textContent).toMatch(/No power data/);
         expect(el.textContent).not.toMatch(/NaN|undefined/);
     });
+    test('no fit: Ride the 3 + 12 min test, hidden during a ride', () => {
+        const el = mount('model-card');
+        changed(model(undefined, []));
+        const asked = [];
+        const on = e => asked.push(e.detail.data);
+        window.addEventListener('tests:ride', on);
+        el.querySelector('[data-mc="ride-test"]').click();
+        expect(asked).toEqual(['3-12']);
+        const status = s => window.dispatchEvent(new CustomEvent('db:watchStatus', {detail: {data: {watchStatus: s}}}));
+        status('started');
+        expect(el.querySelector('[data-mc="ride-test"]')).toBeNull();
+        status('stopped');
+        expect(el.querySelector('[data-mc="ride-test"]')).not.toBeNull();
+        window.removeEventListener('tests:ride', on);
+    });
+    test('with a fit: no test button', () => {
+        const el = mount('model-card');
+        changed(model());
+        expect(el.querySelector('[data-mc="ride-test"]')).toBeNull();
+    });
 });
 
 describe('the power profile card', () => {

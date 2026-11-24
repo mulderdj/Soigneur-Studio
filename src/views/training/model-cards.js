@@ -11,6 +11,7 @@
 // data = {today, ftp, weight, summaries}
 //
 
+import { xf } from '../../functions.js';
 import { powerProfile, CATEGORIES } from '../../training/rider-model.js';
 import { modelSettings } from '../../training/rider-model-settings.js';
 import { durationLabel } from './chart-models.js';
@@ -20,6 +21,14 @@ let latest = null;
 const cards = new Set();
 window.addEventListener('rider-model:changed', e => {
     latest = e.detail?.data ?? null;
+    for(const c of cards) c.render();
+});
+// the test button is hidden during a ride
+let riding = false;
+xf.sub('db:watchStatus', s => {
+    const now = s === 'started' || s === 'paused';
+    if(now === riding) return;
+    riding = now;
     for(const c of cards) c.render();
 });
 
@@ -52,6 +61,7 @@ class ModelCard extends ModelCardBase {
         if(b.dataset.mode) modelSettings.set({mode: b.dataset.mode});
         else if(b.dataset.mc === 'use' && this.model?.offer) modelSettings.set({use: {cp: this.model.offer.cp, wprime: this.model.offer.wprime}});
         else if(b.dataset.mc === 'unuse') modelSettings.set({use: null});
+        else if(b.dataset.mc === 'ride-test' && !riding) { xf.dispatch('tests:ride', '3-12'); return; }
         this.render();
     }
 
@@ -79,7 +89,9 @@ class ModelCard extends ModelCardBase {
                 ${ofFtp}
                 <details class="mc-details"><summary>From your best efforts in the last 90 days</summary><ul class="mc-efforts">${efforts}</ul></details>`;
         } else {
-            body = `<p class="mc-missing">Not enough to fit your model yet. Needed: ${esc(fit.missing)}</p>`;
+            const ride = riding ? '' : ` <button type="button" class="btn btn--secondary" data-mc="ride-test">Ride the 3 + 12 min test</button>`;
+            body = `<p class="mc-missing">Not enough to fit your model yet. Needed: ${esc(fit.missing)}</p>
+                <p class="card__note mc-test">One trainer session gives both efforts.${ride}</p>`;
         }
         const using = eff.source === 'model' ?
             `<p class="card__note mc-using">W′bal uses the model: CP ${eff.cp} W, W′ ${kj(eff.wprime)}.${
