@@ -30,6 +30,7 @@ Soigneur Studio is based on [Auuki](https://github.com/dvmarinoff/Auuki) by Dimi
   * W′bal line on the ride chart, and peak power for 5 s, 30 s, 1, 5, 10, 20 and 60 min.
 * Light and dark theme, 4K / TV scaling, and statistics rebuilt from the recorded session after a page reload.
 
+* **Readiness**: every morning *Ready*, *Take care* or *Rest*, with the reasons (HRV against your range, resting heart rate, sleep, Body Battery, form). Before a hard planned workout on a bad morning the Ride page offers to ride it easier, swap it for a recovery spin, or move it, with Undo.
 * **Ride analysis**: open any ride (Soigneur, Garmin, intervals.icu or an imported `.fit`) on its own page: the whole ride on an interactive chart, its intervals with planned against actual per rep, decoupling and efficiency, W′bal with each match, durability, best efforts and time in zones. Garmin and intervals.icu rides are fetched by your account server when you open them.
 * **Your own layout**: several Ride screens to swipe between (Ride, Big numbers, Chart to start), and an Edit layout mode on Ride and Training to move, size, add and remove tiles and cards. Separate layouts for phones and larger screens, synced through your account.
 

@@ -240,6 +240,29 @@ async function main() {
             await context.close();
         }
     }
+    // the readiness note on the Ride page (the dev seed's take-care morning),
+    // before the simulated rider's clock starts, at every size
+    for(const [sizeName, size] of Object.entries(SIZES)) {
+        const context = await browser.newContext({viewport: {width: size.width, height: size.height}, hasTouch: !!size.phone});
+        await context.addInitScript(() => {
+            if(!('bluetooth' in navigator)) {
+                Object.defineProperty(navigator, 'bluetooth', {value: {
+                    getAvailability: async () => false, getDevices: async () => [],
+                    addEventListener() {}, removeEventListener() {},
+                }});
+            }
+        });
+        const page = await context.newPage();
+        await page.goto(`${url}/?simulate&history`, {waitUntil: 'domcontentloaded'});
+        const shown = await page.waitForSelector('readiness-note:not([hidden])', {timeout: 8000}).then(() => true, () => false);
+        if(!shown) failures.push(`readiness note @ ${sizeName}: not shown on the take-care morning`);
+        else {
+            for(const p of await page.evaluate(inspect, {isPhone: !!size.phone, longValues: false})) failures.push(`readiness note @ ${sizeName}: ${p}`);
+            await page.screenshot({path: path.join(outDir, `readiness-note-${sizeName}.png`)});
+        }
+        await context.close();
+    }
+
     // a custom layout: three screens (a large heart rate, no chart), every
     // screen and edit mode inspected at every size
     const custom = {version: 1, ride: Object.fromEntries(['phone', 'large'].map(cls => [cls, {screens: [

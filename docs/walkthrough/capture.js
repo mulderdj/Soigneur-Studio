@@ -205,6 +205,24 @@ async function shots(browser) {
         await context.close();
     }
 
+    // --- readiness: the take-care morning of the dev seed, before the clock starts ---
+    {
+        const {context, page} = await newPage(browser, {viewport: PHONE, phone: true});
+        await page.goto(`${url}/?simulate&history`, {waitUntil: 'domcontentloaded'});
+        if(await page.waitForSelector('readiness-note:not([hidden])', {timeout: 8000}).then(() => true, () => false)) {
+            await shot(page, 'readiness-note');
+        }
+        await context.close();
+    }
+    {
+        const {context, page} = await newPage(browser, {viewport: DESKTOP});
+        await page.goto(`${url}/?simulate&history`, {waitUntil: 'networkidle'});
+        await tab(page, '#training-tab-btn');
+        await pause(page, 1500);
+        await shotOf(page.locator('readiness-card'), 'readiness-card');
+        await context.close();
+    }
+
     // --- edit layout (not while riding, so on a fresh page) ---
     {
         const {context, page} = await newPage(browser, {viewport: DESKTOP});

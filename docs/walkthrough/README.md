@@ -63,6 +63,18 @@ The layout button at the top right (next to the connections) opens Edit layout. 
 
 <a href="img/training-desktop.png"><img src="img/training-desktop.png" alt="The Training page: form, this week and the calendar" width="720"></a>
 
+### Readiness
+
+| | |
+|---|---|
+| <a href="img/readiness-card.png"><img src="img/readiness-card.png" alt="The Readiness card: take care, with the reasons" width="460"></a> | <a href="img/readiness-note.png"><img src="img/readiness-note.png" alt="The note on the Ride page before a hard workout on a take-care morning" width="200"></a> |
+
+- **Every morning a verdict:** *Ready*, *Take care* or *Rest*, with what to do and the reasons: last night's HRV against your range, resting heart rate against its 30-day average, sleep, Body Battery, and your form from training.
+  - **Rest:** HRV below your range two nights or more in a row; or below it with resting heart rate up 5 bpm or more; or under 5 h of sleep after a hard day.
+  - **Take care:** one signal off (HRV below range, resting heart rate up 3 bpm, under 6 h of sleep, Body Battery under 30, form under −30).
+  - Without health data from last night, the verdict comes from your training load only, and the card says so.
+- **Before you ride:** when today's planned workout is hard and the verdict is *Take care* or *Rest*, the Ride page shows a note: **Ride it easier** (the same workout with everything above 85 % of FTP brought down to 85 %), or **Recovery spin instead** on a rest day, or **Move** it to the next free day. **Undo** is there for 10 seconds, and **Not now** hides the note for today. Nothing changes without your tap; a change syncs to intervals.icu like any plan change.
+
 ### Form
 
 <a href="img/training-form.png"><img src="img/training-form.png" alt="The form chart" width="420"></a>
