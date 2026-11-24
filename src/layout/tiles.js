@@ -98,13 +98,18 @@ function readTiles(tiles) {
 function readScreens(saved, fallback) {
     if(!isObj(saved) || !Array.isArray(saved.screens) || saved.screens.length === 0) return fallback;
     const ids = new Set();
-    return saved.screens.slice(0, MAX_SCREENS).map((s, i) => {
+    const screens = saved.screens.slice(0, MAX_SCREENS).map((s, i) => {
         let id = typeof s?.id === 'string' && s.id.trim() ? s.id.trim().slice(0, 40) : `screen-${i + 1}`;
         while(ids.has(id)) id = `${id}-${i + 1}`;
         ids.add(id);
         const name = typeof s?.name === 'string' && s.name.trim() ? s.name.trim().slice(0, 24) : `Screen ${i + 1}`;
         return {id, name, tiles: readTiles(s?.tiles)};
     });
+    // tiles were saved but none is known any more (renamed in an update):
+    // the built-in screens, not a Ride page without tiles
+    const hadTiles = saved.screens.some(s => Array.isArray(s?.tiles) && s.tiles.length > 0);
+    if(hadTiles && screens.every(s => s.tiles.length === 0)) return fallback;
+    return screens;
 }
 
 function readCards(saved, fallback) {

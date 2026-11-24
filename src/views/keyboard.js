@@ -1,6 +1,17 @@
 import { xf, exists } from '../functions.js';
 import { ControlMode, } from '../ble/enums.js';
 
+// keys that aren't ride shortcuts: typing in any field (in a form or not, e.g.
+// a screen name in Edit layout or W′), a key a control already handled (a tile
+// handle in Edit layout), and modifier combinations
+function ignoredKey(e) {
+    const t = e.target;
+    const typing = t?.closest?.('input, textarea, select, [contenteditable=""], [contenteditable="true"]');
+    return !!(e.defaultPrevented || e.isComposing || e.keyCode === 229 ||
+              e.ctrlKey || e.shiftKey || e.altKey || e.metaKey ||
+              typing || exists(t?.form));
+}
+
 function Keyboard() {
 
     const isKeyUp    = (code) => code === 'ArrowUp';
@@ -14,17 +25,9 @@ function Keyboard() {
     window.addEventListener('keydown', onKeydown.bind(this));
 
     function onKeydown(e) {
-        let keyCode = e.keyCode;
         let code = e.code;
 
-        if(e.isComposing ||
-            keyCode === 229 ||
-            e.ctrlKey ||
-            e.shiftKey ||
-            e.altKey ||
-            exists(e.target.form)) {
-            return;
-        }
+        if(ignoredKey(e)) return;
 
         if(isKeyUp(code)) {
             e.preventDefault();
@@ -113,4 +116,4 @@ function KeyboardControls() {
 Keyboard();
 KeyboardControls();
 
-export { Keyboard, KeyboardControls };
+export { Keyboard, KeyboardControls, ignoredKey };

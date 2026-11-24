@@ -51,6 +51,14 @@ describe('reading a saved layout', () => {
         const r = readLayout({version: 1, ride: {phone: {screens: [{id: 'a', tiles: []}, {id: 'a', tiles: []}]}}});
         expect(new Set(r.ride.phone.screens.map(s => s.id)).size).toBe(2);
     });
+    test('saved tiles that are all unknown (renamed in an update) give the built-in screens, never an empty Ride page', () => {
+        const r = readLayout({version: 1, ride: {phone: {screens: [{id: 'a', name: 'Old', tiles: [{id: 'old-tile'}, {id: 'gone'}]}, {id: 'b', tiles: []}]}}});
+        expect(r.ride.phone.screens.map(s => s.name)).toEqual(['Ride', 'Big numbers', 'Chart']);
+        // a rider's own empty screens are kept
+        const own = readLayout({version: 1, ride: {phone: {screens: [{id: 'a', name: 'Mine', tiles: [{id: 'power'}]}, {id: 'b', name: 'Empty', tiles: []}]}}});
+        expect(own.ride.phone.screens.map(s => s.name)).toEqual(['Mine', 'Empty']);
+    });
+
     test('Training: unknown cards dropped, missing cards appended hidden', () => {
         const r = readLayout({version: 1, training: {large: {cards: [{id: 'ftp', size: 'full'}, {id: 'nope'}, {id: 'form', size: 'x', hidden: true}]}}});
         const cards = r.training.large.cards;

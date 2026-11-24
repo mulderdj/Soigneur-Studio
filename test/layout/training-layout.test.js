@@ -25,6 +25,7 @@ function setup() {
 const shown = grid => [...grid.children].map(c => c.dataset.tile);
 
 beforeEach(() => {
+    while(layouts.editing) layouts.endEdit();      // an edit a previous test left open
     localStorage.clear();
     layouts.save(defaultLayouts());
     size(1440, 900);

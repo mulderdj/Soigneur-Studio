@@ -137,9 +137,9 @@ class TrainingLayout {
 
     done() {
         if(!this.editing) return;
-        const draft = this.draft;
+        const mine = this.draft.training[this.cls];
         this.end();
-        layouts.save(draft);
+        layouts.saveSection('training', this.cls, mine);   // only Training, this screen class
         layouts.endEdit();
         this.apply();
     }

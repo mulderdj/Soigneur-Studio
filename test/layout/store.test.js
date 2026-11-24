@@ -67,4 +67,38 @@ describe('the layout store', () => {
         s.fromProfile({layouts: mine()});
         expect(s.get().ride.phone.screens[0].name).toBe('Mine');
     });
+
+    test('two pages editing: each Done saves its own part, neither undoes the other', () => {
+        const {s} = store();
+        s.beginEdit();                                    // Training
+        s.beginEdit();                                    // Ride
+        const ride = s.get().ride.large; ride.screens[0].name = 'Ride edit';
+        s.saveSection('ride', 'large', ride);
+        s.endEdit();
+        const training = defaultLayouts().training.large; training.cards[0].hidden = true;   // from Training's older snapshot
+        s.saveSection('training', 'large', training);
+        s.endEdit();
+        expect(s.get().ride.large.screens[0].name).toBe('Ride edit');
+        expect(s.get().training.large.cards[0].hidden).toBe(true);
+    });
+    test('a layout from the account meanwhile keeps the parts the rider did not edit', () => {
+        const {s} = store();
+        s.beginEdit();
+        const remote = defaultLayouts(); remote.ride.phone.screens[0].name = 'From the phone'; remote.ride.large.screens[0].name = 'Remote large';
+        s.applyRemote(remote);
+        const mineLarge = s.get().ride.large; mineLarge.screens[0].name = 'Edited large';
+        s.saveSection('ride', 'large', mineLarge);
+        s.endEdit();
+        expect(s.get().ride.large.screens[0].name).toBe('Edited large');
+        expect(s.get().ride.phone.screens[0].name).toBe('From the phone');
+    });
+    test('editing on one page holds a remote layout even after the other page ends its edit', () => {
+        const {s} = store();
+        s.beginEdit(); s.beginEdit();
+        s.endEdit();
+        s.applyRemote(mine());
+        expect(s.get().ride.phone.screens[0].name).toBe('Ride');
+        s.endEdit();
+        expect(s.get().ride.phone.screens[0].name).toBe('Mine');
+    });
 });

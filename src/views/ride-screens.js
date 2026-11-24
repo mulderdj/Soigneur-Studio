@@ -35,7 +35,7 @@ const typing = el => !!el?.closest?.('input, textarea, select, [contenteditable=
 
 class RideScreens extends HTMLElement {
     connectedCallback() {
-        if(this.$track) return;
+        if(this.$track) { this.resizeObserver?.observe(this.$track); return; }
         this.state = {watchStatus: 'stopped', workoutStatus: 'stopped'};
         this.screen = 0;
         this.editing = false;
@@ -88,6 +88,7 @@ class RideScreens extends HTMLElement {
         this.$dots.addEventListener('pointerdown', e => this.onDotDown(e), signal);
         this.$dots.addEventListener('keydown', e => this.onDotKey(e), signal);
         this.$track.addEventListener('scroll', () => this.onScroll(), {passive: true, ...signal});
+        this.$track.addEventListener('scrollend', () => this.scrolled(), signal);
         this.$track.addEventListener('pointerdown', e => this.onEdgeDown(e), signal);
         this.$track.addEventListener('pointerup', e => this.onEdgeUp(e), signal);
         window.addEventListener('keydown', e => this.onKey(e), signal);
@@ -96,6 +97,10 @@ class RideScreens extends HTMLElement {
         xf.sub('db:workoutStatus', s => this.onState({workoutStatus: s}), signal);
         xf.sub('layouts:changed', () => { if(!this.editing) this.render(); }, signal);
         window.addEventListener('resize', () => this.onResize(), signal);
+        // the screens area changes size without a window resize too (the
+        // header hides while riding on the handlebars): fit again
+        this.resizeObserver = typeof ResizeObserver === 'function' ? new ResizeObserver(() => this.fit()) : null;
+        this.resizeObserver?.observe(this.$track);
 
         this.layoutName = currentLayout();
         this.screen = this.restore();
@@ -104,7 +109,9 @@ class RideScreens extends HTMLElement {
     }
 
     disconnectedCallback() {
+        if(this.editing) { this.end(); layouts.endEdit(); }
         this.abort?.abort();
+        this.resizeObserver?.disconnect();
     }
 
     // --- the layout in use ---
@@ -177,19 +184,26 @@ class RideScreens extends HTMLElement {
         this.scrolling = true;
         this.$track.scrollTo?.({left: this.screen * w, behavior: smooth ? 'smooth' : 'instant'});
         clearTimeout(this.scrollTimer);
-        this.scrollTimer = setTimeout(() => { this.scrolling = false; }, smooth ? 600 : 50);
+        // when the scroll is over ('scrollend', or this timer where there is
+        // none): the screen the track really stopped at, in case the rider
+        // swiped on meanwhile
+        this.scrollTimer = setTimeout(() => this.scrolled(), smooth ? 700 : 50);
+    }
+
+    scrolled() {
+        clearTimeout(this.scrollTimer);
+        this.scrolling = false;
+        const w = this.$track.clientWidth;
+        if(!(w > 0)) return;
+        const i = Math.round(this.$track.scrollLeft / w);
+        if(i !== this.screen) this.show(i, {scroll: false});
     }
 
     // a swipe ends: the screen that snapped into view
     onScroll() {
         if(this.scrolling) return;
         clearTimeout(this.settle);
-        this.settle = setTimeout(() => {
-            const w = this.$track.clientWidth;
-            if(!(w > 0)) return;
-            const i = Math.round(this.$track.scrollLeft / w);
-            if(i !== this.screen) this.show(i, {scroll: false});
-        }, 120);
+        this.settle = setTimeout(() => this.scrolled(), 120);
     }
 
     onKey(e) {
@@ -385,12 +399,16 @@ class RideScreens extends HTMLElement {
         this.say(`${s.name} moved to place ${to + 1}`);
     }
 
+    // on a dot: ← → switch screens (focus follows); in Edit layout Shift + ← →
+    // moves the screen
     onDotKey(e) {
         const d = e.target.closest('[data-dot]');
-        if(!d || !this.editing || !e.shiftKey || (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight')) return;
+        if(!d || (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight')) return;
         e.preventDefault();
-        const i = Number(d.dataset.dot);
-        this.moveScreen(i, i + (e.key === 'ArrowRight' ? 1 : -1));
+        const i = Number(d.dataset.dot), step = e.key === 'ArrowRight' ? 1 : -1;
+        if(this.editing && e.shiftKey) { this.moveScreen(i, i + step); return; }
+        this.show(i + step);
+        this.$dots.querySelector(`[data-dot="${this.screen}"]`)?.focus();
     }
 
     // edit mode: drag a dot onto another to move that screen there
@@ -455,9 +473,9 @@ class RideScreens extends HTMLElement {
 
     done() {
         if(!this.editing) return;
-        const draft = this.draft;
+        const mine = this.draft.ride[this.cls];
         this.end();
-        layouts.save(draft);          // re-renders through layouts:changed
+        layouts.saveSection('ride', this.cls, mine);   // only Ride, this screen class
         layouts.endEdit();
         this.render();
     }

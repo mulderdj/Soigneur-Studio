@@ -33,6 +33,7 @@ const screenEl = (el, i) => el.querySelector(`[data-screen="${i}"]`);
 const riding = (state) => xf.dispatch(`db:${Object.keys(state)[0]}`, state);
 
 beforeEach(() => {
+    while(layouts.editing) layouts.endEdit();      // an edit a previous test left open
     localStorage.clear();
     layouts.save(defaultLayouts());
     size(1440, 900);                                   // desktop: the large layout
@@ -153,6 +154,26 @@ describe('editing the layout', () => {
 });
 
 describe('screen sizes', () => {
+    test('the handlebar fit is measured again when the screens area changes size (the header hides while riding)', () => {
+        const observed = [];
+        const RO = globalThis.ResizeObserver;
+        globalThis.ResizeObserver = class { constructor(cb) { this.cb = cb; observed.push(this); } observe(el) { this.el = el; } disconnect() { this.gone = true; } };
+        try {
+            size(844, 390);
+            const el = page();
+            const fits = [];
+            el.fit = () => fits.push(1);
+            const ro = observed.find(o => o.el === el.$track);
+            expect(ro).toBeDefined();
+            ro.cb([]);
+            expect(fits.length).toBe(1);
+            el.remove();
+            expect(ro.gone).toBe(true);
+        } finally {
+            globalThis.ResizeObserver = RO;
+        }
+    });
+
     test('turning a phone keeps the screen in view', () => {
         size(390, 844);
         const el = page();
@@ -200,6 +221,14 @@ describe('several screens', () => {
         expect(el.screen).toBe(1);
     });
 
+    test('← → on a focused dot (after clicking one) switch screens, and focus follows', () => {
+        const el = page();
+        el.querySelector('[data-dot="1"]').click();
+        el.querySelector('[data-dot="1"]').dispatchEvent(new KeyboardEvent('keydown', {key: 'ArrowRight', bubbles: true, cancelable: true}));
+        expect(el.screen).toBe(2);
+        expect(document.activeElement).toBe(el.querySelector('[data-dot="2"]'));
+    });
+
     test('the screen in view is remembered on this device, and falls back to the first', () => {
         let el = page();
         el.show(2);
@@ -209,6 +238,23 @@ describe('several screens', () => {
         layouts.save(fewer);
         el = page();
         expect(el.screen).toBe(0);
+    });
+
+    test('a swipe right after tapping a dot still ends on the screen that snapped into view', () => {
+        jest.useFakeTimers();
+        try {
+            const el = page();
+            Object.defineProperty(el.$track, 'clientWidth', {value: 400, configurable: true});
+            el.$track.scrollTo = ({left}) => { el.$track.scrollLeft = left; };
+            el.show(1);                                   // the dot: a smooth scroll to screen 2
+            el.$track.scrollLeft = 800;                   // the rider swipes on to screen 3 meanwhile
+            el.$track.dispatchEvent(new Event('scroll'));
+            jest.advanceTimersByTime(1000);
+            expect(el.screen).toBe(2);
+            expect(screenEl(el, 2).querySelector('[data-tile="power"]').firstElementChild.id).toBe('data-tile--power');
+        } finally {
+            jest.useRealTimers();
+        }
     });
 
     test('one screen: no dots', () => {
