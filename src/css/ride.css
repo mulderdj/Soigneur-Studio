@@ -86,16 +86,22 @@
     stroke-linejoin: round;
 }
 
-/* the screens' dots: no room of their own, centred in the gap just above
-   the tiles; each dot keeps a 44 px tap area over that gap */
+/* the screens' dots: no room of their own, centred between the header and
+   the tiles (two grid gaps: the readiness note's empty row lies between);
+   each dot keeps a 44 px tap area over that space */
 .ride__dots {
     grid-area: screens;
     align-self: start;
     position: relative;
     z-index: 1;
-    top: calc(-0.5 * var(--ride-gap, var(--space-2)));
+    top: calc(-1 * var(--ride-gap, var(--space-2)));
     height: 0;
     pointer-events: none;
+}
+
+/* with the readiness note showing, only one gap is left above the tiles */
+.ride:has(> .ride__note:not([hidden])) .ride__dots {
+    top: calc(-0.5 * var(--ride-gap, var(--space-2)));
 }
 
 .ride__dots .rs-dot { pointer-events: auto; }
