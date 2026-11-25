@@ -1,4 +1,4 @@
-<img src="src/images/logo/logo-192.png" alt="" width="72" height="72">
+<img src="src/images/logo/lockup.png" alt="Soigneur Studio" width="320">
 
 # Soigneur Studio
 
