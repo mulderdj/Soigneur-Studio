@@ -46,7 +46,7 @@
 		header @manifest Content-Type "application/manifest+json"
 		# the service worker and the page must always be checked for a new
 		# build (the other files carry the build's hash in their names)
-		@fresh path / /index.html /sw.js
+		@fresh path / /index.html /sw.js /manifest.webmanifest
 		header @fresh Cache-Control "no-cache"
 	}
 }
