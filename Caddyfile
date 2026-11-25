@@ -12,6 +12,12 @@
 	# inside Docker the address the connection arrives on is the container's
 	# own: without this Caddy finds no certificate (ERR_SSL_PROTOCOL_ERROR)
 	default_sni {$SOIGNEUR_HOST:localhost}
+	# the local CA: an intermediate for 30 days (Caddy's default is 7)
+	pki {
+		ca local {
+			intermediate_lifetime 30d
+		}
+	}
 }
 
 (app) {
@@ -56,6 +62,13 @@
 # SOIGNEUR_HOST=soigneur.local. Trust Caddy's root certificate on those
 # devices (see README) so the browser treats the page as secure.
 {$SOIGNEUR_HOST:localhost}:8443 {
-	tls internal
+	# certificates for 7 days instead of Caddy's 12 hours, renewed well
+	# before they run out: one renewal that doesn't happen no longer leaves
+	# the phones with an insecure connection (no install, no Bluetooth)
+	tls {
+		issuer internal {
+			lifetime 7d
+		}
+	}
 	import app
 }
