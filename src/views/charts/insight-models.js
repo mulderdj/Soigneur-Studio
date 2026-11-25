@@ -59,12 +59,14 @@ function repsChart({analysis, ftp}, c = {}) {
 function recoveryChart({samples, analysis, ftp, pauses}, c = {}) {
     const list = hrRecovery(samples, analysis, ftp, pauses);
     if(!list.length) return empty();
+    // the bars side by side, each labelled with its effort's number (efforts
+    // without a full minute after them, like 40/20s, have no bar)
     const model = {
         time: false,
-        x: list.map(r => r.n),
-        xTicks: list.map(r => r.n),
-        xRange: [0.5, list[list.length - 1].n + 0.5],
-        xFormat: n => `${n}`,
+        x: list.map((_, i) => i + 1),
+        xTicks: list.map((_, i) => i + 1),
+        xRange: [0.5, list.length + 0.5],
+        xFormat: i => `${list[i - 1]?.n ?? ''}`,
         series: [{label: 'Drop in 60 s', color: c.good, kind: 'bars', values: list.map(r => r.drop)}],
         // a heart rate still rising after an effort shows below zero
         yRange: [Math.min(0, ...list.map(r => r.drop)), null],
