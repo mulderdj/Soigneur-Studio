@@ -68,3 +68,15 @@ describe('generated training history', () => {
         expect(a.thresholds).toEqual({cycling: 165, running: 172});
     });
 });
+
+describe('today in the dev seed', () => {
+    test('is a hard planned day on every weekday (the readiness note needs one)', () => {
+        const { isHard } = require('../../src/training/readiness.js');
+        for(let d = 0; d < 7; d++) {
+            const today = new Date(Date.UTC(2026, 10, 23 + d)).toISOString().slice(0, 10);
+            const { plan } = generateHistory({today});
+            const entry = plan.find(e => e.day === today && !e.deleted);
+            expect(entry && isHard(entry.workout, 250)).toBe(true);
+        }
+    });
+});
