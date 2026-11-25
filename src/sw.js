@@ -7,6 +7,10 @@
 //   doesn't answer within NAV_TIMEOUT (so online you always get the newest
 //   build; offline the last one this device saw)
 // - the build's files: cache first (their names change with every build)
+// - the web app manifest: network first too (its name never changes, and an
+//   old copy points to icons of an old build, which breaks installing)
+// - a new build takes over at once (skipWaiting), not only after every tab
+//   of the app has been closed
 // - Google Fonts: cache first, kept after the first visit
 // - the account server (/api/) and the root certificate: never cached; the
 //   app keeps its data in IndexedDB and syncs when the connection returns
@@ -32,7 +36,7 @@ self.addEventListener('install', e => {
         // the page, scripts and styles must all be there; an image that fails is fetched later
         await cache.addAll(files.filter(essential));
         await Promise.all(files.filter(url => !essential(url)).map(url => cache.add(url).catch(() => {})));
-    }));
+    }).then(() => self.skipWaiting()));
 });
 
 self.addEventListener('activate', e => {
@@ -51,18 +55,20 @@ function withTimeout(promise, ms) {
     });
 }
 
-async function page(request) {
+// network first, the cached copy when the server doesn't answer in time;
+// `key` is where it is kept ('/' for the page)
+async function page(request, key = '/') {
     const cache = await caches.open(CACHE);
     const network = fetch(request);
     try {
         const res = await withTimeout(network, NAV_TIMEOUT);
-        if(res.ok) cache.put('/', res.clone());
+        if(res.ok) cache.put(key, res.clone());
         return res;
     } catch(e) {
-        const cached = await cache.match('/') ?? await cache.match('/index.html');
+        const cached = key === '/' ? (await cache.match('/') ?? await cache.match('/index.html')) : await cache.match(key);
         if(cached) {
             // a slow answer that arrives later still refreshes the cached page
-            network.then(res => { if(res.ok) cache.put('/', res.clone()); }).catch(() => {});
+            network.then(res => { if(res.ok) cache.put(key, res.clone()); }).catch(() => {});
             return cached;
         }
         return network;
@@ -88,5 +94,6 @@ self.addEventListener('fetch', e => {
     if(url.pathname.startsWith('/api/') || url.pathname === '/soigneur-root.crt') return;
 
     if(request.mode === 'navigate') { e.respondWith(page(request)); return; }
+    if(url.pathname === '/manifest.webmanifest') { e.respondWith(page(request, '/manifest.webmanifest')); return; }
     e.respondWith(cacheFirst(request, CACHE));
 });
