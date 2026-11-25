@@ -90,6 +90,12 @@ function generateHistory({today, days = 120, ftp = 250, weight = 75, seed = 1} =
             rideId: done ? `seed-${day}` : null, deleted: false, updatedAt: 0, dirty: false,
         });
     }
+    // today is always a hard day, whatever the weekday: with last night's
+    // take-care health data (below) the Ride page then shows the readiness note
+    // (the visual check relies on it)
+    const todayEntry = plan.find(e => e.day === today);
+    if(todayEntry) todayEntry.workout = toWorkout('vo2');
+    else plan.push({id: `seed-plan-${today}`, day: today, workout: toWorkout('vo2'), rideId: null, deleted: false, updatedAt: 0, dirty: false});
     // make sure there's a missed day to see
     const past = plan.filter(e => e.day < today && !e.rideId);
     if(past.length === 0) {
