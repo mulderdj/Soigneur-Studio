@@ -28,7 +28,7 @@ class RepsCard extends InsightCard {
 
 class RecoveryCard extends InsightCard {
     get title() { return 'Heart-rate recovery'; }
-    get note() { return 'How far your heart rate drops in the 60 s after each effort. Bigger is fitter; it gets smaller as the session tires you.'; }
+    get note() { return 'How far your heart rate drops in the 60 s after each effort (numbered as in Rep by rep). Bigger is fitter; it gets smaller as the session tires you. Efforts followed by another within a minute, like 40/20s, have no bar.'; }
     chart() { return recoveryChart(this.data, colors(this)); }
 }
 
