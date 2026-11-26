@@ -1,3 +1,4 @@
+// @ts-check
 //
 // Auuki's own ride summaries together with rides from outside (Garmin,
 // imported .fit files, intervals.icu), without counting a ride twice. An

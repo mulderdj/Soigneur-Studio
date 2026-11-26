@@ -1,3 +1,4 @@
+// @ts-check
 //
 // Local calendar days as 'YYYY-MM-DD' strings. All day arithmetic goes
 // through local-noon Dates, so daylight-saving changes never move a day.
@@ -30,7 +31,7 @@ function addDays(day, n) {
 }
 
 function daysBetween(a, b) {
-    return Math.round((dayToDate(b) - dayToDate(a)) / DAY_MS);
+    return Math.round((dayToDate(b).getTime() - dayToDate(a).getTime()) / DAY_MS);
 }
 
 function weekStart(day) {

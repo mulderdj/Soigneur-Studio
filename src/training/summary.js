@@ -1,3 +1,4 @@
+// @ts-check
 //
 // A ride summary: the small record the Training page works from. Built
 // from per-second samples with the same statistics engine as the live

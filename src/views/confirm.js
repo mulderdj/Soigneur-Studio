@@ -1,3 +1,4 @@
+// @ts-check
 //
 // Styled in-app confirmation dialog (replaces blocking native window.confirm()).
 //
@@ -18,6 +19,7 @@ function confirmAction({title = 'Confirm', message = '', confirmLabel = 'Confirm
     // cancel any superseded dialog cleanly
     if(pending) { pending.resolve(false); pending = null; }
 
+    /** @type {HTMLDialogElement | null} */
     let dlg = document.querySelector('#dialog--confirm');
     if(!dlg) {
         dlg = document.createElement('dialog');
@@ -52,8 +54,9 @@ function confirmAction({title = 'Confirm', message = '', confirmLabel = 'Confirm
             resolve(value);
         };
         const onClick = (e) => {
-            if(e.target === dlg || e.target.closest('[data-confirm="cancel"]')) finish(false);
-            else if(e.target.closest('[data-confirm="ok"]')) finish(true);
+            const target = /** @type {Element | null} */ (e.target);
+            if(target === dlg || target?.closest('[data-confirm="cancel"]')) finish(false);
+            else if(target?.closest('[data-confirm="ok"]')) finish(true);
         };
         const onCancel = (e) => { e.preventDefault(); finish(false); };
         const onClose = () => finish(false);
@@ -64,7 +67,7 @@ function confirmAction({title = 'Confirm', message = '', confirmLabel = 'Confirm
         dlg.addEventListener('close', onClose);
         if(typeof dlg.showModal === 'function') dlg.showModal();
         else dlg.open = true;
-        dlg.querySelector('[data-confirm="cancel"]')?.focus?.();
+        /** @type {HTMLElement | null} */ (dlg.querySelector('[data-confirm="cancel"]'))?.focus?.();
     });
 }
 

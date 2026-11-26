@@ -1,3 +1,4 @@
+// @ts-check
 //
 // One ride, analysed: per interval, planned against actual, and the whole
 // ride (W′bal and matches, zones, best efforts, decoupling, efficiency,

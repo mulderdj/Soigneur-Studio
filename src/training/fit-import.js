@@ -1,3 +1,4 @@
+// @ts-check
 //
 // .fit import on the Training page: rides intervals.icu can't provide
 // (Strava-sourced, or Garmin's when its API access is blocked). Each
@@ -15,7 +16,7 @@ function baseName(name = '') {
     return String(name).replace(/\.fit$/i, '') || 'Imported ride';
 }
 
-async function importFitFiles(files = [], {ftp, weight} = {}) {
+async function importFitFiles(files = [], {ftp = undefined, weight = undefined} = {}) {
     const added = [], skipped = [], unreadable = [];
     const starts = (await history.summaries()).map(s => Number(s.start)).filter(Number.isFinite);
 

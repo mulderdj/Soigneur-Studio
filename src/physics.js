@@ -1,3 +1,4 @@
+// @ts-check
 
 // Qubic
 // Source: https://stackoverflow.com/questions/27176423/function-to-solve-cubic-equation-analytically

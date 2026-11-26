@@ -1,3 +1,4 @@
+// @ts-check
 //
 // Planning through the MCP server: workouts from a compact description, and
 // Soigneur's own check of what an AI proposes, before anything is stored.
@@ -184,7 +185,9 @@ function checkPlan(ctx, change, opts = {}) {
     const rows = pmc(byDay, first, addDays(today, -1));
     const last = rows.at(-1) ?? {ctl: 0, atl: 0};
     const lastDay = [...touched, ...[...planned.keys()]].sort().at(-1) ?? today;
-    const fc = forecast(last, new Map([...planned, ...(ridden.has(today) ? [[today, byDay.get(today) ?? 0]] : [])]), addDays(today, -1), Math.max(1, daysBetween(today, lastDay) + 1));
+    const fcPlan = new Map(planned);
+    if(ridden.has(today)) fcPlan.set(today, byDay.get(today) ?? 0);
+    const fc = forecast(last, fcPlan, addDays(today, -1), Math.max(1, daysBetween(today, lastDay) + 1));
     const ctlOn = new Map(fc.map(r => [r.day, r.ctl]));
     for(const r of rows) ctlOn.set(r.day, r.ctl);
     const ctlAt = day => ctlOn.get(day) ?? (day < first ? 0 : last.ctl);

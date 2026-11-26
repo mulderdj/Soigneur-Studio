@@ -1,3 +1,4 @@
+// @ts-check
 //
 // The rider model (cycling): best power over the last 90 days, critical
 // power (CP) and W′ fitted from it, which CP and W′ W′bal uses, and the
@@ -98,7 +99,7 @@ function fitCp(meanMax = {}) {
     return {ok: true, cp: Math.round(cp), wprime: Math.round(wprime), r2: Math.round(r2 * 1000) / 1000, points: fitPts};
 }
 
-function effective({fit, settings = {}, ftp, typedWprime}) {
+function effective({fit, settings = /** @type {{mode?: string, use?: {cp: number, wprime: number} | null}} */ ({}), ftp, typedWprime}) {
     const own = {cp: ftp, wprime: typedWprime, source: 'settings'};
     if(settings.mode === 'auto') return fit?.ok ? {cp: fit.cp, wprime: fit.wprime, source: 'model'} : own;
     const use = settings.use;

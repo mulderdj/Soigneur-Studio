@@ -1,3 +1,4 @@
+// @ts-check
 //
 // In-app toast notifications: top-layer (`popover="manual"` with fixed fallback),
 // accessible (`role="status"`, `aria-live="polite"`), auto-dismissing, and

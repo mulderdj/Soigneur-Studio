@@ -1,3 +1,4 @@
+// @ts-check
 //
 // Readiness: one verdict for today — 'ready', 'take-care' or 'rest' — with
 // its reasons, from last night's health data (Garmin) and the training load;
@@ -33,7 +34,7 @@ const REST_AVERAGE_DAYS = 30;
 
 const anyHealth = d => [d?.hrv, d?.restingHr, d?.sleepSeconds, d?.bodyBattery].some(has);
 
-function readiness({today, days = [], summaries = [], ftp = 250} = {}) {
+function readiness({today = undefined, days = [], summaries = [], ftp = 250} = {}) {
     const list = sortedDays(days);
     // last night: Garmin files it under the morning's date; a day behind still counts
     const night = [today, addDays(today, -1)].map(d => list.find(x => x.day === d)).find(anyHealth) ?? null;

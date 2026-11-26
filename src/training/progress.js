@@ -1,3 +1,4 @@
+// @ts-check
 //
 // Progress statistics over ride summaries: weekly volume, this week vs.
 // last week, power curve, estimated FTP and time in zones.

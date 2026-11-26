@@ -1,3 +1,4 @@
+// @ts-check
 //
 // The numbers behind the extra charts, pure.
 //

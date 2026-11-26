@@ -8,6 +8,7 @@
     },
     "scripts": {
         "test": "jest",
+        "typecheck": "tsc --noEmit",
         "start": "vite",
         "starttls": "VITE_HTTPS=1 vite",
         "build": "vite build",
@@ -19,12 +20,14 @@
     "devDependencies": {
         "@babel/core": "^7.29.7",
         "@babel/plugin-transform-modules-commonjs": "^7.29.7",
+        "@types/node": "^26.6.11",
         "babel-jest": "^30.5.2",
         "fake-indexeddb": "^6.2.6",
         "jest": "^30.5.2",
         "jest-environment-jsdom": "^30.5.2",
         "playwright-core": "^1.65.1",
         "process": "^0.11.10",
+        "typescript": "^7.0.2",
         "vite": "^8.4.0"
     },
     "dependencies": {

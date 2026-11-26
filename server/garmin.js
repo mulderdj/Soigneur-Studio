@@ -1,3 +1,4 @@
+// @ts-check
 'use strict';
 
 //
@@ -96,7 +97,7 @@ function listOf(res, ...keys) {
     return [];
 }
 
-function wellnessFrom({hrv, daily, sleep, bodyBattery, stress, weight, vo2} = {}) {
+function wellnessFrom({hrv = undefined, daily = undefined, sleep = undefined, bodyBattery = undefined, stress = undefined, weight = undefined, vo2 = undefined} = {}) {
     const days = new Map();
     const set = (day, key, value) => {
         if(!day || value === null || value === undefined) return;

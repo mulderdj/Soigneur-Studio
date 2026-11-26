@@ -1,3 +1,4 @@
+// @ts-check
 //
 // Fitness (CTL, 42 days), fatigue (ATL, 7 days) and form (TSB): the
 // exponentially weighted daily TSS model. Form is yesterday's fitness minus

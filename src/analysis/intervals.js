@@ -1,3 +1,4 @@
+// @ts-check
 //
 // A ride's intervals, from (in this order) the workout it followed, the
 // file's laps, or the power itself.
@@ -45,7 +46,7 @@ const toFrac = (p, ftp) => (p >= WATTS_FROM ? (ftp > 0 ? p / ftp : 0) : p);
 const toWatts = (p, ftp) => Math.round(p >= WATTS_FROM ? p : p * ftp);
 const pausedIn = (a, b, pauses = []) => pauses.reduce((n, p) => n + Math.max(0, Math.min(b, p.end) - Math.max(a, p.start)), 0);
 
-function intervalsFromSteps(workout, samples, {ftp, pauses = [], laps = []} = {}) {
+function intervalsFromSteps(workout, samples, {ftp = 0, pauses = [], laps = []} = {}) {
     const offset = lapOffset(workout, laps, pauses);
     if(offset !== null) return stepsOnLaps(workout, samples, {ftp, pauses, laps: laps.slice(offset)});
     const n = samples.length;
@@ -153,7 +154,7 @@ function detectIntervals(samples, ftp, pauses = []) {
     return merged.filter(e => e.end - e.start >= MIN_EFFORT).map((e, i) => ({...e, kind: 'work', rep: i + 1}));
 }
 
-function pickIntervals({workout = null, laps = [], samples = [], pauses = [], ftp} = {}) {
+function pickIntervals({workout = null, laps = [], samples = [], pauses = [], ftp = 0} = {}) {
     if(workout?.intervals?.length) {
         const {intervals, target} = intervalsFromSteps(workout, samples, {ftp, pauses, laps});
         return {source: 'workout', intervals, target};

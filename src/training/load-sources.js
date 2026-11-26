@@ -1,3 +1,4 @@
+// @ts-check
 //
 // A training load (TSS) for every workout, from the best data it has:
 //

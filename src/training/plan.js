@@ -1,3 +1,4 @@
+// @ts-check
 //
 // The training plan: planned TSS of a workout, the status of a plan entry,
 // matching a saved ride to the plan, and whether to pick today's workout.

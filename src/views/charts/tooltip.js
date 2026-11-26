@@ -1,3 +1,4 @@
+// @ts-check
 //
 // Top-layer chart tooltip shared by Training (uPlot), Ride Analysis (uPlot),
 // and Ride (live canvas chart).

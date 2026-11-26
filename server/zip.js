@@ -1,3 +1,4 @@
+// @ts-check
 //
 // The .fit inside a ZIP (Garmin's activity download: one deflated
 // <id>_ACTIVITY.fit). Reads the central directory; stored and deflated

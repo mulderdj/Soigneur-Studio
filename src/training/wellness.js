@@ -1,3 +1,4 @@
+// @ts-check
 //
 // Health days (from Garmin): last night's HRV against the rider's normal
 // range, and resting heart rate against its recent average.

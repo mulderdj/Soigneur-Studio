@@ -1,3 +1,4 @@
+// @ts-check
 //
 // The durations (seconds) the rider model keeps a best power for: the same
 // list as src/training/summary.js DURATIONS.

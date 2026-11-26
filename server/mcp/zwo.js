@@ -1,3 +1,4 @@
+// @ts-check
 //
 // A .zwo workout read without a DOM (the app's reader needs DOMParser): the
 // same {meta, intervals: [{duration, steps: [{duration, power, cadence?}]}]}
