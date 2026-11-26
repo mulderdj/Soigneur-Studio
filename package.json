@@ -6,18 +6,12 @@
     "engines": {
         "node": ">=22.18.0"
     },
-    "source": "src/index.html",
-    "targets": {
-        "default": {
-            "context": "browser",
-            "includeNodeModules": true
-        }
-    },
     "scripts": {
         "test": "jest",
-        "start": "parcel",
-        "starttls": "parcel --cert ./dev_cert/cert.pem --key ./dev_cert/key.pem",
-        "build": "parcel build",
+        "start": "vite",
+        "starttls": "VITE_HTTPS=1 vite",
+        "build": "vite build",
+        "preview": "vite preview",
         "server": "node server/index.js",
         "test:server": "node --test server/app.spec.mjs server/connections.spec.mjs server/intervals.spec.mjs server/intervals-sync.spec.mjs server/garmin.spec.mjs server/garmin-sync.spec.mjs server/zip.spec.mjs server/ride-files.spec.mjs server/access-tokens.spec.mjs server/mcp/mcp.spec.mjs",
         "check:visual": "node test/visual/check.js"
@@ -25,23 +19,13 @@
     "devDependencies": {
         "@babel/core": "^7.29.7",
         "@babel/plugin-transform-modules-commonjs": "^7.29.7",
-        "@parcel/packager-raw-url": "^2.16.4",
-        "@parcel/service-worker": "^2.16.4",
-        "@parcel/transformer-webmanifest": "^2.16.4",
         "babel-jest": "^30.5.2",
         "fake-indexeddb": "^6.2.6",
         "jest": "^30.5.2",
         "jest-environment-jsdom": "^30.5.2",
-        "parcel": "^2.16.4",
         "playwright-core": "^1.65.1",
-        "process": "^0.11.10"
-    },
-    "allowScripts": {
-        "@parcel/watcher": false,
-        "@swc/core": false,
-        "lmdb": false,
-        "msgpackr-extract": false,
-        "unrs-resolver": false
+        "process": "^0.11.10",
+        "vite": "^8.4.0"
     },
     "dependencies": {
         "@modelcontextprotocol/sdk": "1.32.2",

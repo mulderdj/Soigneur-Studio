@@ -6,13 +6,12 @@
 # Browsers only allow those APIs on https:// or http://localhost, which is
 # why Caddy also serves HTTPS.
 
-# glibc image: Parcel's native modules (swc, lmdb, watcher) install cleanly
 FROM node:22-slim AS build
 WORKDIR /app
 COPY package.json package-lock.json ./
 RUN npm ci --no-audit --no-fund
 COPY . .
-RUN npx parcel build --no-cache --dist-dir dist
+RUN npm run build
 
 FROM caddy:2-alpine
 COPY Caddyfile /etc/caddy/Caddyfile

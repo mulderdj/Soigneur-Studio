@@ -3,6 +3,7 @@
  * One column on phones and tablets; two columns from 1200 px.
  */
 
+@layer pages {
 .settings,
 .sub-tab.settings {
     display: grid;
@@ -303,7 +304,7 @@ battery-level.critical::before { background-color: var(--danger); }
 #ant-device-request {
     position: fixed;
     inset: 0;
-    z-index: 60;
+    z-index: var(--z-modal);
     display: none;
     place-items: start center;
     padding: var(--space-4);
@@ -422,4 +423,5 @@ hr-thresholds {
     height: auto;
     margin: var(--space-2) 0 var(--space-3);
     color: var(--ink);
+}
 }

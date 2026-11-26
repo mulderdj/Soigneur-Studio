@@ -19,7 +19,9 @@
 // Registered by index.js in production builds only, never on the dev server.
 //
 
-import { manifest, version } from '@parcel/service-worker';
+// Injected at build time by vite.config.mjs (soigneurPwaPlugin)
+const manifest = __SOIGNEUR_MANIFEST__;
+const version = __SOIGNEUR_VERSION__;
 
 const PREFIX = 'soigneur-';
 const CACHE = `${PREFIX}${version}`;

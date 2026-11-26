@@ -1,4 +1,4 @@
-@import "npm:uplot/dist/uPlot.min.css"; /* the chart engine's own layout (overlay, cursor, selection) */
+@import "uplot/dist/uPlot.min.css" layer(components); /* the chart engine's own layout (overlay, cursor, selection) */
 
 /*
  * Training page layout: form, this week, calendar, progress.
@@ -6,6 +6,7 @@
  * From 1200 px: form and this week side by side above the calendar.
  */
 
+@layer pages {
 .training-content {
     max-width: 1280px;
 }
@@ -700,10 +701,7 @@
 
 /* ---------- interactive charts (uPlot) ---------- */
 
-uplot-card, .uc-card { position: relative; overflow: visible; } /* a tall read-out may reach past the card */
-uplot-card.has-tip,
-.uc-card.has-tip,
-.uc-card:has(> .uc-tip:not([hidden])) { z-index: 30; }
+uplot-card, .uc-card { position: relative; overflow: visible; }
 .uc-head {
     display: flex;
     flex-wrap: wrap;
@@ -719,22 +717,7 @@ uplot-card.has-tip,
 .uc-plot .u-cursor-x { border-right: 1px dashed var(--muted); }
 .uc-empty { padding: var(--space-4) 0; }
 
-.uc-tip {
-    position: absolute;
-    z-index: 30;
-    min-width: 180px;
-    max-width: min(320px, calc(100% - 16px));
-    padding: var(--space-2) var(--space-3);
-    border: 1px solid var(--line);
-    border-radius: var(--radius-s, 8px);
-    background: var(--surface-2);
-    color: var(--ink);
-    box-shadow: 0 6px 20px rgb(0 0 0 / 0.25);
-    font-size: var(--text-s);
-    pointer-events: none;
-}
-.uc-tip[hidden] { display: none; }
-.uc-tip.is-touch { pointer-events: auto; }   /* the "Open day" button is tapped */
+.uc-tip { min-width: 180px; }
 .uc-tip__title { font-weight: 700; margin-bottom: var(--space-1); }
 .uc-tip dl { display: grid; gap: 2px; margin: 0; }
 .uc-tip dl div { display: flex; justify-content: space-between; gap: var(--space-3); }
@@ -782,3 +765,4 @@ uplot-card.has-tip,
 .pp-bar > span { display: block; height: 100%; background-color: var(--accent); }
 .pp-cat { font-weight: var(--weight-medium); }
 .pp-sentence { margin: var(--space-2) 0; }
+}

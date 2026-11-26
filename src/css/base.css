@@ -2,6 +2,7 @@
  * Base: reset, typography, page shell and the bottom bar (<app-bar>).
  */
 
+@layer base {
 *,
 *::before,
 *::after {
@@ -114,13 +115,15 @@ svg {
     font-size: var(--text-xl);
     margin-bottom: var(--space-4);
 }
+}
 
 /* ---------- bottom bar ---------- */
 
+@layer layout {
 .app-bar {
     position: fixed;
     inset: auto 0 0 0;
-    z-index: 50;
+    z-index: var(--z-bar);
     height: calc(var(--app-bar-h) + env(safe-area-inset-bottom, 0px));
     padding: 0 var(--space-2) env(safe-area-inset-bottom, 0px);
     display: grid;
@@ -337,4 +340,5 @@ svg {
         transition: none !important;
         animation: none !important;
     }
+}
 }

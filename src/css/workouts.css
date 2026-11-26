@@ -3,6 +3,7 @@
  * list) and the Editor. A centred column at every size.
  */
 
+@layer pages {
 .workouts__tabs {
     padding-bottom: 0;
 }
@@ -94,7 +95,7 @@ workout-item.workout {
 
 .workout--info {
     position: relative;
-    z-index: 1;
+    z-index: var(--z-raised);
     padding: 0 var(--space-4);
     background-color: var(--surface);
     transition: transform var(--ease);
@@ -381,4 +382,5 @@ input.editor--td:focus {
 .editor--save {
     fill: var(--ink);
     cursor: pointer;
+}
 }

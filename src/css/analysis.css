@@ -2,6 +2,7 @@
  * The ride page (src/views/analysis/): one ride, analysed.
  */
 
+@layer pages {
 .analysis-content {
     max-width: 1280px;
 }
@@ -84,9 +85,7 @@
 
 /* ---------- the chart ---------- */
 
-.rp-chart { padding: var(--space-3); position: relative; }
-.rp-chart:has(.rc-tip:not([hidden])),
-ride-chart.has-tip { z-index: 30; }
+.rp-chart { padding: var(--space-3); }
 
 ride-chart {
     position: relative;
@@ -137,7 +136,7 @@ ride-chart {
 ride-chart.is-full {
     position: fixed;
     inset: 0;
-    z-index: 70;
+    z-index: var(--z-fullscreen);
     align-content: start;
     padding: var(--space-3) max(var(--space-3), env(safe-area-inset-right)) var(--space-3) max(var(--space-3), env(safe-area-inset-left));
     background-color: var(--surface);
@@ -177,22 +176,7 @@ ride-chart:fullscreen { background-color: var(--surface); }
 
 .rc-plot { min-width: 0; }
 
-.rc-tip {
-    position: absolute;
-    z-index: 30;
-    min-width: 170px;
-    max-width: min(300px, calc(100% - 16px));
-    padding: var(--space-2) var(--space-3);
-    border: 1px solid var(--line);
-    border-radius: var(--radius-s, 8px);
-    background: var(--surface-2);
-    color: var(--ink);
-    box-shadow: 0 6px 20px rgb(0 0 0 / 0.25);
-    font-size: var(--text-s);
-    pointer-events: none;
-}
-
-.rc-tip[hidden] { display: none; }
+.rc-tip { max-width: min(300px, calc(100vw - 16px)); }
 .rc-tip__title { font-weight: 700; margin-bottom: var(--space-1); font-family: var(--font-num); }
 .rc-tip dl { display: grid; gap: 2px; margin: 0; }
 .rc-tip dl div { display: flex; justify-content: space-between; gap: var(--space-3); }
@@ -385,3 +369,4 @@ ride-cards {
 .rc-table th:first-child { text-align: left; font-weight: var(--weight-medium); }
 .rc-table td { font-family: var(--font-num); }
 .rc-table small { color: var(--muted); }
+}

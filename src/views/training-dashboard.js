@@ -13,6 +13,7 @@ import { db } from '../db.js';
 import { riders } from '../riders.js';
 import { SessionStats, zoneIndex, ZONES, DEFAULT_WPRIME } from '../analytics.js';
 import { currentLayout, chartRangeFor } from './layout.js';
+import { ChartTooltip } from './charts/tooltip.js';
 
 // --- session feed ---------------------------------------------------------
 
@@ -230,6 +231,7 @@ class LiveChart extends HTMLElement {
         this.$plot   = this.querySelector('.lc--plot');
         this.$empty  = this.querySelector('.lc--empty');
         this.$tip    = this.querySelector('.lc--tip');
+        this.tooltip = new ChartTooltip(this.$tip, {owner: this});
         this.ctx     = this.$canvas.getContext('2d');
 
         this.querySelector('.lc--legend').addEventListener('click', e => {
@@ -258,7 +260,7 @@ class LiveChart extends HTMLElement {
         });
         this.$canvas.addEventListener('pointerleave', () => {
             this.hoverX = null;
-            this.$tip.hidden = true;
+            this.tooltip?.hide();
             this.draw();
         });
 
@@ -273,6 +275,7 @@ class LiveChart extends HTMLElement {
     }
 
     disconnectedCallback() {
+        this.tooltip?.hide();
         this.ro?.disconnect();
         this.themeObserver?.disconnect();
         xf.unsub('analytics:update', this.handler);
@@ -476,12 +479,15 @@ class LiveChart extends HTMLElement {
                     session.cadence[i] > 0 ? `Cadence ${Math.round(session.cadence[i])} rpm` : '',
                     `W′bal ${(session.wbalSeries[i] / 1000).toFixed(1)} kJ`,
                 ].filter(Boolean);
-                this.$tip.innerHTML = rows.join('<br>');
-                this.$tip.hidden = false;
-                const left = x + 12 + 160 > W ? x - 172 : x + 12;
-                this.$tip.style.left = `${left}px`;
-                this.$tip.style.top = `${padT + 4}px`;
+                const plotRect = this.$plot.getBoundingClientRect();
+                this.tooltip?.show({
+                    html: rows.join('<br>'),
+                    x: plotRect.left + x,
+                    plotTop: plotRect.top + padT,
+                });
             }
+        } else if(this.hoverX !== null) {
+            this.tooltip?.hide();
         }
     }
 }

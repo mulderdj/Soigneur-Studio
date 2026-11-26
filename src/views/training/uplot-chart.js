@@ -28,6 +28,7 @@
 
 import uPlot from 'uplot';
 import { esc, fmtDay } from './format.js';
+import { ChartTooltip } from '../charts/tooltip.js';
 
 const DAY = 86400;
 const RANGE_DAYS = {'1m': 30, '3m': 90, '1y': 365};
@@ -66,13 +67,12 @@ function padForBars([lo, hi], xs) {
 }
 
 const touchDevice = () => typeof matchMedia === 'function' && matchMedia('(hover: none)').matches;
-let activeTipCard = null;
 
 class UPlotCard extends HTMLElement {
     static uPlot = uPlot;
 
     connectedCallback() {
-        this.classList.add('uc-card');   // the read-out is placed within the card
+        this.classList.add('uc-card');
         if(!this.$plot) {
             this.innerHTML = `<div class="uc-head"></div><div class="uc-intro"></div><div class="uc-plot"></div><div class="uc-foot"></div><div class="uc-tip" hidden></div>`;
             this.$head = this.querySelector('.uc-head');
@@ -80,6 +80,7 @@ class UPlotCard extends HTMLElement {
             this.$foot = this.querySelector('.uc-foot');
             this.$plot = this.querySelector('.uc-plot');
             this.$tip = this.querySelector('.uc-tip');
+            this.tooltip = new ChartTooltip(this.$tip, {owner: this});
             this.addEventListener('click', e => this.onClick(e));
         }
         this.resize = new ResizeObserver(() => this.plot?.setSize(this.size()));
@@ -99,9 +100,7 @@ class UPlotCard extends HTMLElement {
     }
 
     hideTip() {
-        if(this.$tip) this.$tip.hidden = true;
-        this.classList.remove('has-tip');
-        if(activeTipCard === this) activeTipCard = null;
+        this.tooltip?.hide();
     }
 
     set data(d) {
@@ -284,27 +283,16 @@ class UPlotCard extends HTMLElement {
         if(i == null || outside || !own) { this.hideTip(); return; }
         const r = this.readout(i);
         if(!r) { this.hideTip(); return; }
-        if(activeTipCard && activeTipCard !== this) activeTipCard.hideTip();
-        activeTipCard = this;
-        this.classList.add('has-tip');
         const touchy = touchDevice();
-        this.$tip.innerHTML = `
+        const html = `
             <div class="uc-tip__title">${esc(r.title)}</div>
             ${r.rows?.length ? `<dl>${r.rows.map(row => `
                 <div><dt>${row.color ? `<i style="background:${esc(row.color)}"></i>` : ''}${esc(row.label)}</dt>
                 <dd>${esc(row.value)}${row.note ? ` <small>${esc(row.note)}</small>` : ''}</dd></div>`).join('')}</dl>` : ''}
             ${(r.more ?? []).map(m => `<div class="uc-tip__more">${esc(m)}</div>`).join('')}
             ${touchy && r.day ? `<button type="button" class="btn btn--secondary uc-tip__open" data-open-day="${esc(r.day)}">Open day ›</button>` : ''}`;
-        this.$tip.classList.toggle('is-touch', touchy);
-        this.$tip.style.left = '0px';
-        this.$tip.style.top = '0px';
-        this.$tip.hidden = false;
-        const plot = this.$plot.getBoundingClientRect(), card = this.getBoundingClientRect();
-        const x = plot.left - card.left + (u.over?.offsetLeft ?? 0) + u.cursor.left;
-        this.$tip.style.left = `${tipLeft(x, this.$tip.offsetWidth, card.width)}px`;
-        // below the header when it fits, else moved up: always inside the card
-        const top = plot.top - card.top + 8;
-        this.$tip.style.top = `${Math.max(8, Math.min(top, card.height - this.$tip.offsetHeight - 8))}px`;
+        const over = u.over?.getBoundingClientRect() ?? this.$plot.getBoundingClientRect();
+        this.tooltip.show({html, x: over.left + u.cursor.left, plotTop: over.top, touch: touchy});
     }
 }
 

@@ -8,9 +8,9 @@ import './course.js';
 import './lock.js';
 
 // The service worker (src/sw.js) keeps the app usable without a connection.
-// Production builds only: on the Parcel dev server (module.hot) a cached app
-// would hide every change, so there any earlier registration is removed.
-const devServer = typeof module !== 'undefined' && !!module.hot;
+// Production builds only: on the Vite dev server (import.meta.env.DEV) a cached
+// app would hide every change, so there any earlier registration is removed.
+const devServer = Boolean(import.meta.env?.DEV);
 
 function startServiceWorker() {
     if(!('serviceWorker' in navigator)) return;
@@ -19,7 +19,7 @@ function startServiceWorker() {
             .then(regs => regs.forEach(r => r.unregister())).catch(() => {});
         return;
     }
-    navigator.serviceWorker.register(new URL('./sw.js', import.meta.url), {type: 'module'})
+    navigator.serviceWorker.register('/sw.js', {type: 'module'})
         .then(() => console.log(':sw :registered'))
         .catch(err => console.warn(':sw :register', err));   // e.g. an untrusted certificate
 }
@@ -37,9 +37,9 @@ function stop() {
 start();
 
 // Development only: ?simulate feeds a simulated rider into the app
-// (src/dev/simulator.js). module.hot only exists on the Parcel dev server
-// (npm start), so production builds and Docker never run it.
-if(typeof module !== 'undefined' && module.hot &&
+// (src/dev/simulator.js). import.meta.env.DEV is statically replaced with false
+// in production builds, so Docker and production bundles tree-shake it out.
+if(import.meta.env?.DEV &&
    new URLSearchParams(location.search).has('simulate')) {
     import('./dev/simulator.js').then(simulator => simulator.start({xf}));
 

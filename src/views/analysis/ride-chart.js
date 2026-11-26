@@ -13,6 +13,7 @@
 import uPlot from 'uplot';
 import { DEFAULT_PERCENTAGES } from '../../analytics.js';
 import { esc, fmtDuration } from '../training/format.js';
+import { ChartTooltip } from '../charts/tooltip.js';
 
 const token = (el, name, fallback = '#888') => getComputedStyle(el).getPropertyValue(name).trim() || fallback;
 const clock = s => (Number.isFinite(s) ? fmtDuration(Math.round(s)) : '');
@@ -45,6 +46,7 @@ class RideChart extends HTMLElement {
             this.$full.addEventListener('click', () => this.full ? this.exitFull() : this.enterFull());
             this.$plot = this.querySelector('.rc-plot');
             this.$tip = this.querySelector('.rc-tip');
+            this.tooltip = new ChartTooltip(this.$tip, {owner: this});
             this.$chips.addEventListener('click', e => this.toggle(e));
         }
         // page-wide listeners live as long as the chart is on the page
@@ -62,6 +64,7 @@ class RideChart extends HTMLElement {
     }
 
     disconnectedCallback() {
+        this.tooltip?.hide();
         this.exitFull({fromBack: true}); // don't trigger unexpected history.back() when unmounting
         this.abort?.abort();
         this.resize?.disconnect();
@@ -86,6 +89,7 @@ class RideChart extends HTMLElement {
     // --- full screen ---
 
     async enterFull() {
+        this.tooltip?.hide();
         const run = this.fullRun = Symbol();          // a Close while this runs ends it
         const still = () => this.full && this.fullRun === run;
         this.full = true;
@@ -104,6 +108,7 @@ class RideChart extends HTMLElement {
 
     exitFull({fromBack = false} = {}) {
         if(!this.full) return;
+        this.tooltip?.hide();
         this.full = false;
         this.fullRun = null;
         this.classList.remove('is-full');
@@ -217,7 +222,7 @@ class RideChart extends HTMLElement {
         const data = [samples.map(s => s.t), ...list.map(s => s.values)];
         this.plot = new U(opts, data, this.$plot);
         if(this.plot.over) {
-            this.plot.over.addEventListener('mouseleave', () => { if(!touchDevice) { this.$tip.hidden = true; this.classList.remove('has-tip'); } });
+            this.plot.over.addEventListener('mouseleave', () => { if(!touchDevice) this.tooltip?.hide(); });
             const scrub = (e) => {
                 const t = e.touches?.[0];
                 if(!t) return;
@@ -263,23 +268,16 @@ class RideChart extends HTMLElement {
     tip(u) {
         const i = u.cursor?.idx;
         if(i == null || !(u.cursor.left >= 0)) {
-            this.$tip.hidden = true;
-            this.classList.remove('has-tip');
+            this.tooltip?.hide();
             return;
         }
         const c = this._colors ?? this.colors();
         const rows = this.list.map((s, k) => ({s, v: u.data[k + 1][i]}))
             .filter(({s, v}) => u.series[this.list.indexOf(s) + 1]?.show !== false && num(v))
             .map(({s, v}) => `<div><dt><i style="background:${esc(c[s.key])}"></i>${esc(s.label)}</dt><dd>${(s.digits ? v.toFixed(s.digits) : Math.round(v))} <small>${esc(s.unit)}</small></dd></div>`);
-        this.$tip.innerHTML = `<div class="rc-tip__title">${exact(u.data[0][i])}</div>${rows.length ? `<dl>${rows.join('')}</dl>` : '<p>No data here (paused)</p>'}`;
-        this.$tip.style.left = '0px';
-        this.$tip.style.top = '0px';
-        this.$tip.hidden = false;
-        this.classList.add('has-tip');
-        const plot = this.$plot.getBoundingClientRect(), box = this.getBoundingClientRect();
-        const x = plot.left - box.left + (u.over?.offsetLeft ?? 0) + u.cursor.left;
-        this.$tip.style.left = `${tipLeft(x, this.$tip.offsetWidth, box.width)}px`;
-        this.$tip.style.top = `${plot.top - box.top + 8}px`;
+        const html = `<div class="rc-tip__title">${exact(u.data[0][i])}</div>${rows.length ? `<dl>${rows.join('')}</dl>` : '<p>No data here (paused)</p>'}`;
+        const over = u.over?.getBoundingClientRect() ?? this.$plot.getBoundingClientRect();
+        this.tooltip?.show({html, x: over.left + u.cursor.left, plotTop: over.top});
     }
 
     toggle(e) {

@@ -4,6 +4,7 @@
  * components; this file only arranges them. Full screen on phones.
  */
 
+@layer pages {
 rider-menu {
     display: flex;
     align-items: center;
@@ -511,4 +512,5 @@ a.rm--sent:hover {
     flex: 0 1 auto;
     font-size: var(--text-xs);
     color: var(--muted);
+}
 }

@@ -6,6 +6,9 @@
  * are in px so they mean what they say.
  */
 
+@layer tokens, base, components, layout, pages, overlays;
+
+@layer tokens {
 :root,
 body,
 body.dark-theme {
@@ -153,6 +156,14 @@ body {
 
     --shadow: 0 8px 24px rgba(0, 0, 0, 0.28);
     --ease: 150ms ease;
+
+    /* stacking layers */
+    --z-raised:      1;
+    --z-controls:    2;
+    --z-tooltip:     30;
+    --z-bar:         50;
+    --z-modal:       60;
+    --z-fullscreen:  70;
 }
 
 /* names the existing code still uses, mapped onto the tokens */
@@ -194,4 +205,5 @@ body {
         --tap: 56px;
         --app-bar-h: 84px;
     }
+}
 }
