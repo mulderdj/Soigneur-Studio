@@ -22,6 +22,17 @@ function valid(x, max) {
     return Number.isFinite(x) && x >= 0 && x < max ? x : null;
 }
 
+// the FTP the ride was ridden with: the session's threshold power (the app
+// writes it; Garmin's files often have it too), or null
+function ftpOf(decoded) {
+    for(const r of decoded ?? []) {
+        if(r?.type !== 'data' || r.name !== 'session') continue;
+        const w = r.fields?.threshold_power;
+        if(Number.isFinite(w) && w >= 30 && w <= 1000) return w;
+    }
+    return null;
+}
+
 function fitToSamples(view) {
     let records;
     try {
@@ -30,7 +41,7 @@ function fitToSamples(view) {
         records = [];
     }
     const data = (records ?? []).filter(r => r?.type === 'data' && r?.name === 'record' && r.fields);
-    if(data.length === 0) return {start: null, distance: null, samples: []};
+    if(data.length === 0) return {start: null, distance: null, ftp: ftpOf(records), samples: []};
 
     const samples = data.map(r => ({
         power:     valid(r.fields.power, 4000) ?? 0,
@@ -41,7 +52,7 @@ function fitToSamples(view) {
     }));
     const lastDistance = [...samples].reverse().find(s => s.distance !== null)?.distance ?? null;
 
-    return {start: toMs(data[0].fields.timestamp), distance: lastDistance, samples};
+    return {start: toMs(data[0].fields.timestamp), distance: lastDistance, ftp: ftpOf(records), samples};
 }
 
 // --- ride analysis ---------------------------------------------------------
@@ -154,7 +165,7 @@ function readRide(view) {
     const of = name => data.filter(r => r.name === name).map(r => r.fields);
     const out = samplesFromRecords(of('record'), of('lap'), of('event'));
     const sport = of('session')[0]?.sport ?? of('sport')[0]?.sport ?? null;
-    return {...out, sport: typeof sport === 'string' ? sport : null};
+    return {...out, sport: typeof sport === 'string' ? sport : null, ftp: ftpOf(decoded)};
 }
 
 export { fitToSamples, readRide, samplesFromRecords, HOLD_S };

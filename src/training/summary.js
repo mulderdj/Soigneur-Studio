@@ -7,7 +7,7 @@
 import { SessionStats } from '../analytics.js';
 import { localDay } from './dates.js';
 
-const SUMMARY_VERSION = 2;   // 2: best power at 21 durations (the rider model)
+const SUMMARY_VERSION = 3;   // 2: best power at 21 durations (the rider model); 3: the ride's own FTP, read again
 // the durations (s) kept for the rider model: same list as server/durations.js
 const DURATIONS = [1, 2, 5, 10, 15, 20, 30, 60, 120, 180, 240, 300, 420, 600, 900, 1200, 1800, 2700, 3600, 5400, 7200];
 const BEST_SECONDS = DURATIONS;
