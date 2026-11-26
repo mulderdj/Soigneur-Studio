@@ -2,7 +2,8 @@
 // Account sync
 //
 // When the current rider is linked to a server account:
-// - profile (FTP, weight, the typed W'): newest wins on start, changes are pushed
+// - profile (FTP, weight, the typed W'): a device sends only what it changed;
+//   newest wins when two devices changed it
 // - imported workouts: two-way, incremental, deletions included
 // - rides: every saved ride is uploaded (.fit + summary) and kept on the
 //   server without the 7-ride limit; uploads that fail are retried
@@ -70,10 +71,23 @@ function localProfile() {
     return {ftp: db.ftp, weight: db.weight, wprime: loadWprime(), hrThresholds: thresholds.own(), layouts: layouts.forProfile()};
 }
 
+// The profile syncs per device by what that device changed: a device that
+// changed nothing takes the server's profile; one with an unsent change
+// (profileDirty) sends it, unless the server's is newer. Loading the stored
+// values at app start is not a change (it used to push every device's old
+// values over newer ones from another device).
+const profileKey = p => JSON.stringify(p);
+let restored = false;          // the app has loaded the rider's stored values
+
+function markProfileSynced() {
+    setLocal('profileSynced', profileKey(localProfile()));
+    setLocal('profileDirty', false);
+}
+
 async function pullProfile() {
     const remote = await api.get('/me/profile');
-    const localStamp = local('profileChangedAt', 0);
-    if(remote.data && remote.updatedAt > localStamp) {
+    const dirty = local('profileDirty', false);
+    if(remote.data && (!dirty || remote.updatedAt > local('profileChangedAt', 0))) {
         applyingRemote = true;
         try {
             if(remote.data.ftp > 0 && remote.data.ftp !== db.ftp) xf.dispatch('ui:ftp-set', remote.data.ftp);
@@ -88,19 +102,27 @@ async function pullProfile() {
             applyingRemote = false;
         }
         setLocal('profileChangedAt', remote.updatedAt);
-    } else {
+        markProfileSynced();
+    } else if(dirty || !remote.data) {
         await pushProfile();
     }
 }
 
 async function pushProfile() {
-    const res = await api.put('/me/profile', {data: localProfile()});
+    const sent = localProfile();
+    const res = await api.put('/me/profile', {data: sent});
     setLocal('profileChangedAt', res.updatedAt);
+    // changed again while it was being sent: stays dirty for the next push
+    if(profileKey(localProfile()) === profileKey(sent)) markProfileSynced();
 }
 
 function profileChanged() {
     if(applyingRemote || !linked()) return;
-    setLocal('profileChangedAt', Date.now());
+    const synced = local('profileSynced', null);
+    // before this device has synced its profile once, only a change after the app has loaded counts
+    if(synced === null ? !restored : profileKey(localProfile()) === synced) return;
+    if(!local('profileDirty', false)) setLocal('profileChangedAt', Date.now());
+    setLocal('profileDirty', true);
     clearTimeout(pushTimer);
     pushTimer = setTimeout(() => {
         setState('syncing');
@@ -315,7 +337,7 @@ function start() {
     });
 
     // db.js restores the rider's data on app start; sync after that
-    xf.sub('activity:restore', () => setTimeout(syncNow, 500));
+    xf.sub('activity:restore', () => { restored = true; setTimeout(syncNow, 500); });
 }
 
 function status() { return state; }
