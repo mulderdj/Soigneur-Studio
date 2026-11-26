@@ -368,6 +368,28 @@ rider-menu {
 .rm--svc-strava    { background-color: var(--brand-strava); }
 .rm--svc-intervals { background-color: var(--brand-intervals); }
 .rm--svc-garmin    { background-color: var(--brand-garmin); }
+.rm--svc-ai {
+    background-color: transparent;
+    border: var(--line-w) solid var(--accent);
+    color: var(--accent);
+    font-size: var(--text-s);
+}
+
+.rm--ai .rm--service:first-of-type { border-top: 0; }
+
+.rm--ai-new {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-half);
+    margin-block: var(--space-2) var(--space-1);
+    padding: var(--space-3);
+    border: var(--line-w) solid var(--accent);
+    border-radius: var(--radius-s);
+}
+
+.rm--ai-new .rm--inline { min-width: 0; }
+.rm--ai-new .input { flex: 1; min-width: 0; }
+.rm--mono { font-family: ui-monospace, monospace; font-size: var(--text-s); }
 
 .rm--svc-body {
     display: flex;

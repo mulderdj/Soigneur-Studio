@@ -276,6 +276,8 @@ class RiderMenu extends HTMLElement {
                 </div>
                 <h3 class="rm--h">Connected services</h3>
                 <div class="rm--connections" data-k="connections"><p class="rm--empty">Loading…</p></div>
+                <h3 class="rm--h">AI access</h3>
+                <div class="rm--ai" data-k="ai-access"><p class="rm--empty">Loading…</p></div>
                 <h3 class="rm--h">Display name</h3>
                 <form class="rm--form rm--inline" data-form="display-name">
                     <input class="input" name="displayName" maxlength="64" value="${esc(r.name)}" aria-label="Display name" required>
@@ -288,6 +290,7 @@ class RiderMenu extends HTMLElement {
                     <button type="submit" class="btn rm--btn">Change password</button>
                 </form>`;
             this.renderConnections();
+            this.renderAiAccess();
             return;
         }
         const relink = r.account && !r.account.token;
@@ -382,6 +385,53 @@ class RiderMenu extends HTMLElement {
                         <button type="button" class="btn rm--btn rm--quiet btn--quiet" data-act="disconnect" data-id="garmin">Disconnect</button>` : ''}
                 </div>
             </div>`;
+    }
+
+    // named tokens for an AI app (MCP server); a new one is shown once
+    async renderAiAccess(created = null) {
+        const $a = this.$body.querySelector('[data-k="ai-access"]');
+        if(!$a) return;
+        let tokens;
+        try {
+            ({tokens} = await api.get('/me/tokens'));
+        } catch(e) {
+            $a.innerHTML = `<p class="rm--empty">${esc(e.message)}</p>`;
+            return;
+        }
+        if(!$a.isConnected) return;
+        const when = t => t ? new Date(t).toLocaleDateString(undefined, {day: 'numeric', month: 'short', year: 'numeric'}) : null;
+        $a.innerHTML = `
+            <p class="rm--note">Lets an AI app (Claude Code, ChatGPT, Gemini, a local model) read your training through Soigneur's MCP server and, if you allow it, plan workouts. What it reads goes to that app's provider, or stays home with a local model.</p>
+            ${created ? `
+            <div class="rm--ai-new" data-k="ai-new">
+                <b>Copy this key now: it's shown only once.</b>
+                <div class="rm--inline">
+                    <input class="input rm--mono" readonly value="${esc(created.token)}" aria-label="New AI access key" data-k="ai-key">
+                    <button type="button" class="btn rm--btn" data-act="copy-ai-key">Copy</button>
+                </div>
+                <small>Put it in your AI app's MCP settings as <code>SOIGNEUR_TOKEN</code>.</small>
+            </div>` : ''}
+            ${tokens.map(t => `
+            <div class="rm--service" data-ai="${esc(t.id)}">
+                <span class="rm--svc rm--svc-ai" aria-hidden="true">AI</span>
+                <div class="rm--svc-body">
+                    <b>${esc(t.name)}</b>
+                    <small>${t.scope === 'plan' ? 'Reads your training and changes your plan' : 'Reads your training'}. Created ${when(t.createdAt)}, ${t.lastUsedAt ? `last used ${when(t.lastUsedAt)}` : 'not used yet'}.</small>
+                </div>
+                <div class="rm--svc-actions">
+                    <button type="button" class="btn rm--btn rm--quiet btn--quiet" data-act="revoke-ai" data-id="${esc(t.id)}">Remove</button>
+                </div>
+            </div>`).join('')}
+            <form class="rm--form" data-form="ai-access">
+                <label class="field">Name <input class="input" name="name" maxlength="60" placeholder="Claude Code on my PC" required></label>
+                <label class="field">May
+                    <select class="input" name="scope">
+                        <option value="read">read my training</option>
+                        <option value="plan">read my training and change my plan</option>
+                    </select>
+                </label>
+                <button type="submit" class="btn rm--btn">Create a key</button>
+            </form>`;
     }
 
     render_sensors() {
@@ -608,6 +658,18 @@ class RiderMenu extends HTMLElement {
                          `${id === 'strava' ? 'Strava' : 'intervals.icu'} disconnected. Rides already sent stay there.`);
                 this.renderConnections();
                 break;
+            case 'copy-ai-key': {
+                const $k = this.$body.querySelector('[data-k="ai-key"]');
+                try { await navigator.clipboard.writeText($k.value); this.say('Key copied.'); }
+                catch(e) { $k.select(); this.say('Select the key and copy it.'); }
+                break;
+            }
+            case 'revoke-ai':
+                if(!this.confirmed(b, 'Remove access?')) return;
+                await api.delete(`/me/tokens/${encodeURIComponent(id)}`);
+                this.say('AI access removed. That app can no longer read your training.');
+                this.renderAiAccess();
+                break;
             case 'delete-ride':
                 if(!this.confirmed(b, 'Delete ride?')) return;
                 await api.delete(`/me/activities/${encodeURIComponent(id)}`);
@@ -710,6 +772,11 @@ class RiderMenu extends HTMLElement {
                 this.say('intervals.icu connected. New rides upload automatically.');
                 this.renderConnections();
                 break;
+            case 'ai-access': {
+                const created = await api.post('/me/tokens', {name: data.name, scope: data.scope});
+                await this.renderAiAccess(created);
+                break;
+            }
             case 'reset':
                 await api.patch(`/users/${encodeURIComponent(form.dataset.id)}`, {password: data.password});
                 this.say('Password reset. That rider is signed out everywhere.');

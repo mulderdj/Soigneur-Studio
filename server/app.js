@@ -23,6 +23,18 @@ const MAX_JSON_BYTES = 1 * 1024 * 1024;       // profile, workouts, user edits
 const MAX_RIDE_BYTES = 25 * 1024 * 1024;      // a ride upload (base64 .fit + summary)
 const LOGIN_WINDOW_MS = 10 * 60 * 1000;
 const LOGIN_MAX_FAILS = 10;
+const MAX_ACCESS_TOKENS = 20;
+// what an access token (AI access, MCP) may reach: reading, and with the
+// 'plan' scope the training plan. Everything else needs a sign-in session.
+const TOKEN_ROUTES = {
+    read: new Set([
+        'GET /api/me', 'GET /api/me/profile', 'GET /api/me/workouts', 'GET /api/me/plan',
+        'GET /api/me/activities', 'GET /api/me/activities/:id/fit', 'GET /api/me/rides/:id/file',
+        'GET /api/me/external-rides', 'GET /api/me/wellness', 'GET /api/me/ride-ratings',
+        'GET /api/me/hidden-rides',
+    ]),
+    plan: new Set(['PUT /api/me/plan/:id', 'DELETE /api/me/plan/:id']),
+};
 const USERNAME_RE = /^[a-z0-9][a-z0-9._-]{1,31}$/i;
 // letters, digits, - and _; or a hex id in curly braces, as older apps made
 // on pages that weren't secure
@@ -167,6 +179,15 @@ function openDatabase(path) {
             expires_at   INTEGER NOT NULL,
             user_agent   TEXT
         );
+        CREATE TABLE IF NOT EXISTS access_tokens (
+            token_hash   TEXT PRIMARY KEY,
+            id           TEXT NOT NULL UNIQUE,
+            user_id      TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+            name         TEXT NOT NULL,
+            scope        TEXT NOT NULL CHECK (scope IN ('read', 'plan')),
+            created_at   INTEGER NOT NULL,
+            last_used_at INTEGER
+        );
         CREATE TABLE IF NOT EXISTS profiles (
             user_id    TEXT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
             data       TEXT NOT NULL,
@@ -239,6 +260,12 @@ function createApp(options = {}) {
         deleteUserSessions: db.prepare('DELETE FROM sessions WHERE user_id = ?'),
         deleteOtherSessions: db.prepare('DELETE FROM sessions WHERE user_id = ? AND token_hash <> ?'),
         purgeSessions: db.prepare('DELETE FROM sessions WHERE expires_at < ?'),
+        accessToken:   db.prepare('SELECT * FROM access_tokens WHERE token_hash = ?'),
+        accessTokens:  db.prepare('SELECT id, name, scope, created_at, last_used_at FROM access_tokens WHERE user_id = ? ORDER BY created_at'),
+        accessTokenCount: db.prepare('SELECT COUNT(*) AS n FROM access_tokens WHERE user_id = ?'),
+        insertAccessToken: db.prepare('INSERT INTO access_tokens (token_hash, id, user_id, name, scope, created_at) VALUES (?, ?, ?, ?, ?, ?)'),
+        deleteAccessToken: db.prepare('DELETE FROM access_tokens WHERE user_id = ? AND id = ?'),
+        touchAccessToken: db.prepare('UPDATE access_tokens SET last_used_at = ? WHERE token_hash = ?'),
         profile:       db.prepare('SELECT data, updated_at FROM profiles WHERE user_id = ?'),
         upsertProfile: db.prepare(`INSERT INTO profiles (user_id, data, updated_at) VALUES (?, ?, ?)
                                    ON CONFLICT(user_id) DO UPDATE SET data = excluded.data, updated_at = excluded.updated_at`),
@@ -300,11 +327,33 @@ function createApp(options = {}) {
         const header = String(req.headers.authorization ?? '');
         const m = header.match(/^Bearer ([A-Za-z0-9_-]{20,})$/);
         if(!m) fail(401, 'Sign in required.');
-        const s = q.session.get(sha256(m[1]));
-        if(!s || s.expires_at < now()) fail(401, 'Your session has ended. Sign in again.');
-        const user = q.userById.get(s.user_id);
+        const hash = sha256(m[1]);
+        const s = q.session.get(hash);
+        if(s && s.expires_at >= now()) {
+            const user = q.userById.get(s.user_id);
+            if(!user || user.disabled) fail(401, 'This account is disabled.');
+            return {user, tokenHash: s.token_hash};
+        }
+        const a = q.accessToken.get(hash);
+        if(!a) fail(401, s ? 'Your session has ended. Sign in again.' : 'Sign in required.');
+        const user = q.userById.get(a.user_id);
         if(!user || user.disabled) fail(401, 'This account is disabled.');
-        return {user, tokenHash: s.token_hash};
+        // at most once a minute, so reads don't write every time
+        if(!a.last_used_at || now() - a.last_used_at > 60e3) q.touchAccessToken.run(now(), hash);
+        return {user, tokenHash: hash, access: {id: a.id, scope: a.scope}};
+    }
+
+    // an access token reaches only TOKEN_ROUTES; 'plan' includes 'read'
+    function allowToken(access, key) {
+        if(TOKEN_ROUTES.read.has(key)) return;
+        if(access.scope === 'plan' && TOKEN_ROUTES.plan.has(key)) return;
+        fail(403, access.scope === 'plan' || !TOKEN_ROUTES.plan.has(key)
+            ? 'AI access can only read your training and change your plan.'
+            : 'This AI access can only read. Create one that may change your plan.');
+    }
+
+    function publicToken(t) {
+        return {id: t.id, name: t.name, scope: t.scope, createdAt: t.created_at, lastUsedAt: t.last_used_at ?? null};
     }
 
     function requireAdmin(user) {
@@ -340,7 +389,7 @@ function createApp(options = {}) {
     const routes = [];
     const route = (method, path, handler, opts = {}) => {
         const re = new RegExp('^' + path.replace(/:(\w+)/g, '(?<$1>[^/]+)') + '$');
-        routes.push({method, re, handler, opts});
+        routes.push({method, re, handler, opts, key: `${method} ${path}`});
     };
 
     route('GET', '/api/health', () => ({ok: true}));
@@ -389,6 +438,27 @@ function createApp(options = {}) {
         db.prepare('UPDATE users SET display_name = ?, password_hash = ?, updated_at = ? WHERE id = ?')
           .run(displayName, hash, now(), u.id);
         return {user: publicUser(q.userById.get(u.id))};
+    }, {auth: true});
+
+    // AI access: named tokens for an MCP server or another tool, shown once
+    route('GET', '/api/me/tokens', ({auth}) =>
+        ({tokens: q.accessTokens.all(auth.user.id).map(publicToken)}), {auth: true});
+
+    route('POST', '/api/me/tokens', ({auth, body}) => {
+        const name = typeof body.name === 'string' ? body.name.trim().slice(0, 60) : '';
+        if(!name) fail(400, 'Give it a name, for example "Claude Code on my PC".');
+        if(body.scope !== 'read' && body.scope !== 'plan') fail(400, "Expected scope 'read' or 'plan'.");
+        if(q.accessTokenCount.get(auth.user.id).n >= MAX_ACCESS_TOKENS) fail(409, `At most ${MAX_ACCESS_TOKENS} AI accesses. Remove one first.`);
+        const token = 'sst_' + crypto.randomBytes(32).toString('base64url');
+        const id = newId();
+        const t = now();
+        q.insertAccessToken.run(sha256(token), id, auth.user.id, name, body.scope, t);
+        return {status: 201, body: {token, access: publicToken({id, name, scope: body.scope, created_at: t})}};
+    }, {auth: true});
+
+    route('DELETE', '/api/me/tokens/:id', ({auth, params}) => {
+        q.deleteAccessToken.run(auth.user.id, params.id);
+        return {ok: true};
     }, {auth: true});
 
     // profile: FTP, weight, W', settings. Last write wins.
@@ -616,6 +686,7 @@ function createApp(options = {}) {
             }
             const body = hasBody ? await readBody(req, r.opts.limit ?? MAX_JSON_BYTES) : {};
             const auth = r.opts.auth ? authenticate(req) : undefined;
+            if(auth?.access) allowToken(auth.access, r.key);
 
             const out = await r.handler({req, url, params, body, auth});
             if(out && out.raw) return send(res, 200, out.raw, out.headers);
