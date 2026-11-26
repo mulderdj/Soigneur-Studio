@@ -10,7 +10,7 @@ import { token } from './uplot-chart.js';
 import { ToggleCard } from './progress-cards.js';
 import { efficiencyChart, readinessChart } from '../charts/insight-models.js';
 
-const colors = el => ({accent: token(el, '--accent'), good: token(el, '--good'), muted: token(el, '--muted')});
+const colors = el => ({accent: token(el, '--accent'), good: token(el, '--good'), muted: token(el, '--muted'), ref: token(el, '--ref')});
 
 class EfficiencyCard extends ToggleCard {
     get title() { return 'Aerobic efficiency'; }

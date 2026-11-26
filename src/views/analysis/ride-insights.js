@@ -12,7 +12,7 @@ import { repsChart, recoveryChart, rideCurveChart, powerHrChart } from '../chart
 import { esc } from '../training/format.js';
 
 const colors = el => ({
-    accent: token(el, '--accent'), muted: token(el, '--muted'), hr: token(el, '--hr', '#e5484d'), good: token(el, '--good'),
+    accent: token(el, '--accent'), muted: token(el, '--muted'), hr: token(el, '--hr', '#e5484d'), good: token(el, '--good'), ref: token(el, '--ref'),
 });
 
 class InsightCard extends UPlotCard {

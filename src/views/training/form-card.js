@@ -36,7 +36,7 @@ class FormCard extends UPlotCard {
     }
 
     chart() {
-        return formChart(this.data, {accent: token(this, '--accent'), hr: token(this, '--hr'), warn: token(this, '--warn')});
+        return formChart(this.data, {accent: token(this, '--accent'), hr: token(this, '--hr'), ref: token(this, '--ref')});
     }
 }
 

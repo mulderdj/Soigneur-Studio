@@ -218,9 +218,14 @@ svg {
 
 .app-bar__tab-icon {
     flex: none;
-    width: 22px;
-    height: 22px;
-    fill: currentColor;
+    width: 24px;
+    height: 24px;
+    /* line icons, as the header's sensor icons and the logo */
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1.8;
+    stroke-linecap: round;
+    stroke-linejoin: round;
 }
 
 .app-bar__tab-label {

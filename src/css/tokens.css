@@ -34,6 +34,9 @@ body.dark-theme {
     --hr:      #FF5C7A;
     --cadence: #B38CFF;
     --wbal:    #39D0E8;
+    /* reference and trend lines next to the blue series (apricot: ΔE2000 42
+       from --accent, lightness +21, colour-blind ΔE ≥ 42; see docs) */
+    --ref:     #FDC6AC;
 
     /* power zones (Z1 Recovery … Z7 Anaerobic) */
     --zone-1: #636468;
@@ -66,6 +69,7 @@ body.white-theme {
     --hr:      #E0244A;
     --cadence: #7A4DE0;
     --wbal:    #0E8FA6;
+    --ref:     #702E00;   /* sienna: ΔE2000 49 from --accent, lightness −20, colour-blind ΔE ≥ 55 */
 
     color-scheme: light;
 }
@@ -90,6 +94,8 @@ body.white-theme {
         --hr:      #E0244A;
         --cadence: #7A4DE0;
         --wbal:    #0E8FA6;
+        --ref:     #702E00;
+    --ref:     #702E00;   /* sienna: ΔE2000 49 from --accent, lightness −20, colour-blind ΔE ≥ 55 */
     
         color-scheme: light;
     }

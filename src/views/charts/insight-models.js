@@ -34,7 +34,7 @@ function repsChart({analysis, ftp}, c = {}) {
         xFormat: n => `${n}`,
         series: [
             {label: 'Power', color: c.accent, kind: 'bars', values: list.map(r => r.power)},
-            ...(list.some(r => num(r.target)) ? [{label: 'Target', color: c.muted, values: list.map(r => r.target), dash: [5, 4], width: 2, points: true}] : []),
+            ...(list.some(r => num(r.target)) ? [{label: 'Target', color: c.ref, values: list.map(r => r.target), dash: [5, 4], width: 2, points: true}] : []),
             ...(list.some(r => num(r.hr)) ? [
                 {label: 'Heart rate', color: c.hr, values: list.map(r => r.hr), scale: 'y2', width: 2, points: true},
                 {label: 'Max heart rate', color: c.hr, values: list.map(r => r.maxHr), scale: 'y2', width: 1, dash: [2, 3]},
@@ -49,7 +49,7 @@ function repsChart({analysis, ftp}, c = {}) {
         if(!r) return null;
         return {title: `Effort ${r.n}`, rows: [
             {label: 'Power', color: c.accent, value: num(r.power) ? `${r.power} W` : '–'},
-            ...(num(r.target) ? [{label: 'Target', color: c.muted, value: `${r.target} W`}] : []),
+            ...(num(r.target) ? [{label: 'Target', color: c.ref, value: `${r.target} W`}] : []),
             ...(num(r.hr) ? [{label: 'Heart rate', color: c.hr, value: `${r.hr} bpm`, note: num(r.maxHr) ? `max ${r.maxHr}` : undefined}] : []),
         ], more: []};
     };
@@ -67,7 +67,7 @@ function recoveryChart({samples, analysis, ftp, pauses}, c = {}) {
         xTicks: list.map((_, i) => i + 1),
         xRange: [0.5, list.length + 0.5],
         xFormat: i => `${list[i - 1]?.n ?? ''}`,
-        series: [{label: 'Drop in 60 s', color: c.good, kind: 'bars', values: list.map(r => r.drop)}],
+        series: [{label: 'Drop in 60 s', color: c.accent, kind: 'bars', values: list.map(r => r.drop)}],
         // a heart rate still rising after an effort shows below zero
         yRange: [Math.min(0, ...list.map(r => r.drop)), null],
         yFormat: v => `${v}`,
@@ -76,7 +76,7 @@ function recoveryChart({samples, analysis, ftp, pauses}, c = {}) {
         const r = list[i];
         if(!r) return null;
         return {title: `After effort ${r.n}`, rows: [
-            {label: 'Drop in 60 s', color: c.good, value: `${r.drop} bpm`},
+            {label: 'Drop in 60 s', color: c.accent, value: `${r.drop} bpm`},
             {label: 'At the end', value: `${r.hrEnd} bpm`},
             {label: '60 s later', value: `${r.hr60} bpm`},
         ], more: []};
@@ -97,8 +97,8 @@ function rideCurveChart({samples, summaries = [], today, id}, c = {}) {
         xTicks: [1, 5, 15, 60, 300, 1200, 3600].filter(t => t <= xs[xs.length - 1]),
         xFormat: durationLabel,
         series: [
-            {label: 'Last 90 days', color: c.muted, values: xs.map(ref), width: 2, dash: [5, 4]},
-            {label: 'This ride', color: c.accent, values: xs.map(d => mine[d]), width: 2, points: true},
+            {label: 'Last 90 days', color: c.ref, values: xs.map(ref), width: 2, dash: [5, 4]},
+            {label: 'This ride', color: c.accent, values: xs.map(d => mine[d]), width: 2, points: true, fill: 'gradient'},
         ],
         yFormat: v => `${v}`,
     };
@@ -108,7 +108,7 @@ function rideCurveChart({samples, summaries = [], today, id}, c = {}) {
         const r = ref(d);
         return {title: durationLabel(d), rows: [
             {label: 'This ride', color: c.accent, value: `${mine[d]} W`, note: num(r) && r > 0 ? `${Math.round(mine[d] / r * 100)} % of your 90-day best` : undefined},
-            ...(num(r) ? [{label: 'Last 90 days', color: c.muted, value: `${r} W`}] : []),
+            ...(num(r) ? [{label: 'Last 90 days', color: c.ref, value: `${r} W`}] : []),
         ], more: []};
     };
     return {model, readout, mine, best: Object.fromEntries(xs.map(d => [d, ref(d)]))};
@@ -148,7 +148,7 @@ function efficiencyChart({summaries = []}, c = {}) {
         x: list.map(p => daySec(p.day)),
         series: [
             {label: 'Ride', color: c.accent, kind: 'points', values: list.map(p => p.ef)},
-            {label: '28 days', color: c.good, values: list.rolling, width: 2},
+            {label: '28 days', color: c.ref, values: list.rolling, width: 2},
         ],
         ranges: [['3m', '3 months'], ['1y', '1 year'], ['all', 'All']],
         defaultRange: '1y',
@@ -159,7 +159,7 @@ function efficiencyChart({summaries = []}, c = {}) {
         if(!p) return null;
         return {title: shortDay(p.day), day: p.day, rows: [
             {label: 'Efficiency', color: c.accent, value: p.ef.toFixed(2), note: p.name},
-            {label: '28-day mean', color: c.good, value: num(list.rolling[i]) ? list.rolling[i].toFixed(2) : '–'},
+            {label: '28-day mean', color: c.ref, value: num(list.rolling[i]) ? list.rolling[i].toFixed(2) : '–'},
         ], more: []};
     };
     return {model, readout, list};

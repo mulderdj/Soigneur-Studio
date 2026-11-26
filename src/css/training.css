@@ -730,7 +730,7 @@ uplot-card, .uc-card { position: relative; overflow: visible; } /* a tall read-o
 
 /* ---------- rider model: CP and W′, power profile ---------- */
 
-.pc-key--model { background: repeating-linear-gradient(90deg, var(--good) 0 5px, transparent 5px 8px); }
+.pc-key--model { background: repeating-linear-gradient(90deg, var(--ref) 0 5px, transparent 5px 8px); }
 
 .mc-values {
     display: flex;

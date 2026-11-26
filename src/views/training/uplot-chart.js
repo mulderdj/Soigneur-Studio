@@ -9,7 +9,7 @@
 //     model = {
 //       x: number[]                     x values (unix seconds, or seconds for the power curve)
 //       series: [{label, color, values, width?, dash?, kind?: 'line'|'bars'|'points', points?: true,
-//                 fill?: colour, scale?: 'y2' (a second scale, drawn on the right)}]
+//                 fill?: colour | 'gradient' (soft, fading downwards), scale?: 'y2' (a second scale, drawn on the right)}]
 //       y2Format?: v => label (the right-hand axis)
 //       bands?: [[upperSeries, lowerSeries, fill]]   (1-based series index, as in uPlot)
 //       time?: true (default), log?: false, xFormat?: v => label, yFormat?: v => label,
@@ -32,6 +32,23 @@ import { esc, fmtDay } from './format.js';
 const DAY = 86400;
 const RANGE_DAYS = {'1m': 30, '3m': 90, '1y': 365};
 const RANGE_ENTRIES = {'12w': 12, '52w': 52, '12m': 12};
+
+// a fill under a line: the line's colour at 25 % at the top, fading to nothing
+function rgba(hex, a) {
+    const m = /^#?([0-9a-f]{6})$/i.exec(String(hex).trim());
+    if(!m) return hex;
+    const n = parseInt(m[1], 16);
+    return `rgba(${n >> 16}, ${(n >> 8) & 255}, ${n & 255}, ${a})`;
+}
+function fadeFill(color) {
+    return (u) => {
+        const {top, height} = u.bbox;
+        const g = u.ctx.createLinearGradient(0, top, 0, top + height);
+        g.addColorStop(0, rgba(color, 0.25));
+        g.addColorStop(1, rgba(color, 0));
+        return g;
+    };
+}
 
 function token(el, name, fallback = '#888') {
     return getComputedStyle(el).getPropertyValue(name).trim() || fallback;
@@ -152,7 +169,7 @@ class UPlotCard extends HTMLElement {
         const series = [{}, ...model.series.map(s => ({
             label: s.label,
             stroke: s.kind === 'bars' ? 'transparent' : (s.color),
-            fill: s.kind === 'bars' ? s.color : s.fill,
+            fill: s.kind === 'bars' ? s.color : s.fill === 'gradient' ? fadeFill(s.color) : s.fill,
             width: s.width ?? (s.kind === 'bars' ? 0 : 2),
             dash: s.dash,
             scale: s.scale === 'y2' ? 'y2' : 'y',

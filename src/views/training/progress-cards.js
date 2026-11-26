@@ -66,7 +66,7 @@ class CurveCard extends ToggleCard {
         return `<p class="card__note pc-legend"><span class="pc-key pc-key--recent"></span> Last 6 weeks <span class="pc-key pc-key--all"></span> All time${
             modelFit?.ok ? ' <span class="pc-key pc-key--model"></span> Model' : ''}</p>`;
     }
-    chart() { return curveChart(this.data, this.option, {accent: token(this, '--accent'), muted: token(this, '--muted'), model: token(this, '--good')}, modelFit); }
+    chart() { return curveChart(this.data, this.option, {accent: token(this, '--accent'), muted: token(this, '--muted'), model: token(this, '--ref')}, modelFit); }
 }
 
 class FtpCard extends ToggleCard {

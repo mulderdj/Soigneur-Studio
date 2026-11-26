@@ -57,12 +57,12 @@ function formChart(data, colors = {}) {
     const model = {
         x: rows.map(r => daySec(r.day)),
         series: [
-            {label: 'Fitness', color: colors.accent, width: 2.5, values: until('ctl')},
+            {label: 'Fitness', color: colors.accent, width: 2.5, fill: 'gradient', values: until('ctl')},
             {label: 'Fatigue', color: colors.hr, width: 1.5, values: until('atl')},
-            {label: 'Form', color: colors.warn, width: 1.5, values: until('tsb')},
+            {label: 'Form', color: colors.ref, width: 1.5, values: until('tsb')},
             {label: 'Fitness (plan)', color: colors.accent, width: 2.5, dash: [5, 4], values: after('ctl')},
             {label: 'Fatigue (plan)', color: colors.hr, width: 1.5, dash: [5, 4], values: after('atl')},
-            {label: 'Form (plan)', color: colors.warn, width: 1.5, dash: [5, 4], values: after('tsb')},
+            {label: 'Form (plan)', color: colors.ref, width: 1.5, dash: [5, 4], values: after('tsb')},
         ],
         ranges: [['3m', '3 months'], ['1y', '1 year'], ['all', 'All']],
         defaultRange: '3m',
@@ -81,7 +81,7 @@ function formChart(data, colors = {}) {
             rows: [
                 {label: 'Fitness', color: colors.accent, value: String(Math.round(r.ctl))},
                 {label: 'Fatigue', color: colors.hr, value: String(Math.round(r.atl))},
-                {label: 'Form', color: colors.warn, value: signed(r.tsb), note: formLabel(r.tsb).toLowerCase()},
+                {label: 'Form', color: colors.ref, value: signed(r.tsb), note: formLabel(r.tsb).toLowerCase()},
             ],
             more: future ? (plans.get(r.day) ?? []) : (dayLoad > 0 ? [`Load that day: ${Math.round(dayLoad)} TSS`] : []),
             day: r.day,
@@ -227,7 +227,7 @@ function curveChart(data, unit = 'w', colors = {}, fit = null) {
         time: false,
         log: true,
         series: [
-            {label: 'Last 6 weeks', color: colors.accent, width: 2.5, points: true, values: recent},
+            {label: 'Last 6 weeks', color: colors.accent, width: 2.5, points: true, fill: 'gradient', values: recent},
             {label: 'All time', color: colors.muted, width: 1.5, points: true, values: all},
         ],
         xTicks: TICKS.filter(t => t >= xs[0] && t <= xs.at(-1)),
@@ -263,7 +263,7 @@ function ftpChart(data, colors = {}) {
         x: est.map(e => daySec(e.week)),
         series: [
             {label: 'Set FTP', color: colors.muted, width: 1, dash: [4, 4], values: est.map(() => set)},
-            {label: 'Estimate', color: colors.accent, width: 2.5, points: true, values: est.map(e => (e.ftp === null ? null : Math.round(e.ftp)))},
+            {label: 'Estimate', color: colors.accent, width: 2.5, points: true, fill: 'gradient', values: est.map(e => (e.ftp === null ? null : Math.round(e.ftp)))},
         ],
         ranges: [['12w', '12 weeks'], ['1y', '1 year']],
         defaultRange: '12w',
