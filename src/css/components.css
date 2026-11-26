@@ -558,7 +558,7 @@ div.graph--bar-group {
 }
 }
 
-/* Top-layer chart tooltips (popover="manual" with fixed fallback) */
+/* Top-layer chart tooltips and toast notifications (popover="manual" with fixed fallback) */
 @layer overlays {
     .chart-tip {
         position: fixed;
@@ -581,4 +581,76 @@ div.graph--bar-group {
 
     .chart-tip[hidden] { display: none; }
     .chart-tip.is-touch { pointer-events: auto; }
+
+    .app-toast {
+        position: fixed;
+        inset: auto auto calc(var(--app-bar-h) + env(safe-area-inset-bottom, 0px) + var(--space-3)) 50%;
+        transform: translateX(-50%);
+        margin: 0;
+        z-index: var(--z-modal);
+        max-width: min(420px, calc(100vw - 2 * var(--space-4)));
+        padding: var(--space-2) var(--space-4);
+        border: var(--line-w) solid var(--line);
+        border-left: var(--stripe-w) solid var(--accent);
+        border-radius: var(--radius-pill);
+        background-color: var(--surface-2);
+        color: var(--ink);
+        box-shadow: var(--shadow);
+        font-family: var(--font-text);
+        font-size: var(--text-s);
+        font-weight: var(--weight-medium);
+        text-align: center;
+        pointer-events: none;
+    }
+
+    .app-toast[data-tone="good"]   { border-left-color: var(--good); }
+    .app-toast[data-tone="warn"]   { border-left-color: var(--warn); }
+    .app-toast[data-tone="danger"] { border-left-color: var(--danger); }
+    .app-toast[hidden] { display: none; }
+
+    .kb-dialog[open] {
+        display: flex;
+        flex-direction: column;
+        gap: var(--space-3);
+        width: min(440px, calc(100vw - 2 * var(--space-4)));
+    }
+
+    .kb-dialog__head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: var(--space-2);
+    }
+
+    .kb-dialog__head .card__title { margin: 0; }
+
+    .kb-list {
+        display: grid;
+        gap: var(--space-2);
+        margin: 0;
+    }
+
+    .kb-list div {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: var(--space-3);
+        padding: var(--space-1) 0;
+        border-bottom: var(--line-w) solid var(--line);
+    }
+
+    .kb-list div:last-child { border-bottom: 0; }
+    .kb-list dd { margin: 0; color: var(--muted); font-size: var(--text-s); text-align: right; }
+
+    .kb-list kbd {
+        display: inline-block;
+        padding: 2px 8px;
+        border: var(--line-w) solid var(--line);
+        border-radius: var(--radius-s);
+        background-color: var(--surface-2);
+        color: var(--ink);
+        font-family: var(--font-num);
+        font-size: var(--text-s);
+        font-weight: var(--weight-bold);
+    }
 }

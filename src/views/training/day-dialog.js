@@ -12,7 +12,7 @@ import { history } from '../../training/history.js';
 import { planStatus, plannedTss } from '../../training/plan.js';
 import { esc, fmtDuration, fmtDay, fmtTss, sportLabelFor, loadTag, loadTitle } from './format.js';
 import { intervalsToGraph } from '../workout-graph.js';
-import { openRide } from '../analysis/ride-page.js';
+import { openRide } from '../analysis/open-ride.js';
 
 const GRAPH_HEIGHT = 80;
 const minutes = (s) => `${Math.round(s / 60)} min`;

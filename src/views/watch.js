@@ -64,6 +64,7 @@ class Watch extends HTMLElement {
             this.dom.stop.dataset.armed = '1';
             this.dom.stop.setAttribute('aria-label', 'Tap again to end ride');
             this.dom.stop.title = 'Tap again to end ride';
+            xf.dispatch('ui:toast', {text: 'Tap Stop again to end ride', tone: 'warn', duration: 3000});
             clearTimeout(this.stopArmTimer);
             this.stopArmTimer = setTimeout(() => this.disarmStop(), 3000);
             return;

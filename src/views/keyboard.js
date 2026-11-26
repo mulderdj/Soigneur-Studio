@@ -1,6 +1,44 @@
 import { xf, exists } from '../functions.js';
 import { ControlMode, } from '../ble/enums.js';
 
+const SHORTCUTS = [
+    ['Space', 'Start or pause ride'],
+    ['↑ / ↓', 'Increase or decrease target'],
+    ['E', 'ERG mode'],
+    ['R', 'Resistance mode'],
+    ['S', 'Slope (Sim) mode'],
+    ['L', 'Lap / next interval'],
+    ['?', 'Show or close shortcuts'],
+    ['Esc', 'Close dialogs or full screen'],
+];
+
+function toggleShortcutsDialog() {
+    if(typeof document === 'undefined' || !document.body) return;
+    let dlg = document.querySelector('#dialog--shortcuts');
+    if(dlg?.open) { dlg.close?.(); return; }
+    if(!dlg) {
+        dlg = document.createElement('dialog');
+        dlg.id = 'dialog--shortcuts';
+        dlg.className = 'dialog kb-dialog';
+        dlg.setAttribute('aria-labelledby', 'kb-dialog-title');
+        dlg.innerHTML = `
+            <div class="kb-dialog__head">
+                <h2 id="kb-dialog-title" class="card__title">Keyboard shortcuts</h2>
+                <button type="button" class="btn btn--icon" data-kb-close aria-label="Close">×</button>
+            </div>
+            <dl class="kb-list">
+                ${SHORTCUTS.map(([k, desc]) => `<div><dt><kbd>${k}</kbd></dt><dd>${desc}</dd></div>`).join('')}
+            </dl>
+            <p class="card__note">Ride shortcuts are active on the Ride page while not typing or editing layout.</p>`;
+        dlg.addEventListener('click', e => {
+            if(e.target === dlg || e.target.closest('[data-kb-close]')) dlg.close?.();
+        });
+        document.body.append(dlg);
+    }
+    if(typeof dlg.showModal === 'function') dlg.showModal();
+    else dlg.open = true;
+}
+
 // keys that aren't ride shortcuts: typing in any field (in a form or not, e.g.
 // a screen name in Edit layout or W′), a key a control already handled (a tile
 // handle in Edit layout), and modifier combinations
@@ -17,6 +55,15 @@ function ignoredKey(e) {
               typing || interactive || modalOpen || offRide || editing || exists(t?.form));
 }
 
+function isHelpKey(e) {
+    if(e.key !== '?' || e.defaultPrevented || e.isComposing || e.ctrlKey || e.altKey || e.metaKey) return false;
+    const t = e.target;
+    const typing = t?.closest?.('input, textarea, select, [contenteditable=""], [contenteditable="true"]');
+    const interactive = t?.closest?.('button, a, summary, [role="button"], [role="tab"]');
+    const otherModal = typeof document !== 'undefined' && !!document.querySelector('dialog[open]:not(#dialog--shortcuts)');
+    return !(typing || interactive || otherModal || exists(t?.form));
+}
+
 function Keyboard() {
 
     const isKeyUp    = (code) => code === 'ArrowUp';
@@ -30,6 +77,12 @@ function Keyboard() {
     window.addEventListener('keydown', onKeydown.bind(this));
 
     function onKeydown(e) {
+        if(isHelpKey(e)) {
+            e.preventDefault();
+            toggleShortcutsDialog();
+            return;
+        }
+
         let code = e.code;
 
         if(ignoredKey(e)) return;
@@ -96,12 +149,15 @@ function KeyboardControls() {
     // Modes
     xf.sub('key:e', e => {
         xf.dispatch('ui:mode-set', ControlMode.erg);
+        xf.dispatch('ui:toast', 'ERG mode');
     });
     xf.sub('key:r', e => {
         xf.dispatch('ui:mode-set', ControlMode.resistance);
+        xf.dispatch('ui:toast', 'Resistance mode');
     });
     xf.sub('key:s', e => {
         xf.dispatch('ui:mode-set', ControlMode.sim);
+        xf.dispatch('ui:toast', 'Slope mode');
     });
 
     // Watch
@@ -115,10 +171,11 @@ function KeyboardControls() {
     });
     xf.sub('key:l', e => {
         xf.dispatch('ui:watchLap');
+        xf.dispatch('ui:toast', 'Lap');
     });
 }
 
 Keyboard();
 KeyboardControls();
 
-export { Keyboard, KeyboardControls, ignoredKey };
+export { Keyboard, KeyboardControls, ignoredKey, isHelpKey, toggleShortcutsDialog, SHORTCUTS };

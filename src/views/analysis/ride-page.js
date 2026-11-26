@@ -10,6 +10,7 @@
 import { xf } from '../../functions.js';
 import { analyseRide } from '../../analysis/ride.js';
 import { esc, fmtDuration, fmtDay, sportLabelFor } from '../training/format.js';
+import { openRide, rideFromHash } from './open-ride.js';
 import './ride-chart.js';
 import './ride-insights.js';
 import './interval-table.js';
@@ -31,21 +32,7 @@ function problemText(reason, summary) {
     })[reason] ?? 'The ride couldn\'t be loaded.';
 }
 
-const rideFromHash = () => {
-    const m = /^#ride=(.+)$/.exec(location.hash);
-    if(!m) return null;
-    try { return decodeURIComponent(m[1]); } catch(e) { return null; }
-};
-
 let lastFrom = 'training';
-
-function openRide(id, from = 'training') {
-    lastFrom = from;
-    const hash = `#ride=${encodeURIComponent(id)}`;
-    if(location.hash !== hash) history.pushState(null, '', hash);
-    xf.dispatch('ui:page-set', 'analysis');
-    window.dispatchEvent(new CustomEvent('ride:open', {detail: {id, from}}));
-}
 
 class RidePage extends HTMLElement {
     static source = null;          // set by views.js (ride-source.js); replaced in tests

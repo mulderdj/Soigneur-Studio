@@ -1,7 +1,7 @@
 /**
  * @jest-environment jsdom
  */
-import { ignoredKey } from '../../src/views/keyboard.js';
+import { ignoredKey, isHelpKey, toggleShortcutsDialog } from '../../src/views/keyboard.js';
 
 const key = (target, init = {}) => {
     const e = new KeyboardEvent('keydown', {code: 'Space', key: ' ', bubbles: true, cancelable: true, ...init});
@@ -25,5 +25,23 @@ describe('the ride shortcuts stay out of the way', () => {
         document.body.innerHTML = '<button>x</button>';
         expect(ignoredKey(key(document.body))).toBe(false);
         expect(ignoredKey(key(document.body, {ctrlKey: true}))).toBe(true);
+    });
+    test('? opens and closes the shortcuts cheat-sheet when not typing', () => {
+        document.body.innerHTML = '<input type="text">';
+        const helpOnInput = new KeyboardEvent('keydown', {key: '?', shiftKey: true, bubbles: true});
+        Object.defineProperty(helpOnInput, 'target', {value: document.body.firstElementChild});
+        expect(isHelpKey(helpOnInput)).toBe(false);
+
+        const helpOnBody = new KeyboardEvent('keydown', {key: '?', shiftKey: true, bubbles: true});
+        Object.defineProperty(helpOnBody, 'target', {value: document.body});
+        expect(isHelpKey(helpOnBody)).toBe(true);
+
+        toggleShortcutsDialog();
+        const dlg = document.querySelector('#dialog--shortcuts');
+        expect(dlg).not.toBeNull();
+        expect(dlg.open).toBe(true);
+        dlg.close = () => { dlg.open = false; };
+        toggleShortcutsDialog();
+        expect(dlg.open).toBe(false);
     });
 });

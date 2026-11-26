@@ -1,7 +1,7 @@
 import { xf, formatDate, escapeHtml, } from '../functions.js';
 import { models } from '../models/models.js';
 import { formatTime, } from '../utils.js';
-import { openRide } from './analysis/ride-page.js';
+import { openRide } from './analysis/open-ride.js';
 
 class ActivityList extends HTMLElement {
     constructor() {
