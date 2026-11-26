@@ -37,7 +37,7 @@ class HealthCard extends UPlotCard {
         const rest = restingTrend(days);
         const item = (label, value, note = '', attrs = '') => `<div ${attrs}><dt>${label}</dt><dd>${value}</dd>${note ? `<small>${note}</small>` : ''}</div>`;
         const items = [];
-        if(Number.isFinite(night.hrv)) {
+        if(Number.isFinite(night.hrv) && night.hrv > 0) {
             const note = state ? `${STATE_TEXT[state]} (${range.low}–${range.high})` : 'normal range after 2 weeks of nights';
             items.push(item('HRV', `${Math.round(night.hrv)}<small> ms</small>`, esc(note), `class="hc-hrv" data-hrv-state="${state ?? 'none'}"`));
         }
@@ -46,10 +46,10 @@ class HealthCard extends UPlotCard {
                   `${rest.value - rest.average > 0 ? '+' : rest.value === rest.average ? '±' : '−'}${Math.abs(rest.value - rest.average)} vs 30-day average` : '';
             items.push(item('Resting HR', `${rest.value}<small> bpm</small>`, note));
         }
-        if(Number.isFinite(night.sleepSeconds)) {
+        if(Number.isFinite(night.sleepSeconds) && night.sleepSeconds > 0) {
             items.push(item('Sleep', fmtDuration(night.sleepSeconds), Number.isFinite(night.sleepScore) ? `score ${night.sleepScore}` : ''));
         }
-        if(Number.isFinite(night.bodyBattery)) items.push(item('Body Battery', String(night.bodyBattery)));
+        if(Number.isFinite(night.bodyBattery) && night.bodyBattery > 0) items.push(item('Body Battery', String(night.bodyBattery)));
         return `<dl class="hc-grid">${items.join('')}</dl>`;
     }
 

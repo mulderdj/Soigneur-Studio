@@ -54,8 +54,8 @@ describe('ride summary', () => {
 });
 
 describe('best power at every duration the rider model uses', () => {
-    test('21 durations, 1 s to 2 h; version 2 so old rides are read again', () => {
-        expect(DURATIONS).toEqual([1, 2, 5, 10, 15, 20, 30, 60, 120, 180, 240, 300, 420, 600, 900, 1200, 1800, 2700, 3600, 5400, 7200]);
+    test('22 durations, 1 s to 2 h (incl. 12 min for the 3+12 CP test); version 3', () => {
+        expect(DURATIONS).toEqual([1, 2, 5, 10, 15, 20, 30, 60, 120, 180, 240, 300, 420, 600, 720, 900, 1200, 1800, 2700, 3600, 5400, 7200]);
         expect(SUMMARY_VERSION).toBe(3);
     });
     test('rolling best averages', () => {

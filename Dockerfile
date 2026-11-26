@@ -9,8 +9,8 @@
 # glibc image: Parcel's native modules (swc, lmdb, watcher) install cleanly
 FROM node:22-slim AS build
 WORKDIR /app
-COPY package.json ./
-RUN npm install --no-audit --no-fund
+COPY package.json package-lock.json ./
+RUN npm ci --no-audit --no-fund
 COPY . .
 RUN npx parcel build --no-cache --dist-dir dist
 

@@ -17,12 +17,14 @@ import { weeklyVolume, weekCompare, powerCurve, ftpEstimates } from '../../src/t
 import { readiness } from '../../src/training/readiness.js';
 import { currentModel, powerProfile, meanMaximal } from '../../src/training/rider-model.js';
 import { hrvRangeOn, hrvState, restingTrend, sortedDays } from '../../src/training/wellness.js';
-import { localDay, today as localToday, addDays, daysBetween } from '../../src/training/dates.js';
+import { localDay, today as localToday, addDays, daysBetween, weekStart } from '../../src/training/dates.js';
 import { analyseRide } from '../../src/analysis/ride.js';
 import { reps, hrRecovery, rideCurve, efficiency, polarised } from '../../src/analysis/insights.js';
 import { workouts as builtinZwo } from '../../src/workouts/workouts.js';
 import { protocols } from '../../src/tests/protocols.js';
 import { readWorkout } from './zwo.js';
+import { resolveWorkout, checkPlan, writeWorkout } from './plan.js';
+import crypto from 'node:crypto';
 
 const CACHE_MS = 60 * 1000;
 const MAX_RANGE_DAYS = 400;
@@ -57,6 +59,7 @@ function createApi({url, token, fetch = globalThis.fetch}) {
                     ...(body !== undefined ? {'Content-Type': 'application/json'} : {}),
                 },
                 body: body !== undefined ? JSON.stringify(body) : undefined,
+                ...(typeof AbortSignal?.timeout === 'function' ? {signal: AbortSignal.timeout(30_000)} : {}),
             });
         } catch(e) {
             throw new SoigneurError(`Soigneur can't be reached at ${base} (${e.cause?.code ?? e.message}).`);
@@ -72,6 +75,7 @@ function createApi({url, token, fetch = globalThis.fetch}) {
     }
     return {
         get: (path, opts) => request('GET', path, opts),
+        post: (path, body) => request('POST', path, {body}),
         put: (path, body) => request('PUT', path, {body}),
         delete: path => request('DELETE', path),
     };
@@ -197,7 +201,10 @@ function createSoigneur({api, today = localToday, cacheMs = CACHE_MS, now = () =
         const out = [];
         for(const r of activities) {
             if(r.training?.version === SUMMARY_VERSION) { out.push(r.training); continue; }
-            if(!fitSummaries.has(r.id)) fitSummaries.set(r.id, await summaryFromFit(r, p));
+            if(!fitSummaries.has(r.id)) {
+                if(fitSummaries.size >= 500) fitSummaries.delete(fitSummaries.keys().next().value);
+                fitSummaries.set(r.id, await summaryFromFit(r, p));
+            }
             out.push(fitSummaries.get(r.id));
         }
         return out;
@@ -480,7 +487,150 @@ function createSoigneur({api, today = localToday, cacheMs = CACHE_MS, now = () =
         };
     }
 
+    // --- planning (the 'plan' scope of the access key) ---
+
+    const proposals = new Map();          // proposal id → {input, created}
+    const PROPOSAL_TTL_MS = 60 * 60 * 1000;
+    const MAX_PROPOSALS = 50;
+    function pruneProposals() {
+        const cutoff = now() - PROPOSAL_TTL_MS;
+        for(const [k, v] of proposals) if(v.created < cutoff) proposals.delete(k);
+        while(proposals.size >= MAX_PROPOSALS) proposals.delete(proposals.keys().next().value);
+    }
+
+    async function planContext() {
+        forget();                          // check against what is there now
+        const [p, all, entries, lib, days] = await Promise.all([profile(), summaries(), planEntries(), library(), wellness()]);
+        const ftp = p.ftp > 0 ? p.ftp : 250;
+        const t = today();
+        const verdict = readiness({today: t, days, summaries: countable(all), ftp});
+        return {today: t, ftp, summaries: all, entries, library: lib, verdict};
+    }
+
+    const entryName = e => e?.workout?.meta?.name ?? e?.name ?? 'workout';
+
+    function planEntryData(day, workout, ftp) {
+        return {day, workout, rideId: null, origin: 'ai', zwo: writeWorkout(workout, ftp), name: workout.meta?.name ?? null};
+    }
+
+    async function putEntry(day, workout, ftp) {
+        const id = crypto.randomUUID();
+        await api.put(`/me/plan/${encodeURIComponent(id)}`, {data: planEntryData(day, workout, ftp)});
+        return id;
+    }
+
+    const shaped = (check, ctx) => ({
+        passed: check.passed,
+        findings: check.findings,
+        weeks: check.weeks,
+    });
+
+    async function planWorkout({day, workout_id, workout, allow_back_to_back_hard_days = false}) {
+        const ctx = await planContext();
+        const got = resolveWorkout({workout_id, workout}, ctx.library);
+        if(got.error) throw new SoigneurError(got.error);
+        const check = checkPlan(ctx, {add: [{day, workout: got.workout}]}, {allowBackToBack: allow_back_to_back_hard_days});
+        if(!check.passed) return {planned: false, ...shaped(check, ctx), note: 'Nothing was planned: fix the findings and try again.'};
+        const id = await putEntry(day, got.workout, ctx.ftp);
+        forget();
+        return {planned: true, entry_id: id, day, name: entryName({workout: got.workout}),
+                planned_tss: Math.round(plannedTss(got.workout, ctx.ftp)), weeks: check.weeks,
+                note: 'It shows in the app\'s plan at the next sync, and goes to intervals.icu when that is connected.'};
+    }
+
+    function findEntry(ctx, id) {
+        const e = ctx.entries.find(x => x.id === id);
+        if(!e) throw new SoigneurError(`No planned workout with id ${id} (get_plan gives the ids).`);
+        if(planStatus(e, ctx.today) !== 'planned') throw new SoigneurError(`"${entryName(e)}" on ${e.day} is ${planStatus(e, ctx.today)}; only planned workouts (today or later, not ridden) can change.`);
+        return e;
+    }
+
+    async function movePlanned({entry_id, day, allow_back_to_back_hard_days = false}) {
+        const ctx = await planContext();
+        const e = findEntry(ctx, entry_id);
+        const check = checkPlan(ctx, {move: new Map([[e.id, day]])}, {allowBackToBack: allow_back_to_back_hard_days});
+        if(!check.passed) return {moved: false, ...shaped(check, ctx), note: 'Nothing was moved: fix the findings and try again.'};
+        const {id, updatedAt, ...data} = e;
+        await api.put(`/me/plan/${encodeURIComponent(e.id)}`, {data: {...data, day}});
+        forget();
+        return {moved: true, entry_id: e.id, name: entryName(e), from: e.day, to: day, weeks: check.weeks};
+    }
+
+    async function removePlanned({entry_id}) {
+        const ctx = await planContext();
+        const e = findEntry(ctx, entry_id);
+        await api.delete(`/me/plan/${encodeURIComponent(e.id)}`);
+        forget();
+        return {removed: true, entry_id: e.id, name: entryName(e), day: e.day,
+                ...(e.origin === 'intervals' ? {note: 'It was planned on intervals.icu, so it is removed there too.'} : {})};
+    }
+
+    // a whole block: checked, stored nowhere until apply_plan
+    function resolveProposal(input, ctx) {
+        const add = [], problems = [];
+        for(const w of input.weeks ?? []) {
+            if(weekStart(w.week_of) !== w.week_of) problems.push({rule: 'week', week_of: w.week_of, message: `week_of ${w.week_of} isn't a Monday.`});
+            for(const d of w.days ?? []) {
+                if(d.day < w.week_of || d.day > addDays(w.week_of, 6)) problems.push({rule: 'week', day: d.day, message: `${d.day} isn't in the week of ${w.week_of}.`});
+                const got = resolveWorkout(d, ctx.library);
+                if(got.error) { problems.push({rule: 'workout', day: d.day, message: `${d.day}: ${got.error}`}); continue; }
+                add.push({day: d.day, workout: got.workout, week_of: w.week_of, focus: w.focus ?? ''});
+            }
+        }
+        return {add, problems};
+    }
+
+    async function proposePlan(input) {
+        const ctx = await planContext();
+        const {add, problems} = resolveProposal(input, ctx);
+        const check = checkPlan(ctx, {add}, {allowBackToBack: !!input.allow_back_to_back_hard_days, recovery: true, replacePlanned: !!input.replace_planned});
+        const findings = [...problems, ...check.findings];
+        const id = 'p-' + crypto.createHash('sha256').update(JSON.stringify(input)).digest('hex').slice(0, 12);
+        pruneProposals();
+        proposals.set(id, {input, created: now()});
+        const days = add.map(a => ({day: a.day, name: a.workout.meta?.name ?? null, planned_tss: Math.round(plannedTss(a.workout, ctx.ftp)),
+                                    duration_s: Math.round(a.workout.intervals.reduce((x, iv) => x + iv.duration, 0))}));
+        return {
+            proposal_id: id, passed: findings.length === 0, findings, goal: input.goal ?? null,
+            weeks: check.weeks.map(w => ({...w, focus: (input.weeks ?? []).find(x => x.week_of === w.week_of)?.focus ?? null})),
+            days,
+            ...(input.replace_planned ? {replaces: ctx.entries.filter(e => e.origin !== 'intervals' && planStatus(e, ctx.today) === 'planned' && add.some(a => a.day === e.day))
+                .map(e => ({entry_id: e.id, day: e.day, name: entryName(e)}))} : {}),
+            next: findings.length ? 'Fix the findings and propose again; nothing is stored.' :
+                'Show the rider this plan. Only when they agree, call apply_plan with this proposal_id.',
+        };
+    }
+
+    async function applyPlan({proposal_id}) {
+        const p = proposals.get(proposal_id);
+        if(!p) throw new SoigneurError(`No proposal ${proposal_id} (proposals live until the AI app restarts the server); propose it again.`);
+        const ctx = await planContext();
+        const {add, problems} = resolveProposal(p.input, ctx);
+        const check = checkPlan(ctx, {add}, {allowBackToBack: !!p.input.allow_back_to_back_hard_days, recovery: true, replacePlanned: !!p.input.replace_planned});
+        const findings = [...problems, ...check.findings];
+        if(findings.length) return {applied: false, findings, note: 'The plan or the rides changed since the proposal; nothing was stored. Propose again.'};
+        const toReplace = p.input.replace_planned ?
+            ctx.entries.filter(e => e.origin !== 'intervals' && planStatus(e, ctx.today) === 'planned' && add.some(a => a.day === e.day)) : [];
+        const replaced = toReplace.map(e => ({day: e.day, name: entryName(e)}));
+        const toPut = add.map(a => ({id: crypto.randomUUID(), day: a.day, name: a.workout.meta?.name ?? null, data: planEntryData(a.day, a.workout, ctx.ftp)}));
+        if(typeof api.post === 'function') {
+            await api.post('/me/plan/batch', {
+                remove: toReplace.map(e => e.id),
+                put: toPut.map(({id, data}) => ({id, data})),
+            });
+        } else {
+            for(const e of toReplace) await api.delete(`/me/plan/${encodeURIComponent(e.id)}`);
+            for(const item of toPut) await api.put(`/me/plan/${encodeURIComponent(item.id)}`, {data: item.data});
+        }
+        const planned = toPut.map(({id, day, name}) => ({entry_id: id, day, name}));
+        proposals.delete(proposal_id);
+        forget();
+        return {applied: true, planned, replaced,
+                note: 'The workouts show in the app\'s plan at the next sync, and go to intervals.icu when that is connected.'};
+    }
+
     return {athlete, listRides, rideAnalysis, latestRideId, formRows, progress, health, plan, workouts, forget,
+            planWorkout, movePlanned, removePlanned, proposePlan, applyPlan,
             // for the write tools
             summaries, planEntries, library, profile};
 }

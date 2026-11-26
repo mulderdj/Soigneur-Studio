@@ -13,7 +13,7 @@ body.dark-theme {
     --bg:        #151B23;
     --surface:   #1C242F;
     --surface-2: #232D3A;
-    --line:      #2D3847;
+    --line:      #364354;
     --ink:       #E9EEF4;
     --muted:     #8C98A8;
     --accent:    #4C9AFF;
@@ -22,6 +22,7 @@ body.dark-theme {
     --good:      #57C057;
     --warn:      #F8C73A;
     --danger:    #FF663A;
+    --on-danger: #0B1220;
     --overlay:   rgba(5, 9, 14, 0.72);
 
     /* services' own brand colours */
@@ -52,20 +53,22 @@ body.white-theme {
     --bg:        #ECEFF3;
     --surface:   #FFFFFF;
     --surface-2: #F3F5F8;
-    --line:      #D6DCE4;
+    --line:      #BCC6D2;
     --ink:       #18212C;
-    --muted:     #5D6A7A;
-    --accent:    #1F6FE0;
+    --muted:     #556272;
+    --accent:    #1660C9;
     --on-accent: #FFFFFF;
-    --band:      rgba(31, 111, 224, 0.12); /* a shaded range in charts (HRV normal range) */
-    --good:      #2E8B3A;
-    --warn:      #B98900;
-    --danger:    #D84A1B;
-    --overlay:   rgba(20, 28, 38, 0.45);
+    --band:      rgba(22, 96, 201, 0.12); /* a shaded range in charts (HRV normal range) */
+    --good:      #1F7A2E;
+    --warn:      #8F6200;
+    --danger:    #C13A12;
+    --on-danger: #FFFFFF;
+    --overlay:   rgba(15, 22, 32, 0.72);
 
-    --hr:      #E0244A;
-    --cadence: #7A4DE0;
-    --wbal:    #0E8FA6;
+    --hr:      #C81E42;
+    --cadence: #6C3FD6;
+    --wbal:    #0B7D92;
+    --zone-1:  #525861;
 
     color-scheme: light;
 }
@@ -76,21 +79,23 @@ body.white-theme {
         --bg:        #ECEFF3;
         --surface:   #FFFFFF;
         --surface-2: #F3F5F8;
-        --line:      #D6DCE4;
+        --line:      #BCC6D2;
         --ink:       #18212C;
-        --muted:     #5D6A7A;
-        --accent:    #1F6FE0;
+        --muted:     #556272;
+        --accent:    #1660C9;
         --on-accent: #FFFFFF;
-        --band:      rgba(31, 111, 224, 0.12); /* a shaded range in charts (HRV normal range) */
-        --good:      #2E8B3A;
-        --warn:      #B98900;
-        --danger:    #D84A1B;
-        --overlay:   rgba(20, 28, 38, 0.45);
-    
-        --hr:      #E0244A;
-        --cadence: #7A4DE0;
-        --wbal:    #0E8FA6;
-    
+        --band:      rgba(22, 96, 201, 0.12); /* a shaded range in charts (HRV normal range) */
+        --good:      #1F7A2E;
+        --warn:      #8F6200;
+        --danger:    #C13A12;
+        --on-danger: #FFFFFF;
+        --overlay:   rgba(15, 22, 32, 0.72);
+
+        --hr:      #C81E42;
+        --cadence: #6C3FD6;
+        --wbal:    #0B7D92;
+        --zone-1:  #525861;
+
         color-scheme: light;
     }
 }
@@ -181,6 +186,10 @@ body {
         --text-xl:  30px;
         --text-2xl: 40px;
         --text-3xl: 60px;
+
+        --num-hero: clamp(64px, min(40cqi, 14dvh), 220px);
+        --num-tile: clamp(28px, 28cqi, 84px);
+        --num-tile-long: clamp(22px, 19cqi, 64px);
 
         --tap: 56px;
         --app-bar-h: 84px;

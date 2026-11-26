@@ -83,7 +83,8 @@ class TrainingCalendar extends HTMLElement {
             const detail = status === 'done' && ride ?
                   `planned ${planned} / actual ${fmtTss(ride.tss)} TSS` :
                   `${planned} TSS`;
-            const icu = e.origin === 'intervals' ? ' <span class="badge badge-icu">intervals.icu</span>' : '';
+            const icu = e.origin === 'intervals' ? ' <span class="badge badge-icu">intervals.icu</span>' :
+                        e.origin === 'ai' ? ' <span class="badge badge-ai" title="Planned by an AI app, with your OK">AI</span>' : '';
             return `<li class="cal-item cal-plan" data-status="${status}">
                         <span class="cal-item__name">${esc(e.workout?.meta?.name ?? e.name ?? 'Workout')}</span>
                         <span class="cal-item__meta"><span class="badge cal-status">${status}</span> ${e.workout ? detail : 'not readable'}${icu}</span>

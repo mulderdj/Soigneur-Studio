@@ -31,9 +31,10 @@ describe('effectiveLoad', () => {
             .toEqual({tss: 50, loadSource: 'estimate'});
     });
 
-    test('a rating: hours × rpe²', () => {
-        expect(effectiveLoad(hour({sport: 'weighttraining'}), {rating: 6})).toEqual({tss: 36, loadSource: 'rpe'});
-        expect(effectiveLoad({...hour({sport: 'yoga'}), duration: 1800}, {rating: 4})).toEqual({tss: 8, loadSource: 'rpe'});
+    test('a rating: calibrated Borg CR-10 TSS/hr', () => {
+        expect(effectiveLoad(hour({sport: 'weighttraining'}), {rating: 6})).toEqual({tss: 70, loadSource: 'rpe'});
+        expect(effectiveLoad({...hour({sport: 'yoga'}), duration: 1800}, {rating: 4})).toEqual({tss: 25, loadSource: 'rpe'});
+        expect(effectiveLoad(hour({tss: 0, avgHr: 150}), {thresholds: {cycling: 170}, restingHr: 50}).loadSource).toBe('hr');
     });
 
     test('nothing at all: an estimate from the sport', () => {

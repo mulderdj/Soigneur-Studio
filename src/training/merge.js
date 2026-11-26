@@ -15,7 +15,10 @@ function span(s) {
     return [start, start + Math.max(0, Number(s.duration) || 0) * 1000];
 }
 
+const sportKey = s => s?.sport || 'cycling';
+
 function sameRide(a, b) {
+    if(sportKey(a) !== sportKey(b)) return false;
     const [a0, a1] = span(a);
     const [b0, b1] = span(b);
     const shorter = Math.min(a1 - a0, b1 - b0);
@@ -42,13 +45,28 @@ function mergeRides(own = [], external = []) {
         for(const k of [b - 1, b, b + 1]) for(const s of byDay.get(k) ?? []) if(sameRide(s, x)) return s;
         return null;
     };
-    // the kept copy without a load takes the dropped copy's (e.g. Garmin's
-    // list without TSS, intervals.icu's with its power load)
+    // the kept copy without a load or power curve takes the dropped copy's
+    // (e.g. Garmin's list without TSS/power curve, intervals.icu's with them)
     const lend = (kept, x) => {
-        if(kept && !Number.isFinite(kept.tss) && Number.isFinite(x.tss)) {
+        if(!kept || !x) return;
+        if(!Number.isFinite(kept.tss) && Number.isFinite(x.tss)) {
             kept.tss = x.tss;
             if(!Number.isFinite(kept.np) && Number.isFinite(x.np)) kept.np = x.np;
             if(!Number.isFinite(kept.if) && Number.isFinite(x.if)) kept.if = x.if;
+        }
+        if(!Number.isFinite(kept.kj) && Number.isFinite(x.kj)) kept.kj = x.kj;
+        if(!Number.isFinite(kept.avgHr) && Number.isFinite(x.avgHr)) kept.avgHr = x.avgHr;
+        if(!Number.isFinite(kept.maxHr) && Number.isFinite(x.maxHr)) kept.maxHr = x.maxHr;
+        if((!kept.zoneSeconds || !kept.zoneSeconds.some(v => v > 0)) && x.zoneSeconds?.some(v => v > 0)) {
+            kept.zoneSeconds = x.zoneSeconds;
+        }
+        if(x.best && typeof x.best === 'object') {
+            const mergedBest = {...(kept.best ?? {})};
+            let changed = false;
+            for(const [k, v] of Object.entries(x.best)) {
+                if(!Number.isFinite(mergedBest[k]) && Number.isFinite(v) && v > 0) { mergedBest[k] = v; changed = true; }
+            }
+            if(changed) kept.best = mergedBest;
         }
     };
     const mine = own.map(s => ({...s}));   // copies: the inputs stay as they are

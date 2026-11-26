@@ -41,6 +41,8 @@ describe('3 + 12 min', () => {
         const small = testResult('3-12', ride(w, effortPower({p3: 290, p12: 280})), w);
         expect(small.ok).toBe(false);
         expect(small.reason).toMatch(/W′ came out at 2\.4 kJ/);
+        const negCp = testResult('3-12', ride(w, effortPower({p3: 250, p12: 50})), w);
+        expect(negCp.ok).toBe(false);
     });
     test('missing power in an effort', () => {
         const r = testResult('3-12', ride(w, (step, t) => step.effort === 'p12' && t % 5 === 0 ? null : good(step)), w);

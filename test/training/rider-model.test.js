@@ -35,8 +35,18 @@ describe('fitting CP and W′', () => {
         expect(f.wprime).toBeGreaterThan(18000);
         expect(f.wprime).toBeLessThan(22000);
         expect(f.r2).toBeGreaterThan(0.99);
-        expect(f.points.map(p => p.seconds)).toEqual([120, 180, 240, 300, 420, 600, 900, 1200]);
+        expect(f.points.map(p => p.seconds)).toEqual([120, 180, 240, 300, 420, 600, 720, 900, 1200]);
         expect(f.points[0]).toMatchObject({id: 'a', name: 'Ride a'});
+    });
+    test('3 + 12 min test with easy cooldown recovers CP and W′ without 15/20 min drag', () => {
+        // true CP = 300 W, W′ = 18 kJ: 180 s @ 400 W, 720 s @ 325 W, followed by easy cooldown
+        const best = {120: 400, 180: 400, 240: 325, 300: 325, 420: 325, 600: 325, 720: 325, 900: 284, 1200: 243};
+        const f = fitCp(meanMaximal([ride('test', 2, best)], today));
+        expect(f.ok).toBe(true);
+        expect(f.cp).toBeGreaterThan(292);
+        expect(f.cp).toBeLessThan(308);
+        expect(f.wprime).toBeGreaterThan(16500);
+        expect(f.wprime).toBeLessThan(19500);
     });
     test('what is missing, in words', () => {
         expect(fitCp(meanMaximal([], today))).toMatchObject({ok: false, missing: expect.stringMatching(/No power data/)});

@@ -57,30 +57,35 @@ function withTimeout(promise, ms) {
 
 // network first, the cached copy when the server doesn't answer in time;
 // `key` is where it is kept ('/' for the page)
-async function page(request, key = '/') {
+async function page(request, key = '/', waitUntil = () => {}) {
     const cache = await caches.open(CACHE);
     const network = fetch(request);
     try {
         const res = await withTimeout(network, NAV_TIMEOUT);
-        if(res.ok) cache.put(key, res.clone());
+        if(res.ok) waitUntil(cache.put(key, res.clone()).catch(() => {}));
         return res;
     } catch(e) {
         const cached = key === '/' ? (await cache.match('/') ?? await cache.match('/index.html')) : await cache.match(key);
         if(cached) {
             // a slow answer that arrives later still refreshes the cached page
-            network.then(res => { if(res.ok) cache.put(key, res.clone()); }).catch(() => {});
+            waitUntil(network.then(res => (res.ok ? cache.put(key, res.clone()) : null)).catch(() => {}));
             return cached;
         }
         return network;
     }
 }
 
-async function cacheFirst(request, name) {
+async function cacheFirst(request, name, waitUntil = () => {}) {
     const cache = await caches.open(name);
     const cached = await cache.match(request);
     if(cached) return cached;
     const res = await fetch(request);
-    if(res.ok || res.type === 'opaque') cache.put(request, res.clone());
+    const ct = res.headers?.get('content-type') ?? '';
+    const expectsHtml = request.mode === 'navigate' || /\.html?$/i.test(new URL(request.url).pathname);
+    // never poison static asset cache with an SPA HTML fallback response
+    if((res.ok && (expectsHtml || !ct.includes('text/html'))) || res.type === 'opaque') {
+        waitUntil(cache.put(request, res.clone()).catch(() => {}));
+    }
     return res;
 }
 
@@ -88,12 +93,13 @@ self.addEventListener('fetch', e => {
     const request = e.request;
     if(request.method !== 'GET') return;
     const url = new URL(request.url);
+    const keep = p => e.waitUntil(p);
 
-    if(FONT_HOSTS.includes(url.hostname)) { e.respondWith(cacheFirst(request, FONTS)); return; }
+    if(FONT_HOSTS.includes(url.hostname)) { e.respondWith(cacheFirst(request, FONTS, keep)); return; }
     if(url.origin !== self.location.origin) return;
     if(url.pathname.startsWith('/api/') || url.pathname === '/soigneur-root.crt') return;
 
-    if(request.mode === 'navigate') { e.respondWith(page(request)); return; }
-    if(url.pathname === '/manifest.webmanifest') { e.respondWith(page(request, '/manifest.webmanifest')); return; }
-    e.respondWith(cacheFirst(request, CACHE));
+    if(request.mode === 'navigate') { e.respondWith(page(request, '/', keep)); return; }
+    if(url.pathname === '/manifest.webmanifest') { e.respondWith(page(request, '/manifest.webmanifest', keep)); return; }
+    e.respondWith(cacheFirst(request, CACHE, keep));
 });

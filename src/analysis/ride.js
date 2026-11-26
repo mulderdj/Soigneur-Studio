@@ -157,7 +157,7 @@ function recordOf(seconds, watts, {summaries = [], day = null, id = null}) {
     const all = Math.max(...others.map(s => s.best[seconds]));
     if(watts > all) return 'all';
     if(day) {
-        const from = new Date(Date.parse(day) - RECENT_DAYS * 86400000).toISOString().slice(0, 10);
+        const from = new Date(Date.parse(day) - (RECENT_DAYS - 1) * 86400000).toISOString().slice(0, 10);
         const recent = others.filter(s => s.day >= from && s.day <= day).map(s => s.best[seconds]);
         if(recent.length && watts > Math.max(...recent)) return 'recent';
     }
@@ -175,25 +175,29 @@ function analyseRide({samples = [], pauses = [], laps = [], workout = null, ftp 
     const intervals = picked.intervals.map(iv => ({...iv, stats: intervalStats(samples, iv, ftp, picked.target)}));
     const reps = picked.source === 'workout' ? plannedVsActual(picked.intervals, samples) : [];
 
-    let wbal = null, powerZones = null, bests = [], np = null;
+    let wbal = null, powerZones = null, bests = [], np = null, vi = 0;
     if(hasPower) {
         const stats = new SessionStats({ftp, weight, wprime, cp});
         const atIndex = [];
         for(const s of active) { stats.push({power: s.power, heartRate: s.heartRate, cadence: s.cadence}); atIndex.push(s.t); }
         const sum = stats.summary();
         np = sum.np;
+        vi = sum.vi;
         const series = new Array(samples.length).fill(null);
         stats.wbalSeries.forEach((w, i) => { series[atIndex[i]] = Math.round(w); });
+        const matches = stats.matches.map(m => ({start: atIndex[m.start], end: atIndex[m.stop], cost: Math.round(m.cost)}));
+        if(stats.inMatch && stats.matchStartW - stats.matchMinW >= 2000 && atIndex.length) {
+            matches.push({start: atIndex[stats.matchStart], end: atIndex[atIndex.length - 1], cost: Math.round(stats.matchStartW - stats.matchMinW)});
+        }
         wbal = {
             series, min: Math.round(sum.wbalMin), wprime, cp: cp > 0 ? cp : ftp,
-            matches: stats.matches.map(m => ({start: atIndex[m.start], end: atIndex[m.stop], cost: Math.round(m.cost)})),
+            matches,
         };
         powerZones = sum.zones.map(z => ({short: z.short, name: z.name, color: z.color, seconds: z.seconds}));
         bests = sum.best.filter(b => b.available && b.watts > 0)
             .map(b => ({seconds: b.seconds, label: b.label, watts: Math.round(b.watts), record: recordOf(b.seconds, Math.round(b.watts), {summaries, day, id})}));
     }
-    const powers = active.map(s => s.power).filter(x => x > 0);
-    const steady = hasPower && np > 0 && mean(powers) > 0 && np / mean(powers) <= STEADY_VI;
+    const steady = hasPower && vi > 0 && vi <= STEADY_VI;
     const hrs = active.map(s => s.heartRate).filter(x => x > 0);
     const avgHr = mean(hrs);
     return {

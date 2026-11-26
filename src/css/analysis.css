@@ -84,7 +84,9 @@
 
 /* ---------- the chart ---------- */
 
-.rp-chart { padding: var(--space-3); }
+.rp-chart { padding: var(--space-3); position: relative; }
+.rp-chart:has(.rc-tip:not([hidden])),
+ride-chart.has-tip { z-index: 30; }
 
 ride-chart {
     position: relative;
@@ -135,11 +137,13 @@ ride-chart {
 ride-chart.is-full {
     position: fixed;
     inset: 0;
-    z-index: 50;
+    z-index: 70;
     align-content: start;
     padding: var(--space-3) max(var(--space-3), env(safe-area-inset-right)) var(--space-3) max(var(--space-3), env(safe-area-inset-left));
     background-color: var(--surface);
 }
+
+.rc-reset[hidden] { display: none; }
 
 ride-chart:fullscreen { background-color: var(--surface); }
 
@@ -175,7 +179,7 @@ ride-chart:fullscreen { background-color: var(--surface); }
 
 .rc-tip {
     position: absolute;
-    z-index: 3;
+    z-index: 30;
     min-width: 170px;
     max-width: min(300px, calc(100% - 16px));
     padding: var(--space-2) var(--space-3);

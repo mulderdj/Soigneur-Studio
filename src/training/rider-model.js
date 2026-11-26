@@ -38,7 +38,11 @@ function meanMaximal(summaries = [], today, days = 90) {
     return out;
 }
 
-// work = CP·t + W′, least squares over the 2–20 min bests
+// upper-envelope + power-space (P = CP + W′/t) fit over the 2–20 min bests.
+// Using the upper convex hull in work-time space prevents non-maximal
+// durations (e.g. 15–20 min polluted by cooldown after a 3 + 12 min test)
+// from dragging CP down, and fitting in Power vs 1/t avoids 100× leverage
+// bias at long durations.
 function fitCp(meanMax = {}) {
     const points = DURATIONS.filter(d => d >= FIT_FROM && d <= FIT_TO && meanMax[d])
         .map(d => ({seconds: d, ...meanMax[d]}));
@@ -46,16 +50,52 @@ function fitCp(meanMax = {}) {
     if(!points.some(p => p.seconds <= SHORT_MAX)) return {ok: false, missing: 'A hard effort of 2–5 minutes in the last 90 days.', points};
     if(!points.some(p => p.seconds >= LONG_MIN)) return {ok: false, missing: 'A hard effort of 12–20 minutes in the last 90 days.', points};
     if(points.length < 3) return {ok: false, missing: 'More efforts between 2 and 20 minutes (three durations at least).', points};
-    const xs = points.map(p => p.seconds), ys = points.map(p => p.watts * p.seconds);
+
+    // upper convex hull of (t, W = P·t)
+    const hull = [];
+    for(const p of points) {
+        const w = p.watts * p.seconds;
+        while(hull.length >= 2) {
+            const a = hull[hull.length - 2], b = hull[hull.length - 1];
+            const cross = (b.seconds - a.seconds) * (w - a.work) - (b.work - a.work) * (p.seconds - a.seconds);
+            if(cross >= 0) hull.pop(); else break;
+        }
+        hull.push({...p, work: w});
+    }
+
+    // pick the best physiological hull edge spanning short → long (or widest valid edge)
+    let env = null;
+    for(let i = 0; i < hull.length - 1; i++) {
+        const a = hull[i], b = hull[i + 1];
+        const cp = (b.work - a.work) / (b.seconds - a.seconds);
+        const wprime = a.work - cp * a.seconds;
+        if(!(cp > 0) || wprime < WPRIME_MIN || wprime > WPRIME_MAX) continue;
+        const spans = a.seconds <= SHORT_MAX && b.seconds >= LONG_MIN;
+        const span = b.seconds - a.seconds;
+        if(!env || (spans && !env.spans) || (spans === env.spans && span > env.span)) {
+            env = {cp, wprime, spans, span};
+        }
+    }
+
+    // keep points within 5 % of the upper envelope; fall back to all points when no valid edge exists
+    const used = env ? points.filter(p => {
+        const pred = env.cp + env.wprime / p.seconds;
+        return pred > 0 && p.watts >= pred * 0.95;
+    }) : points;
+    const fitPts = used.length >= 2 ? used : points;
+
+    // Power-space OLS: P = CP + W′ · (1 / t)
+    const xs = fitPts.map(p => 1 / p.seconds), ys = fitPts.map(p => p.watts);
     const n = xs.length, mx = xs.reduce((a, b) => a + b, 0) / n, my = ys.reduce((a, b) => a + b, 0) / n;
     let sxy = 0, sxx = 0, syy = 0;
     for(let i = 0; i < n; i++) { sxy += (xs[i] - mx) * (ys[i] - my); sxx += (xs[i] - mx) ** 2; syy += (ys[i] - my) ** 2; }
-    const cp = sxy / sxx, wprime = my - cp * mx;
-    const r2 = syy > 0 ? (sxy * sxy) / (sxx * syy) : 0;
+    const wprime = sxx > 0 ? sxy / sxx : 0;
+    const cp = my - wprime * mx;
+    const r2 = sxx > 0 && syy > 0 ? (sxy * sxy) / (sxx * syy) : 0;
     if(!(cp > 0) || wprime < WPRIME_MIN || wprime > WPRIME_MAX) {
         return {ok: false, points, missing: `The efforts don't fit the model yet (W′ would be ${(wprime / 1000).toFixed(1)} kJ): ride all-out efforts of about 3 and 12 minutes.`};
     }
-    return {ok: true, cp: Math.round(cp), wprime: Math.round(wprime), r2: Math.round(r2 * 1000) / 1000, points};
+    return {ok: true, cp: Math.round(cp), wprime: Math.round(wprime), r2: Math.round(r2 * 1000) / 1000, points: fitPts};
 }
 
 function effective({fit, settings = {}, ftp, typedWprime}) {
@@ -85,7 +125,7 @@ const TABLES = {
     women: {
         5:    [0, 8.6, 10.1, 11.7, 13.1, 14.9, 16.6, 18.5],
         60:   [0, 4, 4.6, 5.4, 6.1, 6.9, 7.9, 8.8],
-        300:  [0, 2.5, 2.7, 3.2, 3.7, 4, 4.9, 5.6],
+        300:  [0, 2.5, 2.9, 3.4, 3.9, 4.5, 5.1, 5.7],
         ftp:  [0, 2.3, 2.6, 3.1, 3.5, 3.9, 4.7, 5.3],
     },
 };

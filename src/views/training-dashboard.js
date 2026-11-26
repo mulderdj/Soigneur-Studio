@@ -585,6 +585,8 @@ class TrainingStats extends HTMLElement {
         this.$ = {};
         this.querySelectorAll('[data-k]').forEach(el => { this.$[el.dataset.k] = el; });
         this.$zoneRows = [...this.querySelectorAll('.ts--zone')];
+        this.abort = new AbortController();
+        const signal = {signal: this.abort.signal};
         this.handler = xf.sub('analytics:update', () => this.render());
 
         const $w = this.$['wprime-input'];
@@ -597,7 +599,7 @@ class TrainingStats extends HTMLElement {
             $w.title = model ? 'From the rider model (Training → CP and W′)' : '';
         };
         showSource();
-        window.addEventListener('rider-model:applied', showSource);
+        window.addEventListener('rider-model:applied', showSource, signal);
         $w.addEventListener('change', () => {
             const kj = parseFloat($w.value);
             if(!(kj >= 5 && kj <= 60)) {
@@ -606,12 +608,13 @@ class TrainingStats extends HTMLElement {
             }
             setWprime(Math.round(kj * 1000));
             xf.dispatch('dashboard:wprime', session.wprime);
-        });
+        }, signal);
 
         this.render();
     }
 
     disconnectedCallback() {
+        this.abort?.abort();
         xf.unsub('analytics:update', this.handler);
     }
 
@@ -631,9 +634,10 @@ class TrainingStats extends HTMLElement {
         this.$['iv-adh-bar'].style.width = `${adh === null ? 0 : Math.round(adh * 100)}%`;
         this.$['iv-adh-bar'].dataset.level = adh === null ? '' : adh >= 0.8 ? 'good' : adh >= 0.5 ? 'ok' : 'low';
 
+        const esc = s => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
         const cues = session.cues({target: currentTarget()});
         const html = cues.length ?
-            cues.map(c => `<li class="ts--cue" data-level="${c.level}">${c.text}</li>`).join('') :
+            cues.map(c => `<li class="ts--cue" data-level="${esc(c.level)}">${esc(c.text)}</li>`).join('') :
             (s.seconds === 0 ? `<li class="ts--cue" data-level="info">Pacing tips show up once you start riding.</li>` : '');
         if(this.$.cues.innerHTML !== html) this.$.cues.innerHTML = html;
 

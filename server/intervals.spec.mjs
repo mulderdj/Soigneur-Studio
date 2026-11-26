@@ -36,7 +36,7 @@ test('best efforts from the power curve, in any of its shapes', () => {
     assert.deepEqual(bestFromPowerCurve(curve.secs.map((s, i) => ({secs: s, watts: curve.watts[i]}))), want);
     assert.deepEqual(bestFromPowerCurve({secs: [5, 60], watts: [800, 400]}), all({5: 800, 60: 400}));
     assert.deepEqual(bestFromPowerCurve(null), all());
-    assert.equal(Object.keys(want).length, 21);
+    assert.equal(Object.keys(want).length, 22);
 });
 
 test('zone times onto Auuki\'s 7 zones, sweet spot into Z4', () => {

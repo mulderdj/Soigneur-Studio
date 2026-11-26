@@ -38,46 +38,48 @@ const HINT_MS = 1200;   // how long the screen indicator shows after a change
 
 class RideScreens extends HTMLElement {
     connectedCallback() {
-        if(this.$track) { this.resizeObserver?.observe(this.$track); return; }
-        this.state = {watchStatus: 'stopped', workoutStatus: 'stopped'};
-        this.screen = 0;
-        this.editing = false;
-        this.innerHTML = `
-            <div class="rs-edit" hidden>
-                <p class="rs-edit__note"><span data-k="note"></span></p>
-                <div class="rs-edit__actions">
-                    <label class="rs-edit__name">Screen
-                        <input type="text" class="input" maxlength="24" data-rs="name" autocomplete="off">
-                    </label>
-                    <button type="button" class="btn btn--secondary" data-rs="add-screen">Add screen</button>
-                    <button type="button" class="btn btn--secondary" data-rs="remove-screen">Remove screen</button>
+        if(!this.$track) {
+            this.state = {watchStatus: 'stopped', workoutStatus: 'stopped'};
+            this.screen = 0;
+            this.editing = false;
+            this.innerHTML = `
+                <div class="rs-edit" hidden>
+                    <p class="rs-edit__note"><span data-k="note"></span></p>
+                    <div class="rs-edit__actions">
+                        <label class="rs-edit__name">Screen
+                            <input type="text" class="input" maxlength="24" data-rs="name" autocomplete="off">
+                        </label>
+                        <button type="button" class="btn btn--secondary" data-rs="add-screen">Add screen</button>
+                        <button type="button" class="btn btn--secondary" data-rs="remove-screen">Remove screen</button>
+                    </div>
+                    <div class="rs-edit__actions">
+                        <button type="button" class="btn btn--secondary" data-rs="add">Add tile</button>
+                        <button type="button" class="btn btn--secondary" data-rs="reset">Reset</button>
+                        <button type="button" class="btn btn--secondary" data-rs="cancel">Cancel</button>
+                        <button type="button" class="btn btn--primary" data-rs="done">Done</button>
+                    </div>
                 </div>
-                <div class="rs-edit__actions">
-                    <button type="button" class="btn btn--secondary" data-rs="add">Add tile</button>
-                    <button type="button" class="btn btn--secondary" data-rs="reset">Reset</button>
-                    <button type="button" class="btn btn--secondary" data-rs="cancel">Cancel</button>
-                    <button type="button" class="btn btn--primary" data-rs="done">Done</button>
-                </div>
-            </div>
-            <div class="rs-track"></div>
-            <div class="rs-dots" role="tablist" aria-label="Screens"></div>
-            <span class="rs-live" aria-live="polite"></span>
-            <dialog class="dialog rs-tray" aria-label="Add a tile">
-                <h2 class="rs-tray__title">Add a tile</h2>
-                <div class="rs-tray__list"></div>
-                <form method="dialog"><button class="btn btn--secondary">Close</button></form>
-            </dialog>`;
-        this.$edit = this.querySelector('.rs-edit');
-        this.$note = this.querySelector('[data-k="note"]');
-        this.$track = this.querySelector('.rs-track');
-        this.$dots = this.querySelector('.rs-dots');
-        this.$name = this.querySelector('[data-rs="name"]');
-        this.$live = this.querySelector('.rs-live');
-        this.$tray = this.querySelector('.rs-tray');
-        this.$list = this.querySelector('.rs-tray__list');
-        this.$pool = document.querySelector('.ride__pool');
-        this.$button = document.querySelector('[data-ride-layout]');
+                <div class="rs-track"></div>
+                <div class="rs-dots" role="tablist" aria-label="Screens"></div>
+                <span class="rs-live" aria-live="polite"></span>
+                <dialog class="dialog rs-tray" aria-label="Add a tile">
+                    <h2 class="rs-tray__title">Add a tile</h2>
+                    <div class="rs-tray__list"></div>
+                    <form method="dialog"><button class="btn btn--secondary">Close</button></form>
+                </dialog>`;
+            this.$edit = this.querySelector('.rs-edit');
+            this.$note = this.querySelector('[data-k="note"]');
+            this.$track = this.querySelector('.rs-track');
+            this.$dots = this.querySelector('.rs-dots');
+            this.$name = this.querySelector('[data-rs="name"]');
+            this.$live = this.querySelector('.rs-live');
+            this.$tray = this.querySelector('.rs-tray');
+            this.$list = this.querySelector('.rs-tray__list');
+            this.$pool = document.querySelector('.ride__pool');
+            this.$button = document.querySelector('[data-ride-layout]');
+        }
 
+        this.abort?.abort();
         this.abort = new AbortController();
         const signal = {signal: this.abort.signal};
         this.$edit.addEventListener('click', e => this.onEditClick(e), signal);
@@ -105,7 +107,7 @@ class RideScreens extends HTMLElement {
         xf.sub('db:page', p => { if(p === 'home') this.hint(); }, signal);
         // the screens area changes size without a window resize too (the
         // header hides while riding on the handlebars): fit again
-        this.resizeObserver = typeof ResizeObserver === 'function' ? new ResizeObserver(() => this.fit()) : null;
+        this.resizeObserver ??= typeof ResizeObserver === 'function' ? new ResizeObserver(() => this.fit()) : null;
         this.resizeObserver?.observe(this.$track);
 
         this.layoutName = currentLayout();
@@ -128,6 +130,9 @@ class RideScreens extends HTMLElement {
     }
     disconnectedCallback() {
         if(this.editing) { this.end(); layouts.endEdit(); }
+        clearTimeout(this.hintTimer);
+        clearTimeout(this.scrollTimer);
+        clearTimeout(this.settle);
         this.abort?.abort();
         this.resizeObserver?.disconnect();
     }
@@ -213,13 +218,15 @@ class RideScreens extends HTMLElement {
     scrollTo(smooth) {
         const w = this.$track.clientWidth;
         if(!(w > 0)) return;
+        const reduce = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
+        const useSmooth = smooth && !reduce;
         this.scrolling = true;
-        this.$track.scrollTo?.({left: this.screen * w, behavior: smooth ? 'smooth' : 'instant'});
+        this.$track.scrollTo?.({left: this.screen * w, behavior: useSmooth ? 'smooth' : 'instant'});
         clearTimeout(this.scrollTimer);
         // when the scroll is over ('scrollend', or this timer where there is
         // none): the screen the track really stopped at, in case the rider
         // swiped on meanwhile
-        this.scrollTimer = setTimeout(() => this.scrolled(), smooth ? 700 : 50);
+        this.scrollTimer = setTimeout(() => this.scrolled(), useSmooth ? 700 : 50);
     }
 
     scrolled() {
@@ -450,9 +457,13 @@ class RideScreens extends HTMLElement {
         if(!d || !this.editing || (e.button ?? 0) !== 0) return;
         const drag = {from: Number(d.dataset.dot), x0: e.clientX, moved: false};
         const move = ev => { if(Math.abs(ev.clientX - drag.x0) > 6) drag.moved = true; };
-        const up = ev => {
+        const cleanup = () => {
             document.removeEventListener('pointermove', move);
             document.removeEventListener('pointerup', up);
+            document.removeEventListener('pointercancel', cleanup);
+        };
+        const up = ev => {
+            cleanup();
             if(!drag.moved) return;
             const dots = [...this.$dots.querySelectorAll('[data-dot]')];
             let to = drag.from, best = Infinity;
@@ -467,6 +478,7 @@ class RideScreens extends HTMLElement {
         };
         document.addEventListener('pointermove', move);
         document.addEventListener('pointerup', up);
+        document.addEventListener('pointercancel', cleanup);
     }
 
     // a tile dropped on the screen's edge: onto the screen next to it

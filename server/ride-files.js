@@ -76,15 +76,25 @@ function createRideFiles({db, ownFit, garmin, intervals, now = () => Date.now(),
         return null;
     }
 
+    const inFlight = new Map();
+
     async function get(userId, id) {
         const own = ownFit(userId, id);
         if(own) return Buffer.from(own);
         const kept = q.get.get(userId, id);
         if(kept) return Buffer.from(kept.fit);
-        const fit = await fetchOutside(userId, id);
-        if(!fit) throw new RideFileError('not-found');
-        keep(userId, id, fit);
-        return fit;
+        const key = `${userId}|${id}`;
+        let p = inFlight.get(key);
+        if(!p) {
+            p = (async () => {
+                const fit = await fetchOutside(userId, id);
+                if(!fit) throw new RideFileError('not-found');
+                keep(userId, id, fit);
+                return fit;
+            })().finally(() => inFlight.delete(key));
+            inFlight.set(key, p);
+        }
+        return p;
     }
 
     function forget(userId, service) {
@@ -97,7 +107,7 @@ function createRideFiles({db, ownFit, garmin, intervals, now = () => Date.now(),
             const id = validId(params.id);
             try {
                 const fit = await get(auth.user.id, id);
-                return {raw: fit, headers: {'Content-Type': 'application/vnd.ant.fit', 'Cache-Control': 'private, max-age=86400'}};
+                return {raw: fit, headers: {'Content-Type': 'application/vnd.ant.fit', 'Cache-Control': 'private, max-age=86400', 'Vary': 'Authorization'}};
             } catch(e) {
                 const reason = e.reason ?? 'refused';
                 return {status: STATUS[reason] ?? 502, body: {error: e.message || MESSAGES[reason], reason}};

@@ -388,6 +388,23 @@ body.white-theme .ride .tile--hero .tile__value {
     filter: brightness(1.15);
 }
 
+.tile--hero[data-zone="1"] .hero-meta--zone {
+    color: var(--muted);
+    filter: none;
+}
+
+body.white-theme .hero-meta--zone {
+    color: var(--ink);
+    filter: none;
+}
+
+@media (prefers-color-scheme: light) {
+    body.auto-theme .hero-meta--zone {
+        color: var(--ink);
+        filter: none;
+    }
+}
+
 .tile--hero:not([data-zone]) .hero-meta--zone,
 .tile--hero[data-zone=""] .hero-meta--zone {
     color: var(--muted);
@@ -693,7 +710,12 @@ ride-screens.is-editing .rs-dot,
     gap: 2px;
     padding: 2px;
     border-radius: var(--radius-m);
-    background-color: color-mix(in srgb, var(--surface-2) 90%, transparent);
+    background-color: color-mix(in srgb, var(--surface-2) 94%, transparent);
+}
+
+.rs-slot:has(> .le-bar) > .tile > :not(.le-bar),
+.rs-slot:has(> .le-bar) > :not(.le-bar):not(.tile) {
+    opacity: 0.14;
 }
 
 .le-name {
@@ -804,7 +826,7 @@ ride-screens.is-editing .rs-dot,
     display: inline-flex;
     align-items: center;
     gap: var(--space-2);
-    min-height: 32px;
+    min-height: 36px;
     padding: 0 var(--space-3);
     border: var(--line-w) solid transparent;
     border-radius: var(--radius-pill);
@@ -813,6 +835,13 @@ ride-screens.is-editing .rs-dot,
     font-size: var(--text-xs);
     font-weight: var(--weight-medium);
     cursor: pointer;
+}
+
+@media (pointer: coarse) {
+    .lc--chip,
+    .lc--seg {
+        min-height: var(--tap);
+    }
 }
 
 .lc--chip:hover,
@@ -892,7 +921,7 @@ ride-screens.is-editing .rs-dot,
 
 .lc--tip {
     position: absolute;
-    z-index: 2;
+    z-index: 30;
     min-width: 150px;
     padding: var(--space-2) var(--space-3);
     border-radius: var(--radius-s);
@@ -929,11 +958,11 @@ ride-screens.is-editing .rs-dot,
     justify-content: center;
     padding: var(--space-3) var(--space-4);
     background-color: var(--overlay);
-    color: var(--ink);
+    color: var(--on-brand);
     font-size: var(--text-xl);
     font-weight: var(--weight-bold);
     text-align: center;
-    pointer-events: auto;
+    pointer-events: none;
 }
 
 .ride__moxy auto-start-counter.active,

@@ -16,7 +16,7 @@ function powerToHeight(power, powerMax, viewPort) {
 
 function intervalToWidth(intervalDuration, totalDuration, totalWidth) {
     return clamp(1,
-                 totalDuration,
+                 Math.max(1, totalWidth),
                  translate(intervalDuration, 0, totalDuration, 0, totalWidth)
                 );
 }
@@ -70,7 +70,7 @@ function intervalsToGraph(workout, ftp, viewPort) {
             return Interval(acc, interval, width, ftp, maxPower, viewPort);
         }
 
-        return '';
+        return acc;
     }, '<div class="graph--info--cont"></div>');
 }
 
@@ -97,9 +97,9 @@ function renderInfo(args = {}) {
     dom.info.style.left = `min(${contWidth}px - ${width}px, ${left}px)`;
 
     if(window.innerHeight > minHeight) {
-        dom.info.style.bottom = bottom;
+        dom.info.style.bottom = `${bottom}px`;
     } else {
-        dom.info.style.bottom = bottom - (minHeight - window.innerHeight);
+        dom.info.style.bottom = `${bottom - (minHeight - window.innerHeight)}px`;
     }
 }
 
@@ -108,6 +108,7 @@ class WorkoutGraph extends HTMLElement {
         super();
         this.workout = {};
         this.workoutStatus = "stopped";
+        this.ftp = 200;
         this.metricValue = 0;
         this.index = 0;
         this.minHeight = 30;
@@ -197,7 +198,7 @@ class WorkoutGraph extends HTMLElement {
         }
     }
     onMouseOut(e) {
-        this.dom.info.style.display = 'none';
+        if(this.dom?.info) this.dom.info.style.display = 'none';
     }
     onWorkout(value) {
         this.workout = value; // this.workout = Object.assign({}, value);

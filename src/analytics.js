@@ -194,6 +194,7 @@ class SessionStats {
         this.wbalMin *= k;
         this.matchStartW *= k;
         this.matchMinW *= k;
+        this.matches = this.matches.map(m => ({...m, cost: m.cost * k}));
         this.wbalSeries = this.wbalSeries.map(w => w * k);
         this.wprime = wprime;
     }
@@ -250,7 +251,7 @@ class SessionStats {
         const cp = this.wbalCp();
         const W0 = this.wprime;
         if(power < cp) {
-            this.wbal += (cp - power) * (W0 - this.wbal) / W0;
+            this.wbal += (cp - power) * Math.min(1, (W0 - this.wbal) / W0);
         } else {
             this.wbal -= (power - cp);
             this.aboveCPWork += power - cp;
@@ -285,8 +286,8 @@ class SessionStats {
                          power * (1 / (XPOWER_WINDOW + 1));
         this.x4Sum += Math.pow(this.xWeighted, 4);
 
-        // TISS
-        if(this.ftp > 0) {
+        // TISS (coasting at 0 W adds no training stress)
+        if(this.ftp > 0 && power > 0) {
             const f = power / this.ftp;
             this.aTISS  += ATISS.a  * Math.exp(ATISS.b  * Math.exp(ATISS.c  * f));
             this.anTISS += ANTISS.a * Math.exp(ANTISS.b * Math.exp(ANTISS.c * f));
@@ -473,7 +474,7 @@ class SessionStats {
 
         const W0 = this.wprime;
         if(this.wbalMin < -W0 * 0.05) {
-            out.push({level: 'info', text: 'W′ went below zero: FTP or W′ is probably set too low'});
+            out.push({level: 'info', text: `W′ went below zero: ${this.cp > 0 ? 'CP' : 'FTP'} or W′ is probably set too low`});
         }
         const tte = this.timeToEmpty();
         if(tte !== null && tte < 600) {

@@ -129,19 +129,21 @@ class RiderMenu extends HTMLElement {
         this.$body.addEventListener('submit', e => this.onSubmit(e));
         this.$body.addEventListener('change', e => this.onChange(e));
 
-        window.addEventListener('riders:changed', () => this.renderPill());
-        xf.sub('account:sync', () => { this.renderPill(); if(this.$dialog.open && this.tab === 'account') this.render(); });
-        xf.sub('sensors:changed', () => { if(this.$dialog.open && this.tab === 'sensors') this.render(); });
+        this.abort = new AbortController();
+        const signal = {signal: this.abort.signal};
+        window.addEventListener('riders:changed', () => this.renderPill(), signal);
+        xf.sub('account:sync', () => { this.renderPill(); if(this.$dialog.open && this.tab === 'account') this.render(); }, signal);
+        xf.sub('sensors:changed', () => { if(this.$dialog.open && this.tab === 'sensors') this.render(); }, signal);
         xf.sub('sensor:reconnect-result', ({identifier, ok}) => {
             if(!ok && this.$dialog.open && this.tab === 'sensors') {
                 this.say(`${sensors.ROLES[identifier] ?? 'Sensor'} not found. Is it awake and in range?`, 'warn');
             }
-        });
+        }, signal);
         window.addEventListener('account:signed-out', () => {
             const r = riders.current();
             if(r.account) riders.updateAccount(r.id, {token: null});
             this.renderPill();
-        });
+        }, signal);
 
         api.probe().then(s => { this.server = s; this.renderPill(); });
         // back online: ask the server again, so the Account tab shows the account
@@ -149,7 +151,7 @@ class RiderMenu extends HTMLElement {
             this.server = s;
             this.renderPill();
             if(this.$dialog.open) this.render();
-        }));
+        }), signal);
         this.renderPill();
 
         if(connectReturn) {
@@ -471,13 +473,15 @@ class RiderMenu extends HTMLElement {
             const [{activities}, c] = await Promise.all([api.get('/me/activities'), api.get('/me/connections')]);
             if(this.tab !== 'rides' || !this.$dialog.open) return;
             const linked = {strava: c.strava.connected, intervals: c.intervals.connected};
+            const safeUrl = u => (typeof u === 'string' && /^https?:\/\//i.test(u) ? u : null);
             const cell = (a, service, label) => {
                 const u = a.uploads?.[service];
                 if(u?.status === 'done') {
-                    return u.url ? `<a class="rm--sent" href="${esc(u.url)}" target="_blank" rel="noopener" title="${esc(u.error ?? 'Open')}">${label}</a>` :
-                                   `<span class="rm--sent" title="${esc(u.error ?? '')}">${label}</span>`;
+                    const href = safeUrl(u.url);
+                    return href ? `<a class="rm--sent" href="${esc(href)}" target="_blank" rel="noopener" title="${esc(u.error ?? 'Open')}">${label}</a>` :
+                                  `<span class="rm--sent" title="${esc(u.error ?? '')}">${label}</span>`;
                 }
-                if(u && u.status !== 'failed') return `<span class="rm--up" data-status="${esc(u.status)}" title="${esc(u.error ?? '')}">${label}: ${UPLOAD_LABEL[u.status] ?? u.status}</span>`;
+                if(u && u.status !== 'failed') return `<span class="rm--up" data-status="${esc(u.status)}" title="${esc(u.error ?? '')}">${label}: ${esc(UPLOAD_LABEL[u.status] ?? u.status)}</span>`;
                 if(!linked[service]) return '';
                 return `<button type="button" class="btn rm--btn rm--quiet${u ? ' rm--danger' : ''}" data-act="send" data-service="${service}" data-id="${esc(a.id)}" title="${esc(u?.error ?? '')}">${u ? `${label}: retry` : `Send to ${label}`}</button>`;
             };
@@ -492,7 +496,7 @@ class RiderMenu extends HTMLElement {
                             <td>${fmtDate(a.timestamp)}</td>
                             <td>${esc(a.name)}</td>
                             <td>${fmtDuration(a.duration)}</td>
-                            <td>${a.stats?.tss ?? '--'}</td>
+                            <td>${Number.isFinite(a.stats?.tss) ? a.stats.tss : '--'}</td>
                             <td class="rm--sends">
                                 ${cell(a, 'strava', 'Strava')}
                                 ${cell(a, 'intervals', 'intervals.icu')}
@@ -810,6 +814,11 @@ class RiderMenu extends HTMLElement {
         this.say(`Signed in as @${user.username}. Syncing…`);
         this.render();
         syncNow().then(() => { if(this.tab === 'account') this.render(); });
+    }
+
+    disconnectedCallback() {
+        this.abort?.abort();
+        clearTimeout(this.ridesTimer);
     }
 }
 

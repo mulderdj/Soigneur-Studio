@@ -32,11 +32,13 @@ function Qubic(a, b, c, d) {
         if (Math.abs(D) < 1e-8) {       // D = 0 -> two roots
             roots = [-1.5*q/p, 3*q/p];
         } else if (D > 0) {             // Only one real root
-            var u = Math.cbrt(-q/2 - Math.sqrt(D));
-            roots = [u - p/(3*u)];
+            var s = -q/2 + (q > 0 ? -Math.sqrt(D) : Math.sqrt(D));
+            var u = Math.cbrt(s);
+            roots = [u === 0 ? 0 : u - p/(3*u)];
         } else {                        // D < 0, three roots, but needs to use complex numbers/trigonometric solution
             u = 2*Math.sqrt(-p/3);
-            var t = Math.acos(3*q/p/u)/3;  // D < 0 implies p < 0 and acos argument in [-1..1]
+            var arg = Math.max(-1, Math.min(1, 3*q/p/u));
+            var t = Math.acos(arg)/3;  // D < 0 implies p < 0 and acos argument in [-1..1]
             var k = 2*Math.PI/3;
             roots = [u*Math.cos(t), u*Math.cos(t-k), u*Math.cos(t-2*k)];
         }
@@ -53,7 +55,7 @@ function Qubic(a, b, c, d) {
 // Original
 // written in VBA by GCUser based on Validation of a Mathematical Model for Road Cycling Power, Martin et al
 // dynamic rolling resistance based on http://www.kreuzotter.de/english/espeed.htm#forml
-function calcVel(power, slope = 0, mass = 85, crr = 0.004, cda = 0.4, rhoAir = 1, lossDt = 0, vWind = 0, wheelCircumference = 2000, accel = 0,
+function calcVel(power, slope = 0, mass = 85, crr = 0.004, cda = 0.4, rhoAir = 1.225, lossDt = 0, vWind = 0, wheelCircumference = 2000, accel = 0,
                  modelSpokeDrag = false, modelBearingLoss = false, modelWheelInertia = false, modelDynRollRes = false, smallAngleApprox = false) {
     const pi = Math.PI; // 4 * Math.atan(1);
     const g = 9.80665;
@@ -114,7 +116,7 @@ function calcVel(power, slope = 0, mass = 85, crr = 0.004, cda = 0.4, rhoAir = 1
     return velocity;
 }
 
-function calcPower(velocity, slope, mass, crr = 0.004, cda = 0.4, rhoAir = 1, lossDt = 0, vWind = 0, wheelCircumference = 2000, accel = 0,
+function calcPower(velocity, slope, mass, crr = 0.004, cda = 0.4, rhoAir = 1.225, lossDt = 0, vWind = 0, wheelCircumference = 2000, accel = 0,
                    modelSpokeDrag = false, modelBearingLoss = false, modelWheelInertia = false, modelDynRollRes = false, smallAngleApprox = false) {
     const pi = Math.PI; // 4 * Math.atan(1)
     const g  = 9.80665; // exact grav accel
@@ -141,7 +143,8 @@ function calcPower(velocity, slope, mass, crr = 0.004, cda = 0.4, rhoAir = 1, lo
 
     const pgrav    = (g * mass * sinBeta) * velocity;
     const proll    = (g * crr * mass * cosBeta) * velocity;
-    const pair     = 0.5 * (cda + fw) * rhoAir * (Math.pow((velocity + vWind), 2)) * velocity;
+    const vRel     = velocity + vWind;
+    const pair     = 0.5 * (cda + fw) * rhoAir * Math.abs(vRel) * vRel * velocity;
     const pdynroll = (velocity * crv * cosBeta) * velocity;
     const pke      = (mass + mwheel) * accel * velocity;
 
@@ -167,7 +170,7 @@ function Model(args = { use: {}}) {
         drivetrainLoss: 0.02,
         crr: 0.004,
         windSpeed: 0,
-        rho:             1.275,
+        rho:             1.225,
         dragCoefficient: 1.0,
         frontalArea:     0.4,
         CdA:             0.4,
@@ -177,7 +180,7 @@ function Model(args = { use: {}}) {
             spokeDrag: false,
             bearingLoss: false,
             wheelInertia: false,
-            useDynamicCrr: false,
+            dynamicCrr: false,
         }
     };
 
@@ -214,7 +217,7 @@ function Model(args = { use: {}}) {
     const spokeDrag     = use.spokeDrag   ? 0.0044 : 0;
     const c1bearingLoss = use.bearingLoss ? 0.091  : 0;
     const c2bearingLoss = use.bearingLoss ? 0.0087 : 0;
-    const crv           = use.dynamicCrr  ? 0.1    : 0;
+    const crv           = (use.dynamicCrr ?? use.useDynamicCrr) ? 0.1 : 0;
 
     function powerToMaxSpeed(args = {}) {
         const power          = args.power;
@@ -222,7 +225,7 @@ function Model(args = { use: {}}) {
         const mass           = args.mass ?? defaults.mass;
         const windSpeed      = args.windSpeed ?? defaults.windSpeed;
         const acceleration   = args.acceleration ?? 0;
-        const drivetrainLoss = args.drivetrainLoss ?? 0; //defaults.drivetrainLoss;
+        const dtLoss         = args.drivetrainLoss ?? drivetrainLoss;
         const draftingFactor = args.draftingFactor ?? defaults.draftingFactor;
 
         const cosBeta = CosBeta(slope);
@@ -231,14 +234,14 @@ function Model(args = { use: {}}) {
         const c1KE   = (mass + wheelInertia) * acceleration;
         const c1Grav = g * mass * sinBeta;
         const c1Roll = g * mass * crr * cosBeta;
-        const c1Air  = 0.5 * (CdA + spokeDrag) * rho * (Math.pow(windSpeed, 2));
+        const c1Air  = 0.5 * (CdA + spokeDrag) * rho * (Math.pow(windSpeed, 2)) * draftingFactor;
 
-        const c2Air        = (CdA + spokeDrag) * rho * windSpeed;
+        const c2Air        = (CdA + spokeDrag) * rho * windSpeed * draftingFactor;
         const c2DynamicCrr = crv * cosBeta;
 
-        const c3Air = 0.5 * (CdA + spokeDrag) * rho;
+        const c3Air = 0.5 * (CdA + spokeDrag) * rho * draftingFactor;
 
-        const c0 = -power * (1 - drivetrainLoss);
+        const c0 = -power * (1 - dtLoss);
         const c1 = c1Grav + c1Roll + c1Air + c1bearingLoss + c1KE;
         const c2 = c2Air + c2bearingLoss + c2DynamicCrr;
         const c3 = c3Air;
@@ -267,7 +270,7 @@ function Model(args = { use: {}}) {
         const slope          = args.slope ?? defaults.slope; // 0.01 is 1%
         const mass           = args.mass ?? defaults.mass; // kg
         const windSpeed      = args.windSpeed ?? 0; // m/s
-        const drivetrainLoss = args.drivetrainLoss ?? 0;
+        const dtLoss         = args.drivetrainLoss ?? drivetrainLoss;
         const draftingFactor = args.draftingFactor ?? defaults.draftingFactor; // 0..1
         const dt             = args.dt ?? 1; // s
         const speedPrev      = args.speed ?? 0; // m/s
@@ -278,9 +281,10 @@ function Model(args = { use: {}}) {
         const cosBeta = CosBeta(slope);
         const sinBeta = SinBeta(slope, cosBeta);
 
+        const vRel                    = speed + windSpeed;
         const gravitationalResistance = g * mass * sinBeta;
         const rollingResistance       = g * mass * cosBeta * crr + speedPrev * crv * cosBeta;
-        const windResistance          = 0.5 * rho * (CdA + spokeDrag) * Math.pow((speed + windSpeed), 2) * draftingFactor;
+        const windResistance          = 0.5 * rho * (CdA + spokeDrag) * Math.abs(vRel) * vRel * draftingFactor;
         const bearingLossResistance   = use.bearingLoss ? (0.091  + 0.0087 * speedPrev) : 0;
   	    const keResistance            = 0;
 
@@ -291,7 +295,7 @@ function Model(args = { use: {}}) {
               bearingLossResistance +
               keResistance;
         const powerSteadyState = totalResistance * speedPrev;
-        const powerKE = (power * (1 - drivetrainLoss)) - powerSteadyState;
+        const powerKE = (power * (1 - dtLoss)) - powerSteadyState;
 
         speed = Math.sqrt(Math.pow(speedPrev, 2) + 2 * powerKE * dt / (mass + wheelInertia));
         if(speed < 0 || isNaN(speed)) speed = 0;
@@ -312,7 +316,7 @@ function Model(args = { use: {}}) {
         const slope          = args.slope ?? defaults.slope; // 0.01 is 1%
         const mass           = args.mass ?? defaults.mass; // kg
         const windSpeed      = args.windSpeed ?? 0; // m/s
-        const drivetrainLoss = args.drivetrainLoss ?? 0;
+        const dtLoss         = args.drivetrainLoss ?? drivetrainLoss;
         const draftingFactor = args.draftingFactor ?? defaults.draftingFactor; // 0..1
         const dt             = args.dt ?? 1; // s
         const speedPrev      = args.speed ?? 0; // m/s
@@ -338,7 +342,7 @@ function Model(args = { use: {}}) {
         const c2dynroll = crv * cosBeta;
         const c3air     = 0.5 * (CdA + spokeDrag) * rho * draftingFactor;
 
-        const c0 = -power * (1 - drivetrainLoss) + c0ke;
+        const c0 = -power * (1 - dtLoss) + c0ke;
         const c1 = c1grav + c1roll + c1air + c1bl;
         const c2 = c2air + c2bl + c2dynroll + c2ke;
         const c3 = c3air;

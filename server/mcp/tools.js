@@ -6,7 +6,12 @@
 import { z } from 'zod';
 import { SoigneurError } from './soigneur.js';
 
-const DAY = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'a day as YYYY-MM-DD');
+const validDay = s => {
+    if(!/^\d{4}-\d{2}-\d{2}$/.test(s)) return false;
+    const d = new Date(`${s}T00:00:00Z`);
+    return Number.isFinite(d.getTime()) && d.toISOString().slice(0, 10) === s;
+};
+const DAY = z.string().refine(validDay, 'a real calendar day as YYYY-MM-DD');
 const READ = {readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false};
 
 const UNITS = 'Units are in the key names: _s seconds, _w watts, _bpm beats per minute, _j joules, _kj kilojoules, _pct percent, _h hours. Days are YYYY-MM-DD in the rider\'s time zone.';
@@ -24,6 +29,27 @@ function failure(e) {
 const run = fn => async (args) => {
     try { return result(await fn(args ?? {})); } catch(e) { return failure(e); }
 };
+
+const STEP = z.object({
+    duration_s: z.number().int().min(1).max(21600).describe('seconds'),
+    power_pct: z.number().min(0).max(300).optional().describe('steady power, % of FTP'),
+    power_pct_from: z.number().min(0).max(300).optional().describe('a ramp: start, % of FTP (with power_pct_to)'),
+    power_pct_to: z.number().min(0).max(300).optional().describe('a ramp: end, % of FTP'),
+    cadence_rpm: z.number().int().min(30).max(150).optional(),
+    free_ride: z.boolean().optional().describe('no power target (coasting, free riding)'),
+}).refine(s => (s.power_pct_from === undefined) === (s.power_pct_to === undefined),
+    'a ramp needs both power_pct_from and power_pct_to');
+const BLOCK = z.union([STEP, z.object({
+    repeat: z.number().int().min(2).max(50),
+    steps: z.array(STEP).min(1).max(20).describe('the steps repeated, e.g. on and off'),
+})]);
+const WORKOUT = z.object({
+    name: z.string().min(1).max(80),
+    description: z.string().max(500).optional().describe('the purpose, shown to the rider'),
+    steps: z.array(BLOCK).min(1).max(100).describe('in order: warm-up, main set, cool-down'),
+});
+const WRITE = {readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false};
+const RULES = 'Soigneur checks it first: steps of 30–200 % FTP, at most 6 h a day, not on a ridden day or over a workout planned on intervals.icu, fitness (CTL) rising at most 8 a week, a day without training each week, no two days above 90 TSS in a row (unless the rider allows it), base weeks at least 75 % in Z1–Z2, no hard workout today unless today\'s readiness is ready. When a rule fails, nothing is stored and the findings say what to change.';
 
 function registerTools(server, data) {
     server.registerTool('get_athlete', {
@@ -88,6 +114,64 @@ function registerTools(server, data) {
         inputSchema: {query: z.string().optional().describe('words to look for, e.g. "vo2", "threshold", "test"')},
         annotations: READ,
     }, run(a => data.workouts(a)));
+
+    // --- planning: needs an access key that may change the plan ---
+
+    server.registerTool('plan_workout', {
+        title: 'Plan a workout',
+        description: `Adds one workout to the rider's plan on a day: a workout from list_workouts (workout_id), or one described step by step (workout: power as % FTP; repeat blocks for intervals). ${RULES} Ask the rider before planning. The plan syncs to the app and to intervals.icu. ${UNITS}`,
+        inputSchema: {
+            day: DAY,
+            workout_id: z.string().optional().describe('a workout id from list_workouts'),
+            workout: WORKOUT.optional().describe('a new workout, when none in the library fits'),
+            allow_back_to_back_hard_days: z.boolean().optional().describe('only when the rider said two hard days in a row are fine'),
+        },
+        annotations: WRITE,
+    }, run(a => data.planWorkout(a)));
+
+    server.registerTool('move_planned', {
+        title: 'Move a planned workout',
+        description: `Moves a planned workout (not ridden, today or later) to another day; checked as plan_workout is. entry_id from get_plan. Ask the rider first. ${UNITS}`,
+        inputSchema: {
+            entry_id: z.string().min(1), day: DAY,
+            allow_back_to_back_hard_days: z.boolean().optional(),
+        },
+        annotations: {...WRITE, idempotentHint: true},
+    }, run(a => data.movePlanned(a)));
+
+    server.registerTool('remove_planned', {
+        title: 'Remove a planned workout',
+        description: 'Removes a planned workout (not ridden, today or later) from the plan; one planned on intervals.icu is removed there too. entry_id from get_plan. Ask the rider first.',
+        inputSchema: {entry_id: z.string().min(1)},
+        annotations: {...WRITE, destructiveHint: true, idempotentHint: true},
+    }, run(a => data.removePlanned(a)));
+
+    server.registerTool('propose_plan', {
+        title: 'Check a training block',
+        description: `Checks a block of weeks before anything is planned, and stores nothing: per week (week_of: its Monday) a focus (e.g. base, build, peak, taper, recovery) and the workouts per day (workout_id or a described workout). ${RULES} In a block of 4 weeks or more, also an easier week at least every 4th week. Returns a proposal_id, the findings, and per week the TSS and fitness (CTL) at its start and end. Fix the findings and propose again; when it passes, show the rider the plan and call apply_plan only after they agree. replace_planned: the workouts already planned in Soigneur on those days are replaced (never intervals.icu's). ${UNITS}`,
+        inputSchema: {
+            goal: z.string().max(300).describe('what the block is for, e.g. "a 120 km gran fondo on 2027-03-15"'),
+            weeks: z.array(z.object({
+                week_of: DAY.describe('the Monday of the week'),
+                focus: z.string().max(60).describe('base, build, peak, taper, recovery, ...'),
+                days: z.array(z.object({
+                    day: DAY,
+                    workout_id: z.string().optional(),
+                    workout: WORKOUT.optional(),
+                })).max(7),
+            })).min(1).max(16),
+            replace_planned: z.boolean().optional(),
+            allow_back_to_back_hard_days: z.boolean().optional().describe('only when the rider said so'),
+        },
+        annotations: {readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false},
+    }, run(a => data.proposePlan(a)));
+
+    server.registerTool('apply_plan', {
+        title: 'Plan a checked block',
+        description: 'Puts a block that passed propose_plan into the rider\'s plan, only after the rider agreed to it. It is checked again against the plan and rides as they are now; when something changed, nothing is stored. The plan syncs to the app and to intervals.icu.',
+        inputSchema: {proposal_id: z.string().min(1)},
+        annotations: WRITE,
+    }, run(a => data.applyPlan(a)));
 }
 
 const GUARDRAILS = [
@@ -136,6 +220,33 @@ Cover:
 
 Rules:
 ${GUARDRAILS}`}}]}));
+
+    server.registerPrompt('training_plan', {
+        title: 'Training plan',
+        description: 'Builds a block of training towards a goal, checked by Soigneur, planned only after you agree.',
+        argsSchema: {
+            goal: z.string().describe('what you train for, e.g. "a 120 km gran fondo", "FTP up", "a 3-week base block"'),
+            date: z.string().optional().describe('the event date or the end of the block, YYYY-MM-DD'),
+            days_per_week: z.string().optional().describe('training days a week, e.g. "4"'),
+            hours_per_week: z.string().optional().describe('hours a week, e.g. "6"'),
+        },
+    }, ({goal, date, days_per_week, hours_per_week}) => ({messages: [{role: 'user', content: {type: 'text', text:
+`Build me a training plan as my cycling coach.
+
+Goal: ${goal}${date ? `\nBy: ${date}` : ''}${days_per_week ? `\nDays a week: ${days_per_week}` : ''}${hours_per_week ? `\nHours a week: ${hours_per_week}` : ''}
+
+First look at where I am: get_athlete (FTP, rider model, readiness), get_form (fitness, fatigue, form), get_progress (recent volume, intensity, power curve), list_rides for the last weeks, get_plan for what's already planned, and list_workouts for the workouts I have. Ask me what you need to know and can't find (other sports, days I can't ride, the event's demands).
+
+Then:
+1. Outline the block: weeks, the focus of each, and why.
+2. Fill it with workouts: from my library where one fits, else describe them step by step. Build fitness gradually, with recovery weeks, and keep most riding easy in base weeks.
+3. Check it with propose_plan. Fix every finding and propose again until it passes.
+4. Show me the plan week by week (focus, workouts, TSS, fitness at the end of each week) and ask whether I agree.
+5. Only when I say yes: apply_plan.
+
+Rules:
+${GUARDRAILS}
+- Never plan without my yes; never work around a finding without asking me (e.g. back-to-back hard days).`}}]}));
 }
 
 export { registerTools, registerPrompts, GUARDRAILS };

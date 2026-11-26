@@ -90,8 +90,8 @@ class TrainingPage extends HTMLElement {
 
     async onShow() {
         await this.refresh();
-        if(this.backfilled) return;
-        this.backfilled = true;
+        if(this.backfilled || this._backfilling) return;
+        this._backfilling = true;
         try {
             const result = await history.backfill({
                 ftp: this.state.ftp, weight: this.state.weight,
@@ -101,12 +101,15 @@ class TrainingPage extends HTMLElement {
                     this.$status.textContent = `Reading ${done} of ${total} rides…`;
                 },
             });
+            this.backfilled = true;
             if(result.skipped.length) {
                 this.$status.hidden = false;
                 this.$status.textContent = `${result.skipped.length} ride${result.skipped.length === 1 ? '' : 's'} could not be read and ${result.skipped.length === 1 ? 'is' : 'are'} left out.`;
             }
         } catch(e) {
             console.warn(':training :backfill', e);
+        } finally {
+            this._backfilling = false;
         }
         this.refresh();
     }

@@ -58,7 +58,7 @@ class RideCards extends HTMLElement {
         const matches = w.matches.length ? `<ul class="rc-matches">${w.matches.map((m, i) => `
             <li><button type="button" class="rc-match" data-zoom="${m.start},${m.end}" aria-label="Zoom the chart to match ${i + 1}">
                 <span>Match ${i + 1}</span><span>${clock(m.start)}</span><strong>${kj(m.cost)}<small> kJ</small></strong></button></li>`).join('')}</ul>` :
-            '<p class="card__note">No matches: no effort above FTP cost 2 kJ or more.</p>';
+            `<p class="card__note">No matches: no effort above ${this._data.wbalSource === 'model' ? 'CP' : 'FTP'} cost 2 kJ or more.</p>`;
         return this.card('wbal', 'W′bal and matches', `
             <dl class="rc-facts">
                 <div><dt>Lowest</dt><dd>${kj(w.min)}<small> kJ</small></dd><small>${Math.round(w.min / w.wprime * 100)} % of W′, at ${clock(low.t)}</small></div>

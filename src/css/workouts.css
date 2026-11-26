@@ -379,6 +379,6 @@ input.editor--td:focus {
 }
 
 .editor--save {
-    fill: var(--muted);
-    cursor: not-allowed;
+    fill: var(--ink);
+    cursor: pointer;
 }

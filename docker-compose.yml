@@ -11,7 +11,10 @@ services:
     container_name: soigneur-studio
     restart: unless-stopped
     depends_on:
-      - api
+      api:
+        condition: service_healthy
+    security_opt:
+      - no-new-privileges:true
     environment:
       # the hostname or IP other devices use to reach this machine
       # (AUUKI_HOST, the name before the rename, still works)
@@ -28,6 +31,10 @@ services:
     image: soigneur-studio-api
     container_name: soigneur-studio-api
     restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
     environment:
       # "true" lets anyone who can open the app create a rider account.
       # Default: only the first account (the admin) signs up; the admin

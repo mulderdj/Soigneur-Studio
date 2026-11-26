@@ -9,26 +9,35 @@ class TabBtn extends HTMLElement {
         this.effect = this.getAttribute('effect') || '';
         this.param = this.getAttribute('param') || '';
         this.prop = this.getAttribute('prop') || false;
-        this.addEventListener('pointerup', this.onEffect.bind(this));
+        this.abort?.abort();
+        this.abort = new AbortController();
+        const signal = {signal: this.abort.signal};
+
+        if(!this.hasAttribute('tabindex')) this.setAttribute('tabindex', '0');
+        if(!this.hasAttribute('role')) this.setAttribute('role', 'button');
+
+        this.addEventListener('pointerup', e => this.onEffect(e), signal);
+        this.addEventListener('keydown', e => {
+            if(e.key === 'Enter' || e.key === ' ') { e.preventDefault(); this.onEffect(e); }
+        }, signal);
 
         if(this.prop) {
-            xf.sub(`db:${this.prop}`, this.onUpdate.bind(this));
-            document.removeEventListener(`db:${this.prop}`, this.onUpdate);
+            xf.sub(`db:${this.prop}`, state => this.onUpdate(state), signal);
         }
     }
     disconnectedCallback() {
-        this.removeEventListener('pointerup', this.onEffect);
+        this.abort?.abort();
     }
     onEffect(e) {
         xf.dispatch(`ui:${this.effect}`, this.param);
     }
     onUpdate(state) {
         this.state = state;
-        if(this.state === this.param) {
-            this.classList.remove('active');
-            this.classList.add('active');
-        } else {
-            this.classList.remove('active');
+        const active = this.state === this.param;
+        this.classList.toggle('active', active);
+        if(this.prop === 'page') {
+            if(active) this.setAttribute('aria-current', 'page');
+            else this.removeAttribute('aria-current');
         }
     }
 }
@@ -44,10 +53,12 @@ class TabGroup extends HTMLElement {
     defaultTabSelector() { return '.tab'; }
     defaultTabAttr() { return 'tab'; }
     connectedCallback() {
-        xf.sub(`db:${this.prop}`, this.onUpdate.bind(this));
+        this.abort?.abort();
+        this.abort = new AbortController();
+        xf.sub(`db:${this.prop}`, param => this.onUpdate(param), {signal: this.abort.signal});
     }
     disconnectedCallback() {
-        document.removeEventListener(`db:${this.prop}`, this.onUpdate);
+        this.abort?.abort();
     }
     onUpdate(param) {
         this.tabs.forEach(tab => {

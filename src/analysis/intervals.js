@@ -40,6 +40,11 @@ function lapOffset(workout, laps, pauses) {
     return best && best.score <= LAP_FIT ? best.k : null;
 }
 
+const WATTS_FROM = 10;  // 10 and up is watts (.erg), below is relative to FTP
+const toFrac = (p, ftp) => (p >= WATTS_FROM ? (ftp > 0 ? p / ftp : 0) : p);
+const toWatts = (p, ftp) => Math.round(p >= WATTS_FROM ? p : p * ftp);
+const pausedIn = (a, b, pauses = []) => pauses.reduce((n, p) => n + Math.max(0, Math.min(b, p.end) - Math.max(a, p.start)), 0);
+
 function intervalsFromSteps(workout, samples, {ftp, pauses = [], laps = []} = {}) {
     const offset = lapOffset(workout, laps, pauses);
     if(offset !== null) return stepsOnLaps(workout, samples, {ftp, pauses, laps: laps.slice(offset)});
@@ -51,7 +56,7 @@ function intervalsFromSteps(workout, samples, {ftp, pauses = [], laps = []} = {}
     for(const iv of workout?.intervals ?? []) {
         const duration = Math.max(0, Math.round(iv.duration ?? 0));
         const steps = (iv.steps?.length ? iv.steps : [{duration, power: iv.power}]);
-        const avg = steps.reduce((a, s) => a + (s.power ?? 0) * (s.duration ?? 0), 0) / Math.max(1, steps.reduce((a, s) => a + (s.duration ?? 0), 0));
+        const avg = steps.reduce((a, s) => a + toFrac(s.power ?? 0, ftp) * (s.duration ?? 0), 0) / Math.max(1, steps.reduce((a, s) => a + (s.duration ?? 0), 0));
         const kind = avg >= WORK ? 'work' : 'rest';
         const watts = Math.round(avg * ftp);
         advance();
@@ -66,7 +71,7 @@ function intervalsFromSteps(workout, samples, {ftp, pauses = [], laps = []} = {}
             if(inPause(t, pauses)) { t++; paused++; continue; }
             while(stepLeft <= 0 && stepIndex < steps.length - 1) stepLeft = steps[++stepIndex].duration ?? 0;
             const p = steps[stepIndex]?.power;
-            target[t] = Number.isFinite(p) ? Math.round(p * ftp) : null;
+            target[t] = Number.isFinite(p) ? toWatts(p, ftp) : null;
             t++; done++; stepLeft--;
         }
         intervals.push({start, end: t, kind, target: watts, planned: duration, ...(paused ? {paused} : {}), ...(kind === 'work' ? {rep: ++rep} : {})});
@@ -84,7 +89,7 @@ function stepsOnLaps(workout, samples, {ftp, pauses, laps}) {
     workout.intervals.forEach((iv, i) => {
         const duration = Math.max(0, Math.round(iv.duration ?? 0));
         const steps = (iv.steps?.length ? iv.steps : [{duration, power: iv.power}]);
-        const avg = steps.reduce((a, s) => a + (s.power ?? 0) * (s.duration ?? 0), 0) / Math.max(1, steps.reduce((a, s) => a + (s.duration ?? 0), 0));
+        const avg = steps.reduce((a, s) => a + toFrac(s.power ?? 0, ftp) * (s.duration ?? 0), 0) / Math.max(1, steps.reduce((a, s) => a + (s.duration ?? 0), 0));
         const kind = avg >= WORK ? 'work' : 'rest';
         const extra = kind === 'work' ? {rep: ++rep} : {};
         const lap = laps[i];
@@ -95,7 +100,7 @@ function stepsOnLaps(workout, samples, {ftp, pauses, laps}) {
             if(inPause(t, pauses)) { paused++; continue; }
             while(stepLeft <= 0 && stepIndex < steps.length - 1) stepLeft = steps[++stepIndex].duration ?? 0;
             const p = steps[stepIndex]?.power;
-            target[t] = Number.isFinite(p) ? Math.round(p * ftp) : null;
+            target[t] = Number.isFinite(p) ? toWatts(p, ftp) : null;
             stepLeft--;
         }
         intervals.push({start, end, kind, target: Math.round(avg * ftp), planned: duration, ...(paused ? {paused} : {}), ...extra});
@@ -103,27 +108,35 @@ function stepsOnLaps(workout, samples, {ftp, pauses, laps}) {
     return {intervals, target};
 }
 
-function intervalsFromLaps(laps = []) {
+function intervalsFromLaps(laps = [], pauses = []) {
     if(laps.length < 2) return [];
-    return laps.map((l, i) => ({start: l.start, end: l.end, kind: 'lap', lap: i + 1}));
+    return laps.map((l, i) => {
+        const paused = pausedIn(l.start, l.end, pauses);
+        return {start: l.start, end: l.end, kind: 'lap', lap: i + 1, ...(paused ? {paused} : {})};
+    });
 }
 
 // efforts from power: a 30 s average at or above 88 % FTP for 30 s or more,
-// efforts less than 20 s apart merged
-function detectIntervals(samples, ftp) {
+// efforts less than 20 s apart merged (never across a pause)
+function detectIntervals(samples, ftp, pauses = []) {
     if(!(ftp > 0) || !samples.some(s => s.power > 0)) return [];
     const n = samples.length;
+    const half = Math.floor(SMOOTH / 2);
     const on = new Array(n).fill(false);
     let sum = 0, count = 0;
     const q = [];
-    for(let t = 0; t < n; t++) {
-        const p = samples[t].power;
-        q.push(p);
-        if(Number.isFinite(p)) { sum += p; count++; }
-        if(q.length > SMOOTH) { const old = q.shift(); if(Number.isFinite(old)) { sum -= old; count--; } }
-        // the smoothed value belongs to the middle of the window
-        const mid = t - Math.floor(SMOOTH / 2);
-        if(mid >= 0 && count > 0) on[mid] = sum / count >= WORK * ftp;
+    for(let t = 0; t < n + half; t++) {
+        if(t < n) {
+            const p = inPause(t, pauses) ? null : samples[t].power;
+            q.push(p);
+            if(Number.isFinite(p)) { sum += p; count++; }
+            if(q.length > SMOOTH) { const old = q.shift(); if(Number.isFinite(old)) { sum -= old; count--; } }
+        } else if(q.length) {
+            const old = q.shift();
+            if(Number.isFinite(old)) { sum -= old; count--; }
+        }
+        const mid = t - half;
+        if(mid >= 0 && mid < n && !inPause(mid, pauses) && count > 0) on[mid] = sum / count >= WORK * ftp;
     }
     const efforts = [];
     let s = null;
@@ -134,7 +147,7 @@ function detectIntervals(samples, ftp) {
     const merged = [];
     for(const e of efforts) {
         const last = merged.at(-1);
-        if(last && e.start - last.end < MERGE_GAP) last.end = e.end;
+        if(last && e.start - last.end < MERGE_GAP && pausedIn(last.end, e.start, pauses) === 0) last.end = e.end;
         else merged.push({...e});
     }
     return merged.filter(e => e.end - e.start >= MIN_EFFORT).map((e, i) => ({...e, kind: 'work', rep: i + 1}));
@@ -145,9 +158,9 @@ function pickIntervals({workout = null, laps = [], samples = [], pauses = [], ft
         const {intervals, target} = intervalsFromSteps(workout, samples, {ftp, pauses, laps});
         return {source: 'workout', intervals, target};
     }
-    const fromLaps = intervalsFromLaps(laps);
+    const fromLaps = intervalsFromLaps(laps, pauses);
     if(fromLaps.length) return {source: 'laps', intervals: fromLaps, target: null};
-    const found = detectIntervals(samples, ftp);
+    const found = detectIntervals(samples, ftp, pauses);
     if(found.length) return {source: 'detected', intervals: found, target: null};
     return {source: 'none', intervals: [], target: null};
 }

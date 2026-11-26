@@ -48,9 +48,9 @@ const TRAINING_CARDS = [
     {id: 'curve',    name: 'Power curve',   sizes: CARD, size: 'wide'},
     {id: 'model',    name: 'CP and W′',     sizes: CARD, size: 'narrow'},
     {id: 'profile',  name: 'Power profile', sizes: CARD, size: 'narrow'},
-    {id: 'zones',    name: 'Time in zones', sizes: CARD, size: 'narrow'},
+    {id: 'zones',    name: 'Time in zones', sizes: CARD, size: 'wide'},
     {id: 'ftp',      name: 'FTP trend',     sizes: CARD, size: 'wide'},
-    {id: 'efficiency',     name: 'Aerobic efficiency',  sizes: CARD, size: 'wide'},
+    {id: 'efficiency',     name: 'Aerobic efficiency',  sizes: CARD, size: 'full'},
     {id: 'readiness-perf', name: 'Readiness and rides', sizes: CARD, size: 'narrow'},
 ];
 

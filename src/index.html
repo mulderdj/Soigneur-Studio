@@ -160,7 +160,7 @@
                                 <z-stack-item class="active">
                                     <h2 class="tile__label">Power</h2>
                                     <div class="tile__value-cont">
-                                        <power-value id=power-value"
+                                        <power-value id="power-value"
                                                      class="tile__value"
                                                      prop="db:power1s">--</power-value>
                                     </div>
@@ -168,7 +168,7 @@
                                 <z-stack-item>
                                     <h2 class="tile__label">Power 3s</h2>
                                     <div class="tile__value-cont">
-                                        <power-value id=power-value-3s"
+                                        <power-value id="power-value-3s"
                                                      class="tile__value"
                                                      prop="db:power3s">--</power-value>
                                     </div>
@@ -197,7 +197,7 @@
                                             id="power-target-ftp"
                                             class="tile__target active">
                                             --
-                                        </power-ftp-value>
+                                        </power-target-ftp>
                                     </div>
                                 </z-stack-item>
                             </z-stack>
@@ -254,25 +254,25 @@
                             <z-stack data-key="cadenceZStack">
                                 <z-stack-item class="active">
                                     <h2 class="tile__label">Cadence</h2>
-                                    <cadence-value id=cadence-value"
+                                    <cadence-value id="cadence-value"
                                                    class="tile__value">--</cadence-value>
                                 </z-stack-item>
                                 <z-stack-item>
                                     <h2 class="tile__label">Cadence Lap</h2>
-                                    <cadence-lap-value id=cadence-lap-value"
+                                    <cadence-lap-value id="cadence-lap-value"
                                                        class="tile__value">--</cadence-lap-value>
                                 </z-stack-item>
                                 <z-stack-item>
                                     <h2 class="tile__label">Cadence Avg</h2>
-                                    <cadence-avg-value id=cadence-avg-value"
+                                    <cadence-avg-value id="cadence-avg-value"
                                                        class="tile__value">--</cadence-avg-value>
                                 </z-stack-item>
                                 <z-stack-item>
                                     <h2 class="tile__label">Cadence Target</h2>
                                     <cadence-group class="tile__value-cont complex">
-                                        <cadence-value id=cadence-value"
+                                        <cadence-value id="cadence-target-current"
                                                        class="tile__value">--</cadence-value>
-                                        <cadence-target id=cadence-target-value"
+                                        <cadence-target id="cadence-target-value"
                                                         class="tile__target active"></cadence-target>
                                     </cadence-group>
                                 </z-stack-item>
@@ -280,7 +280,7 @@
                         </div>
                         <div class="tile" id="data-tile--speed">
                             <h2 class="tile__label">Speed</h2>
-                                <speed-switch id="distance-value"
+                                <speed-switch id="speed-value"
                                               class="tile__value">--</speed-switch>
                         </div>
                         <div class="tile" id="data-tile--distance">
@@ -294,7 +294,7 @@
                         <div class="tile" id="data-tile--slope">
                             <h2 class="tile__label">Slope</h2>
                             <div class="tile__value-cont">
-                                <slope-target id=slope-target-value"
+                                <slope-target id="slope-target-value"
                                               class="tile__value">--</slope-target>
                             </div>
                         </div>
@@ -1217,38 +1217,38 @@
             <app-bar class="app-bar">
                 <workout-name id="workout-name" class="app-bar__name">Free ride</workout-name>
                 <watch-control id="watch" class="watch app-bar__controls">
-                    <div id="watch-start" class="control--btn">
-                        <svg class="control--btn--icon" width="24" height="24">
+                    <div id="watch-start" class="control--btn" role="button" tabindex="0" aria-label="Start ride" title="Start ride">
+                        <svg class="control--btn--icon" width="24" height="24" aria-hidden="true">
                             <use href="#icon--play-btn" />
                         </svg>
                     </div>
 
-                    <div id="watch-pause" class="control--btn" >
-                        <svg class="control--btn--icon" width="24" height="24">
+                    <div id="watch-pause" class="control--btn" role="button" tabindex="0" aria-label="Pause ride" title="Pause ride">
+                        <svg class="control--btn--icon" width="24" height="24" aria-hidden="true">
                             <use href="#icon--pause-btn" />
                         </svg>
                     </div>
 
-                    <div id="watch-back" class="control--btn">
-                        <svg class="control--btn--icon" width="24" height="24">
+                    <div id="watch-back" class="control--btn" role="button" tabindex="0" aria-label="Previous interval" title="Previous interval">
+                        <svg class="control--btn--icon" width="24" height="24" aria-hidden="true">
                             <use href="#icon--skip-previous-btn"></use>
                         </svg>
                     </div>
 
-                    <div id="watch-lap" class="control--btn">
-                        <svg class="control--btn--icon" width="24" height="24">
+                    <div id="watch-lap" class="control--btn" role="button" tabindex="0" aria-label="Lap / next interval" title="Lap / next interval">
+                        <svg class="control--btn--icon" width="24" height="24" aria-hidden="true">
                             <use href="#icon--watch-btn"></use>
                         </svg>
                     </div>
 
-                    <div id="watch-stop" class="control--btn">
-                        <svg class="control--btn--icon" width="24" height="24">
+                    <div id="watch-stop" class="control--btn" role="button" tabindex="0" aria-label="End ride" title="End ride">
+                        <svg class="control--btn--icon" width="24" height="24" aria-hidden="true">
                             <use href="#icon--stop-btn"></use>
                         </svg>
                     </div>
 
-                    <div id="activity-save" class="control--btn">
-                        <svg class="control--btn--icon" width="24" height="24">
+                    <div id="activity-save" class="control--btn" role="button" tabindex="0" aria-label="Save ride" title="Save ride">
+                        <svg class="control--btn--icon" width="24" height="24" aria-hidden="true">
                             <use href="#icon--file"></use>
                         </svg>
                     </div>
@@ -1441,6 +1441,6 @@
                 <path d="M240-160h480v-400H240v400Zm240-120q33 0 56.5-23.5T560-360q0-33-23.5-56.5T480-440q-33 0-56.5 23.5T400-360q0 33 23.5 56.5T480-280ZM240-160v-400 400Zm0 80q-33 0-56.5-23.5T160-160v-400q0-33 23.5-56.5T240-640h280v-80q0-83 58.5-141.5T720-920q83 0 141.5 58.5T920-720h-80q0-50-35-85t-85-35q-50 0-85 35t-35 85v80h120q33 0 56.5 23.5T800-560v400q0 33-23.5 56.5T720-80H240Z"/>
             </symbol>
         </svg>
+        <script type="module" src="index.js"></script>
     </body>
-    <script type="module" src="index.js"></script>
 </html>

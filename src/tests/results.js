@@ -10,6 +10,7 @@
 
 const COVER = 0.9;
 const has = p => Number.isFinite(p) && p > 0;
+const valid = p => Number.isFinite(p) && p >= 0;
 const avg = xs => xs.reduce((a, x) => a + x, 0) / xs.length;
 const kj = j => `${(j / 1000).toFixed(1)} kJ`;
 
@@ -30,12 +31,15 @@ const LABEL = {p3: 'the 3 min effort', p12: 'the 12 min effort', p20: 'the 20 mi
 function measure(e, log) {
     const entries = log.filter(x => x.i === e.i && x.s === e.s);
     if(!entries.length) return {reason: `The test was stopped before ${LABEL[e.effort]}.`, missing: true};
-    const powers = entries.map(x => x.power).filter(has);
+    const validEntries = entries.map(x => x.power).filter(valid);
+    const positive = validEntries.filter(p => p > 0);
     const last = log[log.length - 1];
     const stoppedIn = last.i === e.i && last.s === e.s && entries.length < e.duration * COVER;
     if(stoppedIn) return {reason: `The test was stopped during ${LABEL[e.effort]}.`};
-    if(powers.length < e.duration * COVER) return {reason: 'Not enough power data in the effort.'};
-    return {avg: avg(powers), samples: powers};
+    if(validEntries.length < e.duration * COVER || !positive.length) return {reason: 'Not enough power data in the effort.'};
+    // keep contiguous timeline (missing dropouts → 0) so sliding windows don't stitch across gaps,
+    // and include genuine 0 W coasting in the average
+    return {avg: avg(validEntries), samples: entries.map(x => (valid(x.power) ? x.power : 0))};
 }
 
 function bestAverage(powers, window) {
@@ -60,6 +64,7 @@ function cpTest(log, workout) {
     const cp = (m12.avg * 720 - m3.avg * 180) / 540;
     const wprime = (m3.avg - cp) * 180;
     const values = {p3, p12, cp: Math.round(cp), wprime: Math.round(wprime / 10) * 10};
+    if(!(cp > 0)) return {ok: false, values, reason: 'The 12 min was much lower than the 3 min: the 12 min wasn’t paced evenly. Next time start the 12 min steadier.'};
     if(wprime < 5000) return {ok: false, values, reason: `W′ came out at ${kj(wprime)}: the 3 min wasn’t hard enough, or the 12 min started too hard. Next time go harder in the 3 min and start the 12 min a little easier.`};
     if(wprime > 60000) return {ok: false, values, reason: `W′ came out at ${kj(wprime)}: the 12 min was paced too easily. Next time ride the 12 min closer to your limit.`};
     return {ok: true, values};

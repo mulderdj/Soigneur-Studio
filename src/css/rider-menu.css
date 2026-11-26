@@ -219,7 +219,7 @@ rider-menu {
 .rm--btn[data-armed="1"] {
     border-color: var(--danger);
     background-color: var(--danger);
-    color: var(--on-brand);
+    color: var(--on-danger);
 }
 
 .rm--buttons {

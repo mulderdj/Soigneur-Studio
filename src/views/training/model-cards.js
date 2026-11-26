@@ -96,7 +96,7 @@ class ModelCard extends ModelCardBase {
         const using = eff.source === 'model' ?
             `<p class="card__note mc-using">W′bal uses the model: CP ${eff.cp} W, W′ ${kj(eff.wprime)}.${
                 settings.mode === 'ask' ? ' <button type="button" class="btn btn--secondary" data-mc="unuse">Back to my settings</button>' : ''}</p>` :
-            `<p class="card__note mc-using">W′bal uses your FTP (${eff.cp} W) as CP and W′ ${kj(eff.wprime)} from Settings.${
+            `<p class="card__note mc-using">W′bal uses your FTP (${eff.cp} W) as CP and W′ ${kj(eff.wprime)} from the Ride stats panel.${
                 settings.mode === 'auto' ? ' The model takes over once it can be fitted.' : ''}</p>`;
         const offer = m.offer ? `<p class="card__note pc-nudge">Your rides suggest CP ${m.offer.cp} W and W′ ${kj(m.offer.wprime)}.
             <button type="button" class="btn btn--secondary" data-mc="use">Use for W′bal</button></p>` : '';

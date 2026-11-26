@@ -35,9 +35,12 @@ class RideChart extends HTMLElement {
     connectedCallback() {
         if(!this.$plot) {
             this.innerHTML = `<div class="rc-head"><div class="rc-chips" role="group" aria-label="Series"></div>
+                <button type="button" class="btn btn--secondary rc-reset" hidden>Reset zoom</button>
                 <button type="button" class="btn btn--icon rc-full" aria-label="Full screen" title="Full screen"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg></button></div>
                 <div class="rc-plot"></div><div class="rc-tip" hidden></div>`;
             this.$chips = this.querySelector('.rc-chips');
+            this.$reset = this.querySelector('.rc-reset');
+            this.$reset.addEventListener('click', () => this.resetZoom());
             this.$full = this.querySelector('.rc-full');
             this.$full.addEventListener('click', () => this.full ? this.exitFull() : this.enterFull());
             this.$plot = this.querySelector('.rc-plot');
@@ -59,7 +62,7 @@ class RideChart extends HTMLElement {
     }
 
     disconnectedCallback() {
-        this.exitFull();                 // also takes back a history entry of the window-filling view
+        this.exitFull({fromBack: true}); // don't trigger unexpected history.back() when unmounting
         this.abort?.abort();
         this.resize?.disconnect();
         this.theme?.disconnect();
@@ -137,7 +140,7 @@ class RideChart extends HTMLElement {
     colors() {
         return {
             power: token(this, '--accent'), target: token(this, '--muted'), hr: token(this, '--hr', '#e5484d'),
-            cadence: token(this, '--zone-3', '#2bb3a3'), wbal: token(this, '--zone-6', '#f5a623'),
+            cadence: token(this, '--cadence', '#b38cff'), wbal: token(this, '--wbal', '#39d0e8'),
             speed: token(this, '--zone-2', '#4c9aff'), alt: token(this, '--muted', '#8c98a8'),
             zones: [1, 2, 3, 4, 5, 6, 7].map(i => token(this, `--zone-${i}`)),
             shade: token(this, '--band', 'rgba(76,154,255,0.12)'), muted: token(this, '--muted'), line: token(this, '--line'),
@@ -149,16 +152,18 @@ class RideChart extends HTMLElement {
         const {samples, analysis, ftp} = this._data;
         const list = this.series();
         this.list = list;
-        const c = this.colors();
+        const c = this._colors = this.colors();
         this.$chips.innerHTML = list.map((s, i) => `
             <button type="button" class="rc-chip" data-i="${i}" aria-pressed="${s.show}">
                 <span class="rc-swatch" style="background:${esc(c[s.key])}"></span>${esc(s.label)}</button>`).join('');
         this.plot?.destroy();
         this.plot = null;
         this.$plot.innerHTML = '';
+        if(this.$reset) this.$reset.hidden = true;
         if(!samples.length || !list.length) return;
 
         const U = RideChart.uPlot;
+        const touchDevice = typeof matchMedia === 'function' && matchMedia('(pointer: coarse)').matches;
         const font = `11px ${token(this, '--font-text', 'system-ui')}`;
         const axis = {stroke: c.muted, font, grid: {stroke: c.line, width: 1}, ticks: {show: false}};
         // power stroked by zone: a hard-stop gradient over the W scale
@@ -166,7 +171,9 @@ class RideChart extends HTMLElement {
             const ctx = u.ctx, y = w => u.valToPos(w, 'w', true);
             if(!ctx?.createLinearGradient || !(ftp > 0)) return c.power;
             const top = ftp * 1.6;
-            const g = ctx.createLinearGradient(0, y(0), 0, y(top));
+            const y0 = y(0), y1 = y(top);
+            if(!Number.isFinite(y0) || !Number.isFinite(y1) || y0 === y1) return c.power;
+            const g = ctx.createLinearGradient(0, y0, 0, y1);
             const stops = [0, ...DEFAULT_PERCENTAGES.map(p => p * ftp / top), 1];
             for(let i = 0; i < c.zones.length; i++) {
                 g.addColorStop(Math.min(1, stops[i]), c.zones[i]);
@@ -174,6 +181,8 @@ class RideChart extends HTMLElement {
             }
             return g;
         };
+        const fullMin = samples[0].t, fullMax = samples[samples.length - 1].t;
+        this._fullX = [fullMin, fullMax];
         const scales = {x: {time: false}};
         for(const s of list) scales[s.scale] = {auto: true};
         if(scales.w) scales.w = {auto: true, range: (u, min, max) => [0, Math.max(max, ftp * 1.2)]};
@@ -194,15 +203,47 @@ class RideChart extends HTMLElement {
                 {...axis, scale: left.scale, size: 44, label: '', values: (u, ts) => ts.map(t => `${Math.round(t)}`)},
                 ...(right ? [{...axis, scale: 'bpm', side: 1, size: 40, grid: {show: false}, values: (u, ts) => ts.map(t => `${Math.round(t)}`)}] : []),
             ],
-            cursor: {drag: {x: true, y: false}, y: false, points: {size: 6}},
+            cursor: {drag: {x: !touchDevice, y: false}, y: false, points: {size: 6}},
             hooks: {
                 drawClear: [u => this.shade(u, analysis.intervals, c)],
                 setCursor: [u => this.tip(u)],
+                setScale: [(u, key) => {
+                    if(key !== 'x' || !this.$reset || !this._fullX) return;
+                    const sx = u.scales.x;
+                    this.$reset.hidden = !(sx && (sx.min > this._fullX[0] + 1 || sx.max < this._fullX[1] - 1));
+                }],
             },
         };
         const data = [samples.map(s => s.t), ...list.map(s => s.values)];
         this.plot = new U(opts, data, this.$plot);
-        this.plot.over?.addEventListener('mouseleave', () => { this.$tip.hidden = true; });
+        if(this.plot.over) {
+            this.plot.over.addEventListener('mouseleave', () => { if(!touchDevice) { this.$tip.hidden = true; this.classList.remove('has-tip'); } });
+            const scrub = (e) => {
+                const t = e.touches?.[0];
+                if(!t) return;
+                const r = this.plot.over.getBoundingClientRect();
+                this.plot.setCursor({left: t.clientX - r.left, top: t.clientY - r.top});
+            };
+            let start = null;
+            this.plot.over.addEventListener('touchstart', e => {
+                const t = e.touches?.[0];
+                start = t ? {x: t.clientX, y: t.clientY} : null;
+                scrub(e);
+            }, {passive: true});
+            this.plot.over.addEventListener('touchmove', e => {
+                const t = e.touches?.[0];
+                if(!t || !start || Math.abs(t.clientY - start.y) > Math.abs(t.clientX - start.x)) return;
+                scrub(e);
+                e.preventDefault();
+            }, {passive: false});
+            this.plot.over.style.touchAction = 'pan-y';
+        }
+    }
+
+    resetZoom() {
+        if(!this.plot || !this._fullX) return;
+        this.plot.setScale('x', {min: this._fullX[0], max: this._fullX[1]});
+        if(this.$reset) this.$reset.hidden = true;
     }
 
     // the work intervals shaded
@@ -221,13 +262,20 @@ class RideChart extends HTMLElement {
 
     tip(u) {
         const i = u.cursor?.idx;
-        if(i == null || !(u.cursor.left >= 0)) { this.$tip.hidden = true; return; }
-        const c = this.colors();
+        if(i == null || !(u.cursor.left >= 0)) {
+            this.$tip.hidden = true;
+            this.classList.remove('has-tip');
+            return;
+        }
+        const c = this._colors ?? this.colors();
         const rows = this.list.map((s, k) => ({s, v: u.data[k + 1][i]}))
             .filter(({s, v}) => u.series[this.list.indexOf(s) + 1]?.show !== false && num(v))
             .map(({s, v}) => `<div><dt><i style="background:${esc(c[s.key])}"></i>${esc(s.label)}</dt><dd>${(s.digits ? v.toFixed(s.digits) : Math.round(v))} <small>${esc(s.unit)}</small></dd></div>`);
         this.$tip.innerHTML = `<div class="rc-tip__title">${exact(u.data[0][i])}</div>${rows.length ? `<dl>${rows.join('')}</dl>` : '<p>No data here (paused)</p>'}`;
+        this.$tip.style.left = '0px';
+        this.$tip.style.top = '0px';
         this.$tip.hidden = false;
+        this.classList.add('has-tip');
         const plot = this.$plot.getBoundingClientRect(), box = this.getBoundingClientRect();
         const x = plot.left - box.left + (u.over?.offsetLeft ?? 0) + u.cursor.left;
         this.$tip.style.left = `${tipLeft(x, this.$tip.offsetWidth, box.width)}px`;
@@ -248,7 +296,8 @@ class RideChart extends HTMLElement {
         if(!this.plot || !num(start) || !num(end)) return;
         const pad = Math.max(10, Math.round((end - start) * 0.1));
         this.plot.setScale('x', {min: Math.max(0, start - pad), max: end + pad});
-        this.scrollIntoView?.({behavior: 'smooth', block: 'nearest'});
+        const reduce = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
+        this.scrollIntoView?.({behavior: reduce ? 'instant' : 'smooth', block: 'nearest'});
     }
 }
 

@@ -12,7 +12,7 @@ const REST_DAYS = 30;
 
 const DAY_MS = 86400000;
 const minus = (day, n) => new Date(Date.parse(day) - n * DAY_MS).toISOString().slice(0, 10);
-const has = (x) => Number.isFinite(x);
+const has = (x) => Number.isFinite(x) && x > 0;
 
 function sorted(days) {
     return [...(days ?? [])].filter(d => typeof d?.day === 'string').sort((a, b) => (a.day < b.day ? -1 : a.day > b.day ? 1 : 0));

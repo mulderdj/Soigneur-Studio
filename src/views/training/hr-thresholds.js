@@ -6,11 +6,13 @@
 
 import { thresholds } from '../../training/rider-thresholds.js';
 import { xf } from '../../functions.js';
+import { esc } from './format.js';
 
 class HrThresholds extends HTMLElement {
     constructor() {
         super();
         this._store = thresholds;
+        this._saved = false;
     }
 
     set store(s) {
@@ -27,6 +29,7 @@ class HrThresholds extends HTMLElement {
 
     disconnectedCallback() {
         this.abort?.abort();
+        clearTimeout(this._savedTimer);
     }
 
     render() {
@@ -37,7 +40,7 @@ class HrThresholds extends HTMLElement {
             <div class="settings-tile">
                 <label for="lthr-${sport}" class="settings-tile--label">${label}</label>
                 <input id="lthr-${sport}" class="settings-tile--input input" name="${sport}" type="number" min="80" max="230" step="1"
-                       inputmode="numeric" value="${own[sport] ?? ''}" placeholder="${garmin[sport] ? `${garmin[sport]} from Garmin` : 'bpm'}">
+                       inputmode="numeric" value="${esc(own[sport] ?? '')}" placeholder="${garmin[sport] ? `${esc(garmin[sport])} from Garmin` : 'bpm'}">
                 <span class="settings-tile--unit">bpm</span>
             </div>`;
         this.innerHTML = `
@@ -45,12 +48,18 @@ class HrThresholds extends HTMLElement {
                 <p class="settings-tile--hint">Threshold heart rate, for the training load of workouts with heart rate but no power. Leave empty to use Garmin's.</p>
                 ${row('cycling', 'Threshold HR, cycling')}
                 ${row('running', 'Threshold HR, running')}
-                <button type="submit" class="btn btn--secondary hr-thresholds__save">Save</button>
+                <div class="hr-thresholds__foot">
+                    <button type="submit" class="btn btn--secondary hr-thresholds__save">Save</button>
+                    <span class="hr-thresholds__status" role="status" aria-live="polite">${this._saved ? 'Saved' : ''}</span>
+                </div>
             </form>`;
         this.querySelector('form').addEventListener('submit', e => {
             e.preventDefault();
             const data = Object.fromEntries(new FormData(e.target).entries());
             this._store.setOwn({cycling: data.cycling, running: data.running});
+            this._saved = true;
+            clearTimeout(this._savedTimer);
+            this._savedTimer = setTimeout(() => { this._saved = false; const st = this.querySelector('.hr-thresholds__status'); if(st) st.textContent = ''; }, 2500);
             this.render();
         });
     }

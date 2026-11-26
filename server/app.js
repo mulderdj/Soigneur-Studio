@@ -23,6 +23,8 @@ const MAX_JSON_BYTES = 1 * 1024 * 1024;       // profile, workouts, user edits
 const MAX_RIDE_BYTES = 25 * 1024 * 1024;      // a ride upload (base64 .fit + summary)
 const LOGIN_WINDOW_MS = 10 * 60 * 1000;
 const LOGIN_MAX_FAILS = 10;
+const LOGIN_IP_MAX_FAILS = 30;
+const MAX_RATE_ENTRIES = 1000;
 const MAX_ACCESS_TOKENS = 20;
 // what an access token (AI access, MCP) may reach: reading, and with the
 // 'plan' scope the training plan. Everything else needs a sign-in session.
@@ -33,7 +35,7 @@ const TOKEN_ROUTES = {
         'GET /api/me/external-rides', 'GET /api/me/wellness', 'GET /api/me/ride-ratings',
         'GET /api/me/hidden-rides', 'GET /api/me/thresholds',
     ]),
-    plan: new Set(['PUT /api/me/plan/:id', 'DELETE /api/me/plan/:id']),
+    plan: new Set(['PUT /api/me/plan/:id', 'DELETE /api/me/plan/:id', 'POST /api/me/plan/batch']),
 };
 const USERNAME_RE = /^[a-z0-9][a-z0-9._-]{1,31}$/i;
 // letters, digits, - and _; or a hex id in curly braces, as older apps made
@@ -54,6 +56,16 @@ function hashPassword(password) {
     return `scrypt$16384$8$1$${salt.toString('base64')}$${hash.toString('base64')}`;
 }
 
+function hashPasswordAsync(password) {
+    return new Promise((resolve, reject) => {
+        const salt = crypto.randomBytes(16);
+        crypto.scrypt(password, salt, 64, {N: 16384, r: 8, p: 1}, (err, hash) => {
+            if(err) return reject(err);
+            resolve(`scrypt$16384$8$1$${salt.toString('base64')}$${hash.toString('base64')}`);
+        });
+    });
+}
+
 function verifyPassword(password, stored) {
     try {
         const [kind, N, r, p, saltB64, hashB64] = String(stored).split('$');
@@ -66,6 +78,24 @@ function verifyPassword(password, stored) {
         return false;
     }
 }
+
+function verifyPasswordAsync(password, stored) {
+    return new Promise(resolve => {
+        try {
+            const [kind, N, r, p, saltB64, hashB64] = String(stored).split('$');
+            if(kind !== 'scrypt') return resolve(false);
+            const expected = Buffer.from(hashB64, 'base64');
+            crypto.scrypt(password, Buffer.from(saltB64, 'base64'), expected.length, {N: +N, r: +r, p: +p}, (err, actual) => {
+                if(err || actual.length !== expected.length) return resolve(false);
+                resolve(crypto.timingSafeEqual(expected, actual));
+            });
+        } catch(e) {
+            resolve(false);
+        }
+    });
+}
+
+const DUMMY_HASH = hashPassword('not-a-real-password-soigneur');
 
 class HttpError extends Error {
     constructor(status, message) {
@@ -115,18 +145,27 @@ function readBody(req, limit) {
     return new Promise((resolve, reject) => {
         let size = 0;
         let tooLarge = false;
+        let done = false;
         const chunks = [];
         req.on('data', chunk => {
+            if(done) return;
             size += chunk.length;
             if(size > limit) {
-                // keep draining so the client gets a clean 413, not a reset
                 tooLarge = true;
                 chunks.length = 0;
+                // allow small excess to drain for a clean 413, abort huge floods
+                if(size > limit + 64 * 1024) {
+                    done = true;
+                    req.destroy();
+                    reject(new HttpError(413, 'Request too large.'));
+                }
                 return;
             }
             chunks.push(chunk);
         });
         req.on('end', () => {
+            if(done) return;
+            done = true;
             if(tooLarge) return reject(new HttpError(413, 'Request too large.'));
             if(size === 0) return resolve({});
             try {
@@ -161,6 +200,8 @@ function openDatabase(path) {
     const db = new DatabaseSync(path);
     db.exec(`
         PRAGMA journal_mode = WAL;
+        PRAGMA synchronous = NORMAL;
+        PRAGMA busy_timeout = 5000;
         PRAGMA foreign_keys = ON;
         CREATE TABLE IF NOT EXISTS users (
             id            TEXT PRIMARY KEY,
@@ -229,6 +270,9 @@ function openDatabase(path) {
             created_at INTEGER NOT NULL,
             PRIMARY KEY (user_id, id)
         );
+        CREATE INDEX IF NOT EXISTS idx_sessions_expires ON sessions(expires_at);
+        CREATE INDEX IF NOT EXISTS idx_workouts_sync ON workouts(user_id, updated_at);
+        CREATE INDEX IF NOT EXISTS idx_plan_sync ON plan(user_id, updated_at);
     `);
     return db;
 }
@@ -239,6 +283,7 @@ function createApp(options = {}) {
     const db = openDatabase(options.dbPath ?? ':memory:');
     const allowSignup = !!options.allowSignup;
     const loginFails = new Map(); // key -> {count, since}
+    const ipFails = new Map();    // ip -> {count, since}
     const connections = createConnections({db, fail, options: options.connections});
     const intervalsSync = createIntervalsSync({db, options: options.intervals});
     connections.setIntervalsStatus(userId => intervalsSync.status(userId));
@@ -304,13 +349,14 @@ function createApp(options = {}) {
         return q.userCount.get().n === 0;
     }
 
-    function createUser({username, password, displayName, role}) {
+    async function createUser({username, password, displayName, role}) {
         const name = validUsername(username);
         validPassword(password);
         if(q.userByName.get(name)) fail(409, 'That username is taken.');
         const t = now();
         const id = newId();
-        q.insertUser.run(id, name, validDisplayName(displayName, name), hashPassword(password),
+        const hash = await hashPasswordAsync(password);
+        q.insertUser.run(id, name, validDisplayName(displayName, name), hash,
                          role === 'admin' ? 'admin' : 'rider', t, t);
         return q.userById.get(id);
     }
@@ -360,22 +406,45 @@ function createApp(options = {}) {
         if(user.role !== 'admin') fail(403, 'Only an admin can do that.');
     }
 
+    function clientIp(req) {
+        const xff = String(req.headers['x-forwarded-for'] ?? '');
+        const parts = xff.split(',').map(s => s.trim()).filter(Boolean);
+        return parts.at(-1) || String(req.socket.remoteAddress ?? '');
+    }
+
     function clientKey(req, username) {
-        const ip = String(req.headers['x-forwarded-for'] ?? req.socket.remoteAddress ?? '').split(',')[0].trim();
-        return `${ip}|${String(username).toLowerCase()}`;
+        return `${clientIp(req)}|${String(username).toLowerCase()}`;
     }
 
-    function checkLoginRate(key) {
-        const entry = loginFails.get(key);
+    function pruneMap(map) {
+        if(map.size < MAX_RATE_ENTRIES) return;
+        const cutoff = now() - LOGIN_WINDOW_MS;
+        for(const [k, v] of map) if(v.since < cutoff) map.delete(k);
+        while(map.size >= MAX_RATE_ENTRIES) map.delete(map.keys().next().value);
+    }
+
+    function checkRate(map, key, max) {
+        const entry = map.get(key);
         if(!entry) return;
-        if(now() - entry.since > LOGIN_WINDOW_MS) { loginFails.delete(key); return; }
-        if(entry.count >= LOGIN_MAX_FAILS) fail(429, 'Too many failed sign-ins. Wait 10 minutes and try again.');
+        if(now() - entry.since > LOGIN_WINDOW_MS) { map.delete(key); return; }
+        if(entry.count >= max) fail(429, 'Too many failed sign-ins. Wait 10 minutes and try again.');
     }
 
-    function noteLoginFail(key) {
-        const entry = loginFails.get(key);
-        if(!entry || now() - entry.since > LOGIN_WINDOW_MS) loginFails.set(key, {count: 1, since: now()});
+    function noteFail(map, key) {
+        pruneMap(map);
+        const entry = map.get(key);
+        if(!entry || now() - entry.since > LOGIN_WINDOW_MS) map.set(key, {count: 1, since: now()});
         else entry.count += 1;
+    }
+
+    function checkLoginRate(req, username) {
+        checkRate(ipFails, clientIp(req), LOGIN_IP_MAX_FAILS);
+        checkRate(loginFails, clientKey(req, username), LOGIN_MAX_FAILS);
+    }
+
+    function noteLoginFail(req, username) {
+        noteFail(ipFails, clientIp(req));
+        noteFail(loginFails, clientKey(req, username));
     }
 
     // keeps at least one enabled admin
@@ -397,24 +466,24 @@ function createApp(options = {}) {
     route('GET', '/api/setup', () => ({needsSetup: setupNeeded(), signup: allowSignup || setupNeeded()}));
 
     // first user becomes admin; later self sign-up only when ALLOW_SIGNUP is on
-    route('POST', '/api/auth/register', ({body, req}) => {
+    route('POST', '/api/auth/register', async ({body, req}) => {
         const first = setupNeeded();
         if(!first && !allowSignup) fail(403, 'Sign-up is closed. Ask an admin to create your account.');
-        const user = createUser({...body, role: first ? 'admin' : 'rider'});
+        const user = await createUser({...body, role: first ? 'admin' : 'rider'});
         return {status: 201, body: {token: issueSession(user, req), user: publicUser(user)}};
     });
 
-    route('POST', '/api/auth/login', ({body, req}) => {
-        const key = clientKey(req, body.username);
-        checkLoginRate(key);
+    route('POST', '/api/auth/login', async ({body, req}) => {
+        checkLoginRate(req, body.username);
         const user = typeof body.username === 'string' ? q.userByName.get(body.username.toLowerCase()) : undefined;
-        const ok = user && verifyPassword(String(body.password ?? ''), user.password_hash);
-        if(!ok) {
-            noteLoginFail(key);
+        // always run scrypt to prevent timing-based username enumeration
+        const matched = await verifyPasswordAsync(String(body.password ?? ''), user ? user.password_hash : DUMMY_HASH);
+        if(!user || !matched) {
+            noteLoginFail(req, body.username);
             fail(401, 'Wrong username or password.');
         }
         if(user.disabled) fail(403, 'This account is disabled.');
-        loginFails.delete(key);
+        loginFails.delete(clientKey(req, body.username));
         q.purgeSessions.run(now());
         return {token: issueSession(user, req), user: publicUser(user)};
     });
@@ -426,13 +495,13 @@ function createApp(options = {}) {
 
     route('GET', '/api/me', ({auth}) => ({user: publicUser(auth.user)}), {auth: true});
 
-    route('PATCH', '/api/me', ({auth, body}) => {
+    route('PATCH', '/api/me', async ({auth, body}) => {
         const u = auth.user;
         const displayName = validDisplayName(body.displayName, u.display_name);
         let hash = u.password_hash;
         if(body.newPassword !== undefined) {
-            if(!verifyPassword(String(body.currentPassword ?? ''), u.password_hash)) fail(403, 'Current password is wrong.');
-            hash = hashPassword(validPassword(body.newPassword));
+            if(!await verifyPasswordAsync(String(body.currentPassword ?? ''), u.password_hash)) fail(403, 'Current password is wrong.');
+            hash = await hashPasswordAsync(validPassword(body.newPassword));
             q.deleteOtherSessions.run(u.id, auth.tokenHash);
         }
         db.prepare('UPDATE users SET display_name = ?, password_hash = ?, updated_at = ? WHERE id = ?')
@@ -457,7 +526,7 @@ function createApp(options = {}) {
     }, {auth: true});
 
     route('DELETE', '/api/me/tokens/:id', ({auth, params}) => {
-        q.deleteAccessToken.run(auth.user.id, params.id);
+        q.deleteAccessToken.run(auth.user.id, validId(params.id));
         return {ok: true};
     }, {auth: true});
 
@@ -487,7 +556,7 @@ function createApp(options = {}) {
 
     route('PUT', '/api/me/workouts/:id', ({auth, body, params}) => {
         const id = validId(params.id);
-        if(typeof body.data !== 'object' || body.data === null) fail(400, 'Expected {data: {...}}.');
+        if(typeof body.data !== 'object' || body.data === null || Array.isArray(body.data)) fail(400, 'Expected {data: {...}}.');
         const t = now();
         q.upsertWorkout.run(auth.user.id, id, JSON.stringify(body.data), t);
         return {updatedAt: t};
@@ -509,21 +578,55 @@ function createApp(options = {}) {
         };
     }, {auth: true});
 
-    route('PUT', '/api/me/plan/:id', ({auth, body, params}) => {
-        const id = validId(params.id);
-        if(typeof body.data !== 'object' || body.data === null) fail(400, 'Expected {data: {...}}.');
-        // keep the intervals.icu link when the app sends the entry without it
-        const data = {...body.data};
-        const prev = q.planData.get(auth.user.id, id);
+    function sanitizePlanData(userId, id, raw) {
+        const data = {...raw};
+        // server-owned intervals.icu sync metadata cannot be forged by clients
+        delete data.intervalsEventId;
+        delete data.intervalsUpdated;
+        delete data.intervalsSyncedAt;
+        const prev = q.planData.get(userId, id);
         if(prev && !prev.deleted) {
             const old = JSON.parse(prev.data);
-            for(const k of ['intervalsEventId', 'intervalsUpdated', 'intervalsSyncedAt', 'origin']) {
-                if(!(k in data) && k in old) data[k] = old[k];
+            for(const k of ['intervalsEventId', 'intervalsUpdated', 'intervalsSyncedAt']) {
+                if(k in old) data[k] = old[k];
             }
+            if(!('origin' in data) && 'origin' in old) data.origin = old.origin;
         }
+        return data;
+    }
+
+    route('PUT', '/api/me/plan/:id', ({auth, body, params}) => {
+        const id = validId(params.id);
+        if(typeof body.data !== 'object' || body.data === null || Array.isArray(body.data)) fail(400, 'Expected {data: {...}}.');
+        const data = sanitizePlanData(auth.user.id, id, body.data);
         const t = now();
         q.upsertPlan.run(auth.user.id, id, JSON.stringify(data), t);
         return {updatedAt: t};
+    }, {auth: true});
+
+    route('POST', '/api/me/plan/batch', ({auth, body}) => {
+        const remove = Array.isArray(body.remove) ? body.remove : [];
+        const put = Array.isArray(body.put) ? body.put : [];
+        if(remove.length + put.length > 200) fail(400, 'Batch too large.');
+        for(const id of remove) validId(id);
+        for(const item of put) {
+            validId(item?.id);
+            if(typeof item?.data !== 'object' || item.data === null || Array.isArray(item.data)) fail(400, 'Expected {put: [{id, data: {...}}]}.');
+        }
+        const t = now();
+        db.exec('BEGIN IMMEDIATE');
+        try {
+            for(const id of remove) q.deletePlan.run(t, auth.user.id, id);
+            for(const item of put) {
+                const data = sanitizePlanData(auth.user.id, item.id, item.data);
+                q.upsertPlan.run(auth.user.id, item.id, JSON.stringify(data), t);
+            }
+            db.exec('COMMIT');
+        } catch(e) {
+            db.exec('ROLLBACK');
+            throw e;
+        }
+        return {ok: true, updatedAt: t};
     }, {auth: true});
 
     route('DELETE', '/api/me/plan/:id', ({auth, params}) => {
@@ -590,9 +693,11 @@ function createApp(options = {}) {
         const summary = typeof body.summary === 'object' && body.summary !== null ? body.summary : {};
         const keep = {
             name: String(summary.name ?? 'Ride').slice(0, 200),
-            timestamp: Number(summary.timestamp) || now(),
+            timestamp: Number.isFinite(Number(summary.timestamp)) ? Number(summary.timestamp) : now(),
             duration: Number(summary.duration) || 0,
-            stats: typeof summary.stats === 'object' && summary.stats !== null ? summary.stats : undefined,
+            stats: typeof summary.stats === 'object' && summary.stats !== null && !Array.isArray(summary.stats) ? summary.stats : undefined,
+            ...(typeof summary.workoutId === 'string' ? {workoutId: summary.workoutId.slice(0, 128)} : {}),
+            ...(typeof summary.training === 'object' && summary.training !== null && !Array.isArray(summary.training) ? {training: summary.training} : {}),
         };
         const inserted = q.insertActivity.run(auth.user.id, id, JSON.stringify(keep), fit, now());
         if(inserted.changes > 0) connections.onRideSaved(auth.user.id, id);
@@ -603,7 +708,8 @@ function createApp(options = {}) {
         const row = q.activity.get(auth.user.id, validId(params.id));
         if(!row) fail(404, 'Ride not found.');
         const s = JSON.parse(row.summary);
-        const day = new Date(s.timestamp).toISOString().slice(0, 10);
+        const dt = new Date(s.timestamp);
+        const day = Number.isFinite(dt.getTime()) ? dt.toISOString().slice(0, 10) : 'unknown';
         return {raw: Buffer.from(row.fit), headers: {
             'Content-Disposition': `attachment; filename="ride-${day}.fit"`,
         }};
@@ -632,13 +738,13 @@ function createApp(options = {}) {
         return {users: q.users.all().map(publicUser), signup: allowSignup};
     }, {auth: true});
 
-    route('POST', '/api/users', ({auth, body}) => {
+    route('POST', '/api/users', async ({auth, body}) => {
         requireAdmin(auth.user);
-        const user = createUser({...body, role: body.role === 'admin' ? 'admin' : 'rider'});
+        const user = await createUser({...body, role: body.role === 'admin' ? 'admin' : 'rider'});
         return {status: 201, body: {user: publicUser(user)}};
     }, {auth: true});
 
-    route('PATCH', '/api/users/:id', ({auth, body, params}) => {
+    route('PATCH', '/api/users/:id', async ({auth, body, params}) => {
         requireAdmin(auth.user);
         const target = q.userById.get(params.id);
         if(!target) fail(404, 'User not found.');
@@ -652,7 +758,7 @@ function createApp(options = {}) {
         const displayName = validDisplayName(body.displayName, target.display_name);
         let hash = target.password_hash;
         if(body.password !== undefined) {
-            hash = hashPassword(validPassword(body.password));
+            hash = await hashPasswordAsync(validPassword(body.password));
         }
         db.prepare('UPDATE users SET role = ?, disabled = ?, display_name = ?, password_hash = ?, updated_at = ? WHERE id = ?')
           .run(role, disabled, displayName, hash, now(), target.id);
@@ -678,15 +784,21 @@ function createApp(options = {}) {
             const r = matches.find(r => r.method === req.method);
             if(!r) fail(405, 'Method not allowed.');
             const params = url.pathname.match(r.re).groups ?? {};
-            for(const k in params) params[k] = decodeURIComponent(params[k]);
+            try {
+                for(const k in params) params[k] = decodeURIComponent(params[k]);
+            } catch(e) {
+                fail(400, 'Invalid URL encoding.');
+            }
+
+            // authenticate and check token scope before buffering request body
+            const auth = r.opts.auth ? authenticate(req) : undefined;
+            if(auth?.access) allowToken(auth.access, r.key);
 
             const hasBody = req.method === 'POST' || req.method === 'PUT' || req.method === 'PATCH';
-            if(hasBody && !String(req.headers['content-type'] ?? '').startsWith('application/json')) {
+            if(hasBody && !String(req.headers['content-type'] ?? '').toLowerCase().startsWith('application/json')) {
                 fail(415, 'Send JSON.');
             }
             const body = hasBody ? await readBody(req, r.opts.limit ?? MAX_JSON_BYTES) : {};
-            const auth = r.opts.auth ? authenticate(req) : undefined;
-            if(auth?.access) allowToken(auth.access, r.key);
 
             const out = await r.handler({req, url, params, body, auth});
             if(out && out.raw) return send(res, 200, out.raw, out.headers);

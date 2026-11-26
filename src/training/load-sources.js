@@ -5,14 +5,15 @@
 //             intervals.icu's, which already falls back to heart rate)
 //   hr        heart rate against the rider's threshold heart rate for the
 //             sport: IF = (avg − rest) / (threshold − rest), TSS = h × IF² × 100
-//   rpe       how hard the rider said it was (1–10): TSS = h × rpe²
-//             (session RPE, scaled so RPE 10 for an hour is 100)
+//   rpe       how hard the rider said it was (1–10): empirically calibrated
+//             Borg CR-10 TSS/hr table (TrainingPeaks / intervals.icu rTSS)
 //   estimate  hours × a typical load per hour for the sport
 //
 // Each workout says which one it got (loadSource), so the page can mark it.
 //
 
 const PER_HOUR = {cycling: 50, run: 60, swim: 50, walk: 20, hike: 35, weighttraining: 30, yoga: 15, other: 40};
+const RPE_PER_HOUR = [0, 20, 30, 40, 50, 60, 70, 80, 100, 120, 140];
 const DEFAULT_REST = 60;
 const MAX_IF = 1.2;
 const REST_LOOKBACK_DAYS = 7;
@@ -29,7 +30,7 @@ function thresholdFor(sport, thresholds = {}) {
 }
 
 function effectiveLoad(summary, {rating = null, thresholds = null, restingHr = null} = {}) {
-    if(Number.isFinite(summary?.tss)) return {tss: summary.tss, loadSource: 'power'};
+    if(Number.isFinite(summary?.tss) && summary.tss > 0) return {tss: summary.tss, loadSource: 'power'};
     const hours = Math.max(0, Number(summary?.duration) || 0) / 3600;
 
     const threshold = thresholdFor(summary?.sport, thresholds);
@@ -40,7 +41,7 @@ function effectiveLoad(summary, {rating = null, thresholds = null, restingHr = n
         return {tss: round1(hours * intensity * intensity * 100), loadSource: 'hr'};
     }
     if(Number.isInteger(rating) && rating >= 1 && rating <= 10) {
-        return {tss: round1(hours * rating * rating), loadSource: 'rpe'};
+        return {tss: round1(hours * RPE_PER_HOUR[rating]), loadSource: 'rpe'};
     }
     const perHour = PER_HOUR[summary?.sport || 'cycling'] ?? PER_HOUR.other;
     return {tss: round1(hours * perHour), loadSource: 'estimate'};

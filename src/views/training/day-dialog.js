@@ -14,7 +14,7 @@ import { esc, fmtDuration, fmtDay, fmtTss, sportLabelFor, loadTag, loadTitle } f
 import { intervalsToGraph } from '../workout-graph.js';
 import { openRide } from '../analysis/ride-page.js';
 
-const GRAPH_HEIGHT = 48;
+const GRAPH_HEIGHT = 80;
 const minutes = (s) => `${Math.round(s / 60)} min`;
 const workoutSeconds = (w) => (w?.intervals ?? []).reduce((a, i) => a + (Number(i.duration) || 0), 0);
 
@@ -140,7 +140,7 @@ class DayDialog extends HTMLElement {
                 <li class="list-row"><div class="list-row__main"><div class="list-row__title">${esc(e.workout?.meta?.name ?? e.name ?? 'Workout')}</div>
                     <div class="list-row__meta"><span class="badge">${planStatus(e, today)}</span>
                         ${e.workout ? `${Math.round(plannedTss(e.workout, this.data.ftp))} TSS` : 'The workout from intervals.icu could not be read, so it can\'t be ridden here.'}
-                        ${e.origin === 'intervals' ? '<span class="badge badge-icu">intervals.icu</span>' : ''}</div>
+                        ${e.origin === 'intervals' ? '<span class="badge badge-icu">intervals.icu</span>' : e.origin === 'ai' ? '<span class="badge badge-ai" title="Planned by an AI app, with your OK">AI</span>' : ''}</div>
                     ${graph(e)}</div>
                     <label class="field dd-move">Move to<input type="date" class="input" data-move="${esc(e.id)}" value="${esc(e.day)}"></label>
                     ${e.workout && !e.rideId ? `<button type="button" class="btn btn--primary" data-ride="${esc(e.id)}">Ride this workout</button>` : ''}

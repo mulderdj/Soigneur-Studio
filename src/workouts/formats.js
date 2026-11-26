@@ -153,7 +153,7 @@ function readErgMrc(text, name, ext) {
         const cols = line.split('\t');
         const t = parseFloat(cols[0]);
         const msg = (cols[1] ?? '').trim();
-        if(!Number.isFinite(t) || !msg) return;
+        if(!Number.isFinite(t) || !msg || !merged.length) return;
         const seg = merged.find(s => t >= s.start && t < s.start + s.duration) ?? merged[merged.length - 1];
         (seg.messages ??= []).push({offset: t - seg.start, text: msg});
     });
@@ -232,7 +232,7 @@ function readIntervalsText(text, name) {
         if(!line.startsWith('-')) {
             flush();
             const rep = line.match(/(?:^|\s)(\d+)\s*x\s*$/i);
-            block = {repeat: rep ? +rep[1] : 1, steps: []};
+            block = {repeat: rep ? Math.min(200, Math.max(1, +rep[1])) : 1, steps: []};
             return;
         }
 

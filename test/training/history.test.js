@@ -357,7 +357,7 @@ describe('a load for every workout', () => {
         expect([byId.gym.tss, byId.gym.loadSource]).toEqual([30, 'estimate']);
         await history.rateRide('gym', 7);
         const gym = (await history.summaries()).find(s => s.id === 'gym');
-        expect([gym.tss, gym.loadSource]).toEqual([49, 'rpe']);
+        expect([gym.tss, gym.loadSource]).toEqual([80, 'rpe']);
         expect((await history.ratings()).get('gym')).toBe(7);
         await history.rateRide('gym', null);
         expect((await history.summaries()).find(s => s.id === 'gym').loadSource).toBe('estimate');

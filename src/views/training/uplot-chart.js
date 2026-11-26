@@ -66,6 +66,7 @@ function padForBars([lo, hi], xs) {
 }
 
 const touchDevice = () => typeof matchMedia === 'function' && matchMedia('(hover: none)').matches;
+let activeTipCard = null;
 
 class UPlotCard extends HTMLElement {
     static uPlot = uPlot;
@@ -89,10 +90,18 @@ class UPlotCard extends HTMLElement {
     }
 
     disconnectedCallback() {
+        clearTimeout(this.clickTimer);
+        this.hideTip();
         this.resize?.disconnect();
         this.theme?.disconnect();
         this.plot?.destroy();
         this.plot = null;
+    }
+
+    hideTip() {
+        if(this.$tip) this.$tip.hidden = true;
+        this.classList.remove('has-tip');
+        if(activeTipCard === this) activeTipCard = null;
     }
 
     set data(d) {
@@ -127,6 +136,7 @@ class UPlotCard extends HTMLElement {
 
     rebuild() {
         if(!this._data || !this.isConnected || !this.$plot) return;
+        clearTimeout(this.clickTimer);
         const {model, readout} = this.chart();
         this.readout = readout;
         this.model = model;
@@ -134,7 +144,7 @@ class UPlotCard extends HTMLElement {
         this.$head.innerHTML = this.head() + this.rangeButtons(model);
         this.$intro.innerHTML = this.intro?.() ?? '';
         this.$foot.innerHTML = this.foot?.() ?? '';
-        this.$tip.hidden = true;
+        this.hideTip();
         this.plot?.destroy();
         this.plot = null;
         this.$plot.innerHTML = '';
@@ -205,7 +215,7 @@ class UPlotCard extends HTMLElement {
         // open on the chosen period; a drag-zoom then sets its own scale
         if(window && !model.log) this.plot.setScale?.('x', {min: window[0], max: window[1]});
         if(this.plot.over) {
-            this.plot.over.addEventListener('mouseleave', () => { if(!touchDevice()) this.$tip.hidden = true; });
+            this.plot.over.addEventListener('mouseleave', () => { if(!touchDevice()) this.hideTip(); });
             // a click opens the day; where a double-click zooms out, wait to
             // see that it isn't one (uPlot already swallows the click ending a drag)
             const zooms = opts.cursor.drag.x;
@@ -271,9 +281,12 @@ class UPlotCard extends HTMLElement {
         // only the chart under the mouse or finger shows a read-out; a chart
         // following the shared cursor (no event of its own) shows just the line
         const own = this.touching || u.cursor?.event != null || !('event' in (u.cursor ?? {}));
-        if(i == null || outside || !own) { this.$tip.hidden = true; return; }
+        if(i == null || outside || !own) { this.hideTip(); return; }
         const r = this.readout(i);
-        if(!r) { this.$tip.hidden = true; return; }
+        if(!r) { this.hideTip(); return; }
+        if(activeTipCard && activeTipCard !== this) activeTipCard.hideTip();
+        activeTipCard = this;
+        this.classList.add('has-tip');
         const touchy = touchDevice();
         this.$tip.innerHTML = `
             <div class="uc-tip__title">${esc(r.title)}</div>
@@ -283,6 +296,8 @@ class UPlotCard extends HTMLElement {
             ${(r.more ?? []).map(m => `<div class="uc-tip__more">${esc(m)}</div>`).join('')}
             ${touchy && r.day ? `<button type="button" class="btn btn--secondary uc-tip__open" data-open-day="${esc(r.day)}">Open day ›</button>` : ''}`;
         this.$tip.classList.toggle('is-touch', touchy);
+        this.$tip.style.left = '0px';
+        this.$tip.style.top = '0px';
         this.$tip.hidden = false;
         const plot = this.$plot.getBoundingClientRect(), card = this.getBoundingClientRect();
         const x = plot.left - card.left + (u.over?.offsetLeft ?? 0) + u.cursor.left;

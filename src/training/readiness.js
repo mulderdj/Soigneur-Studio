@@ -20,7 +20,7 @@ import { fmtDuration } from '../views/training/format.js';
 
 const DAY_MS = 86400000;
 const addDays = (day, n) => new Date(Date.parse(day) + n * DAY_MS).toISOString().slice(0, 10);
-const has = x => Number.isFinite(x);
+const has = x => Number.isFinite(x) && x > 0;
 const ordinal = n => `${n}${n % 10 === 1 && n % 100 !== 11 ? 'st' : n % 10 === 2 && n % 100 !== 12 ? 'nd' : n % 10 === 3 && n % 100 !== 13 ? 'rd' : 'th'}`;
 const signed = n => `${n > 0 ? '+' : n < 0 ? '−' : '±'}${Math.abs(n)}`;
 
@@ -75,11 +75,11 @@ function readiness({today, days = [], summaries = [], ftp = 250} = {}) {
         else fine.push(`HRV ${night.hrv} ms in your range (${span})`);
     }
 
-    // resting HR against its 30-day average before that night
+    // resting HR against its 30-day average before that night (at least 7 nights)
     if(has(night.restingHr)) {
         const from = addDays(night.day, -REST_AVERAGE_DAYS);
         const before = list.filter(d => d.day >= from && d.day < night.day && has(d.restingHr)).map(d => d.restingHr);
-        if(before.length) {
+        if(before.length >= 7) {
             const diff = Math.round(night.restingHr - before.reduce((a, x) => a + x, 0) / before.length);
             signals.restingDiff = diff;
             const text = `Resting heart rate ${signed(diff)} bpm against your 30-day average`;

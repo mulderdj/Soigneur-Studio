@@ -273,7 +273,8 @@
 .field textarea:focus,
 .input:focus {
     border-color: var(--accent);
-    outline: none;
+    outline: var(--focus-w) solid var(--accent);
+    outline-offset: 1px;
 }
 
 .toggle {
@@ -473,7 +474,7 @@ div.graph--bar-group {
 .graph--info--power,
 .graph--info--slope,
 .graph--info--cadence { min-width: 48px; }
-.graph--info--time { color: var(--muted); }
+.graph--info--time { color: var(--bg); opacity: 0.78; }
 
 /* how far the ride is through the workout */
 #progress {

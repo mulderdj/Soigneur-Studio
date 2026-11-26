@@ -100,7 +100,8 @@ function powerHr(samples = [], pauses = [], window = 30) {
 // --- over time --------------------------------------------------------------
 
 const steady = s => (s.sport ?? 'cycling') === 'cycling' && num(s.np) && s.np > 0 && num(s.avgHr) && s.avgHr > 0 &&
-    (s.duration ?? 0) >= STEADY_MIN && num(s.if) && s.if <= STEADY_IF;
+    (s.duration ?? 0) >= STEADY_MIN && num(s.if) && s.if <= STEADY_IF &&
+    !(num(s.avgPower) && s.avgPower > 0 && s.np / s.avgPower > 1.10);
 
 function efficiency(summaries = [], rollDays = 28) {
     const list = summaries.filter(steady)
@@ -145,10 +146,10 @@ const BAND = [0.60, 0.80];
 function rangeFinder(wellness) {
     const days = [...wellness].filter(d => d?.day).sort((a, b) => (a.day < b.day ? -1 : a.day > b.day ? 1 : 0));
     const byDay = new Map(days.map(d => [d.day, d]));
-    const withHrv = days.filter(d => num(d.hrv));
+    const withHrv = days.filter(d => num(d.hrv) && d.hrv > 0);
     return day => {
         const b = byDay.get(day)?.hrvBaseline;
-        if(num(b?.low) && num(b?.high)) return {low: b.low, high: b.high};
+        if(num(b?.low) && b.low > 0 && num(b?.high) && b.high > 0) return {low: b.low, high: b.high};
         const from = addDays(day, -60);
         const values = [];
         for(const d of withHrv) { if(d.day >= day) break; if(d.day >= from) values.push(d.hrv); }
@@ -176,9 +177,10 @@ function readinessPairs(summaries = [], wellness = [], x = 'hrv', {minRides = 12
         const night = byDay.get(r.day);
         let xv = null;
         if(x === 'sleep') xv = num(night?.sleepSeconds) && night.sleepSeconds > 0 ? round(night.sleepSeconds / 3600, 1) : null;
-        else if(num(night?.hrv)) {
+        else if(num(night?.hrv) && night.hrv > 0) {
             const range = rangeOn(r.day);
-            if(range) xv = round((night.hrv / ((range.low + range.high) / 2) - 1) * 100, 1);
+            const mid = range ? (range.low + range.high) / 2 : 0;
+            if(mid > 0) xv = round((night.hrv / mid - 1) * 100, 1);
         }
         if(xv === null) return;
         points.push({day: r.day, x: xv, y: round((r.ef / base - 1) * 100, 1), name: r.name, id: r.id});

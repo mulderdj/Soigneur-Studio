@@ -239,17 +239,20 @@ function Element(args = {}) {
         return acc;
     }
 
+    const xmlEsc = s => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+
     function write(args = {}) {
         let { content, ...attributes } = args;
 
         content = existance(args.content, defaults.content);
+        const safeContent = content !== '' && !String(content).trimStart().startsWith('<') ? xmlEsc(content) : content;
 
         const attrsString = Object.keys(attributes).reduce((acc, key) => {
-            acc += ` ${key}="${args[key]}"`;
+            acc += ` ${key}="${xmlEsc(args[key])}"`;
             return acc;
         }, '');
 
-        return `${tagOpen + attrsString}${content}${tagClose}`;
+        return `${tagOpen + attrsString}${safeContent}${tagClose}`;
     }
 
     function defaultCalcDuration(element) {
@@ -286,7 +289,7 @@ function Element(args = {}) {
     }
 
     function writeFromInterval(args = {}) {
-        return fromInterval(write(args));
+        return write(fromInterval(args));
     }
 
     return Object.freeze({
@@ -427,9 +430,10 @@ function Warmup(args = {}) {
         const cadenceLow  = element.CadenceLow;
         const cadenceHigh = element.CadenceHigh;
 
-        const stepsCount = parseInt(duration / timeDx);
-        const powerDx    = (powerHigh - powerLow) / (stepsCount - 1);
-        const cadenceDx  = (cadenceHigh - cadenceLow) / (stepsCount - 1);
+        const stepsCount = Math.max(1, parseInt(duration / timeDx));
+        const stepDur    = stepsCount === 1 ? duration : timeDx;
+        const powerDx    = stepsCount > 1 ? (powerHigh - powerLow) / (stepsCount - 1) : 0;
+        const cadenceDx  = stepsCount > 1 ? (cadenceHigh - cadenceLow) / (stepsCount - 1) : 0;
 
         let steps       = [];
         let stepPower   = powerLow;
@@ -437,12 +441,12 @@ function Warmup(args = {}) {
 
         for(let i = 0; i < stepsCount; i++) {
             if(exists(cadenceLow) && exists(cadenceHigh)) {
-                steps.push({duration: timeDx, power: stepPower, cadence: Math.round(stepCadence),});
+                steps.push({duration: stepDur, power: stepPower, cadence: Math.round(stepCadence),});
                 stepCadence = (stepCadence + cadenceDx);
             } else if(exists(cadence)) {
-                steps.push({duration: timeDx, power: stepPower, cadence,});
+                steps.push({duration: stepDur, power: stepPower, cadence,});
             } else {
-                steps.push({duration: timeDx, power: stepPower});
+                steps.push({duration: stepDur, power: stepPower});
             }
             stepPower = (stepPower + powerDx);
         }
@@ -495,14 +499,15 @@ function Cooldown(args = {}) {
         const powerLow  = element.PowerHigh;
         const powerHigh = element.PowerLow;
 
-        const stepsCount = parseInt(duration / timeDx);
-        const powerDx    = (powerHigh - powerLow) / (stepsCount - 1);
+        const stepsCount = Math.max(1, parseInt(duration / timeDx));
+        const stepDur    = stepsCount === 1 ? duration : timeDx;
+        const powerDx    = stepsCount > 1 ? (powerHigh - powerLow) / (stepsCount - 1) : 0;
 
         let steps     = [];
         let stepPower = powerHigh;
 
         for(let i = 0; i < stepsCount; i++) {
-            steps.push({duration: timeDx, power: stepPower});
+            steps.push({duration: stepDur, power: stepPower});
             stepPower = (stepPower - powerDx);
         }
 
@@ -541,7 +546,7 @@ function Ramp(args = {}) {
         tagClose:   ' />',
     };
 
-    return Warmup(spec);
+    return Warmup({spec});
 }
 
 function SteadyState(args = {}) {
@@ -724,7 +729,9 @@ function Body() {
     }
 
     function queryElements(doc) {
+        if(!doc || doc.querySelector('parsererror')) return [];
         const workoutEl = doc.querySelector(parent);
+        if(!workoutEl) return [];
         const elements  = Array.from(workoutEl.children);
         return elements;
     }
@@ -773,9 +780,10 @@ function Body() {
             if(isRamp(steps)) {
                 if(isRampUp(steps)) {
                     node = Elements.Warmup.fromInterval(interval);
-                } else
-                if(isRampDown(steps)) {
+                } else if(isRampDown(steps)) {
                     node = Elements.Cooldown.fromInterval(interval);
+                } else {
+                    node = Elements.SteadyState.fromInterval(interval);
                 }
             } else {
                 node = Elements.SteadyState.fromInterval(interval);

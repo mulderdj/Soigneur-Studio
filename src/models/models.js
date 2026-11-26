@@ -1278,7 +1278,7 @@ class VirtualState extends MetaProp {
 
         this.source          = this.getDefaults().source;
         this.cycling         = Cycling({
-            rho:             1.275,
+            rho:             1.225,
             dragCoefficient: 0.88,   // 1.0, 0.88
             frontalArea:     0.36,   // 0.4, 0.36
             CdA:             0.3168, // 0.4, 0.3168
@@ -1317,8 +1317,10 @@ class VirtualState extends MetaProp {
         this.source = sources.virtualState;
     }
     onWeight(weight) {
+        if(!(weight > 0)) return;
         this.riderWeight = weight;
         this.systemWeight = this.riderWeight + this.equipmentWeight;
+        this.mass = this.systemWeight;
     }
     onStarted() {
         this.lastUpdate = Date.now();

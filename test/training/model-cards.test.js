@@ -28,7 +28,7 @@ describe('the CP and W′ card', () => {
         changed(model());
         expect(el.querySelector('[data-k="cp"]').textContent).toMatch(/27\d W/);
         expect(el.querySelector('[data-k="wprime"]').textContent).toMatch(/kJ/);
-        expect(el.querySelectorAll('.mc-effort').length).toBe(8);
+        expect(el.querySelectorAll('.mc-effort').length).toBe(9);
         expect(el.textContent).toMatch(/VO2 max/);
         expect(el.textContent).toMatch(/of your FTP/);
         expect(el.querySelector('[data-mc="use"]')).not.toBeNull();

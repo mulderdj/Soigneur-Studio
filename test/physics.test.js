@@ -119,6 +119,7 @@ describe('Model', () => {
 
     test('powerToMaxSpeed', () => {
         var model = Model({
+            rho:             1.275,
             dragCoefficient: 1,
             frontalArea:     0.4,
             CdA:             0.4,
@@ -156,7 +157,7 @@ describe('Model', () => {
 
         powerRange.forEach((power, i) => {
             const speed = model.powerToMaxSpeed({power, drivetrainLoss: 0.02}) * 3.6;
-            expect(speed).toBe(speedRange[i].speed);
+            expect(speed).toBeCloseTo(speedRange[i].speed, 10);
         });
     });
 

@@ -18,21 +18,24 @@ const port = Number(process.env.PORT ?? 3000);
 const dataDir = process.env.DATA_DIR ?? path.join(__dirname, 'data');
 fs.mkdirSync(dataDir, {recursive: true});
 
-const { server, connections, intervalsSync, garminSync } = createApp({
+const intervalsReadOnly = String(process.env.INTERVALS_READ_ONLY ?? '').toLowerCase() === 'true';
+
+const { server, connections, intervalsSync, garminSync, close } = createApp({
     dbPath: path.join(dataDir, 'auuki.db'), // the file name from before the rename: keeps existing accounts
     allowSignup: String(process.env.ALLOW_SIGNUP ?? '').toLowerCase() === 'true',
     connections: {
         // the address riders open the app at, e.g. https://soigneur.lan:8443;
         // Strava sends riders back to PUBLIC_URL/api/connect/strava/callback
         publicUrl: process.env.PUBLIC_URL ?? '',
+        intervalsReadOnly,
         strava: {
             clientId: process.env.STRAVA_CLIENT_ID ?? '',
             clientSecret: process.env.STRAVA_CLIENT_SECRET ?? '',
         },
     },
     // INTERVALS_READ_ONLY=true: bring activities and planned workouts in from
-    // intervals.icu but never write planned workouts there (for a first try)
-    intervals: {readOnly: String(process.env.INTERVALS_READ_ONLY ?? '').toLowerCase() === 'true'},
+    // intervals.icu but never write planned workouts or upload rides there
+    intervals: {readOnly: intervalsReadOnly},
 });
 connections.resume();
 intervalsSync.start(); // every 15 minutes for each rider with intervals.icu connected
@@ -43,5 +46,8 @@ server.listen(port, () => {
 });
 
 for(const signal of ['SIGINT', 'SIGTERM']) {
-    process.on(signal, () => server.close(() => process.exit(0)));
+    process.on(signal, () => {
+        try { close(); } catch(e) {}
+        process.exit(0);
+    });
 }

@@ -29,6 +29,9 @@ function createConnections({db, fail, options = {}}) {
     const stravaConfigured = !!(strava.clientId && strava.clientSecret && publicUrl);
     const pollDelay = options.pollDelayMs ?? 1500;
     const retryDelays = options.retryDelaysMs ?? RETRY_DELAYS_MS;
+    const intervalsReadOnly = options.intervalsReadOnly === true;
+    const timeoutMs = options.timeoutMs ?? 30_000;
+    const withTimeout = (opts = {}) => (typeof AbortSignal?.timeout === 'function' ? {...opts, signal: AbortSignal.timeout(timeoutMs)} : opts);
 
     db.exec(`
         CREATE TABLE IF NOT EXISTS connections (
@@ -78,12 +81,13 @@ function createConnections({db, fail, options = {}}) {
                                ON CONFLICT(user_id, activity_id, service) DO UPDATE SET status = excluded.status,
                                remote_id = excluded.remote_id, remote_url = excluded.remote_url, error = excluded.error,
                                attempts = excluded.attempts, updated_at = excluded.updated_at`),
-        pending:   db.prepare("SELECT * FROM uploads WHERE status IN ('queued', 'retrying')"),
+        pending:   db.prepare("SELECT * FROM uploads WHERE status IN ('queued', 'retrying', 'uploading')"),
         ride:      db.prepare('SELECT summary, fit FROM activities WHERE user_id = ? AND id = ?'),
     };
 
     const timers = new Set();
     const running = new Set();
+    const refreshing = new Map(); // userId -> in-flight Strava refresh Promise
 
     function later(fn, ms) {
         const t = setTimeout(() => { timers.delete(t); fn(); }, ms);
@@ -106,11 +110,11 @@ function createConnections({db, fail, options = {}}) {
     }
 
     async function stravaToken(params) {
-        const res = await fetchImpl(`${stravaBase}/oauth/token`, {
+        const res = await fetchImpl(`${stravaBase}/oauth/token`, withTimeout({
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
             body: JSON.stringify({client_id: strava.clientId, client_secret: strava.clientSecret, ...params}),
-        });
+        }));
         const data = await res.json().catch(() => ({}));
         if(!res.ok) {
             throw new UploadError(data.message ?? `Strava refused the sign-in (${res.status}).`,
@@ -124,10 +128,15 @@ function createConnections({db, fail, options = {}}) {
         if(!row) throw new UploadError('Strava is not connected.', {permanent: true});
         const data = JSON.parse(row.data);
         if(data.expiresAt * 1000 > Date.now() + 60e3) return data.accessToken;
-        const t = await stravaToken({grant_type: 'refresh_token', refresh_token: data.refreshToken});
-        const next = {...data, accessToken: t.access_token, refreshToken: t.refresh_token, expiresAt: t.expires_at};
-        q.setData.run(JSON.stringify(next), Date.now(), userId, 'strava');
-        return next.accessToken;
+        if(refreshing.has(userId)) return refreshing.get(userId);
+        const p = (async () => {
+            const t = await stravaToken({grant_type: 'refresh_token', refresh_token: data.refreshToken});
+            const next = {...data, accessToken: t.access_token, refreshToken: t.refresh_token, expiresAt: t.expires_at};
+            q.setData.run(JSON.stringify(next), Date.now(), userId, 'strava');
+            return next.accessToken;
+        })().finally(() => refreshing.delete(userId));
+        refreshing.set(userId, p);
+        return p;
     }
 
     async function uploadStrava(userId, rideId, ride) {
@@ -141,9 +150,9 @@ function createConnections({db, fail, options = {}}) {
         form.append('trainer', '1');
         form.append('external_id', `auuki-${rideId}.fit`);
 
-        const res = await fetchImpl(`${stravaBase}/api/v3/uploads`, {
+        const res = await fetchImpl(`${stravaBase}/api/v3/uploads`, withTimeout({
             method: 'POST', headers: {Authorization: `Bearer ${token}`}, body: form,
-        });
+        }));
         const data = await res.json().catch(() => ({}));
         if(res.status === 401) throw new UploadError('Strava access was revoked. Connect Strava again.', {permanent: true, disconnect: true});
         if(res.status === 429) throw new UploadError('Strava rate limit reached; will retry.');
@@ -153,10 +162,12 @@ function createConnections({db, fail, options = {}}) {
         let status = data;
         for(let i = 0; i < 10 && !status.activity_id && !status.error; i++) {
             await wait(pollDelay);
-            const r = await fetchImpl(`${stravaBase}/api/v3/uploads/${status.id_str ?? status.id}`, {
+            const uploadId = status.id_str ?? status.id;
+            if(!uploadId) break;
+            const r = await fetchImpl(`${stravaBase}/api/v3/uploads/${encodeURIComponent(uploadId)}`, withTimeout({
                 headers: {Authorization: `Bearer ${token}`},
-            });
-            status = await r.json().catch(() => status);
+            }));
+            if(r.ok) status = await r.json().catch(() => status);
         }
         if(status.error) {
             const dup = /duplicate/i.test(status.error);
@@ -175,13 +186,14 @@ function createConnections({db, fail, options = {}}) {
     }
 
     async function intervalsAthlete(apiKey) {
-        const res = await fetchImpl(`${intervalsBase}/api/v1/athlete/0`, {headers: {Authorization: intervalsAuth(apiKey)}});
+        const res = await fetchImpl(`${intervalsBase}/api/v1/athlete/0`, withTimeout({headers: {Authorization: intervalsAuth(apiKey)}}));
         if(res.status === 401 || res.status === 403) fail(400, 'intervals.icu did not accept that API key.');
         if(!res.ok) fail(502, `intervals.icu answered ${res.status}. Try again later.`);
         return res.json();
     }
 
     async function uploadIntervals(userId, rideId, ride) {
+        if(intervalsReadOnly) throw new UploadError('intervals.icu is in read-only mode on this server.', {permanent: true});
         const row = q.get.get(userId, 'intervals');
         if(!row) throw new UploadError('intervals.icu is not connected.', {permanent: true});
         const {apiKey} = JSON.parse(row.data);
@@ -189,9 +201,9 @@ function createConnections({db, fail, options = {}}) {
         const form = new FormData();
         form.append('file', new Blob([ride.fit]), `soigneur-${rideId}.fit`);
         const qs = new URLSearchParams({name: summary.name ?? 'Indoor ride', description: 'Recorded with Soigneur Studio'});
-        const res = await fetchImpl(`${intervalsBase}/api/v1/athlete/0/activities?${qs}`, {
+        const res = await fetchImpl(`${intervalsBase}/api/v1/athlete/0/activities?${qs}`, withTimeout({
             method: 'POST', headers: {Authorization: intervalsAuth(apiKey)}, body: form,
-        });
+        }));
         if(res.status === 401 || res.status === 403) {
             throw new UploadError('intervals.icu no longer accepts the API key. Enter it again.', {permanent: true, disconnect: true});
         }
@@ -249,6 +261,7 @@ function createConnections({db, fail, options = {}}) {
     // called after a ride is stored
     function onRideSaved(userId, rideId) {
         for(const row of q.all.all(userId)) {
+            if(row.service === 'intervals' && intervalsReadOnly) continue;
             if(row.auto_upload && SERVICES.includes(row.service)) queue(userId, rideId, row.service);
         }
     }
@@ -386,6 +399,7 @@ function createConnections({db, fail, options = {}}) {
         route('POST', '/api/me/activities/:id/upload/:service', ({auth, params}) => {
             const rideId = validId(params.id);
             if(!SERVICES.includes(params.service)) fail(404, 'Unknown service.');
+            if(params.service === 'intervals' && intervalsReadOnly) fail(409, 'intervals.icu is in read-only mode on this server.');
             if(!q.ride.get(auth.user.id, rideId)) fail(404, 'Ride not found.');
             if(!q.get.get(auth.user.id, params.service)) fail(409, `Connect ${params.service === 'strava' ? 'Strava' : 'intervals.icu'} first.`);
             queue(auth.user.id, rideId, params.service);

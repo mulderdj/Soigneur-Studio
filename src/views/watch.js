@@ -19,13 +19,19 @@ class Watch extends HTMLElement {
             // workout: document.querySelector('#start-workout'),
         };
 
-        this.dom.start.addEventListener('pointerup', this.onStart, this.signal);
-        this.dom.pause.addEventListener('pointerup', this.onPause, this.signal);
-        this.dom.back.addEventListener('pointerup', this.onBack, this.signal);
-        this.dom.lap.addEventListener('pointerup', this.onLap, this.signal);
-        this.dom.stop.addEventListener('pointerup', this.onStop, this.signal);
-        // this.dom.workout.addEventListener('pointerup', this.onWorkoutStart);
-        this.dom.save.addEventListener(`pointerup`, this.onSave, this.signal);
+        const bind = (el, fn) => {
+            if(!el) return;
+            el.addEventListener('pointerup', fn, this.signal);
+            el.addEventListener('keydown', e => {
+                if(e.key === 'Enter' || e.key === ' ') { e.preventDefault(); fn(e); }
+            }, this.signal);
+        };
+        bind(this.dom.start, this.onStart.bind(this));
+        bind(this.dom.pause, this.onPause.bind(this));
+        bind(this.dom.back,  this.onBack.bind(this));
+        bind(this.dom.lap,   this.onLap.bind(this));
+        bind(this.dom.stop,  this.onStop.bind(this));
+        bind(this.dom.save,  this.onSave.bind(this));
 
         this.renderInit(this.dom);
 
@@ -33,16 +39,38 @@ class Watch extends HTMLElement {
         xf.sub(`db:workoutStatus`, this.onWorkoutStatus.bind(this), this.signal);
     }
     disconnectedCallback() {
+        clearTimeout(this.stopArmTimer);
         this.abortController.abort();
     }
+    disarmStop() {
+        clearTimeout(this.stopArmTimer);
+        if(this.dom?.stop) {
+            this.dom.stop.removeAttribute('data-armed');
+            this.dom.stop.setAttribute('aria-label', 'End ride');
+            this.dom.stop.title = 'End ride';
+        }
+    }
     onStart(e) {
+        this.disarmStop();
         xf.dispatch('ui:watchStart');
         xf.dispatch('ui:workoutStart');
     }
     onPause(e) { xf.dispatch('ui:watchPause'); }
     onBack(e)  { xf.dispatch('ui:watchBack'); }
     onLap(e)   { xf.dispatch('ui:watchLap'); }
-    onStop(e)  { xf.dispatch('ui:watchStop'); }
+    onStop(e)  {
+        // two-tap guard so one sweaty slip next to Resume never ends a ride
+        if(this.dom?.stop && this.dom.stop.dataset.armed !== '1') {
+            this.dom.stop.dataset.armed = '1';
+            this.dom.stop.setAttribute('aria-label', 'Tap again to end ride');
+            this.dom.stop.title = 'Tap again to end ride';
+            clearTimeout(this.stopArmTimer);
+            this.stopArmTimer = setTimeout(() => this.disarmStop(), 3000);
+            return;
+        }
+        this.disarmStop();
+        xf.dispatch('ui:watchStop');
+    }
     onSave(e)  { xf.dispatch('ui:activity:save'); }
     onWorkoutStart(e) { xf.dispatch('ui:workoutStart'); }
     onWatchStatus(status) {

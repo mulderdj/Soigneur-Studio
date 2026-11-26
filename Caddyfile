@@ -20,12 +20,17 @@
 	}
 }
 
-(app) {
-	# account server (docker compose service "api"); without it the app
-	# simply works without accounts
-	handle /api/* {
-		reverse_proxy api:3000
+(security_headers) {
+	header {
+		?X-Content-Type-Options "nosniff"
+		X-Frame-Options "DENY"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		Permissions-Policy "geolocation=(), camera=(), microphone=()"
+		Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline'; worker-src 'self' blob:; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob:; connect-src 'self' https://fonts.googleapis.com https://fonts.gstatic.com; object-src 'none'; base-uri 'self'; frame-ancestors 'none'"
 	}
+}
+
+(root_cert) {
 	# Caddy's root certificate (public; never the key), for devices to
 	# install as a trusted CA: http://<SOIGNEUR_HOST>:8080/soigneur-root.crt
 	handle /soigneur-root.crt {
@@ -35,13 +40,34 @@
 		header Content-Disposition "attachment; filename=soigneur-root.crt"
 		file_server
 	}
+}
+
+(app) {
+	import security_headers
+	# account server (docker compose service "api"); without it the app
+	# simply works without accounts
+	handle /api/* {
+		reverse_proxy api:3000
+	}
+	import root_cert
 	# everything else is the app (separate handle, so try_files never
 	# rewrites /api requests)
 	handle {
 		root * /srv
 		encode gzip
-		try_files {path} /index.html
-		file_server
+		# never rewrite missing static assets (with extensions) to /index.html,
+		# which would poison the service worker's cacheFirst store
+		@missing_asset {
+			path_regexp \.[a-zA-Z0-9]{1,8}$
+			not file
+		}
+		handle @missing_asset {
+			respond 404
+		}
+		handle {
+			try_files {path} /index.html
+			file_server
+		}
 		@manifest path *.webmanifest
 		header @manifest Content-Type "application/manifest+json"
 		# the service worker and the page must always be checked for a new
@@ -51,10 +77,19 @@
 	}
 }
 
-# Plain HTTP: fine on the same machine (http://localhost:8080 is a secure
-# context, so Bluetooth and ANT+ work there).
+# Plain HTTP: full app only on localhost (secure context for Bluetooth/ANT+).
+# Non-localhost LAN requests can only fetch the public root CA certificate;
+# everything else redirects to HTTPS so credentials and API keys never travel
+# in cleartext over the network.
 :8080 {
-	import app
+	import root_cert
+	@localhost host localhost 127.0.0.1 [::1]
+	handle @localhost {
+		import app
+	}
+	handle {
+		redir https://{$SOIGNEUR_HOST:localhost}:8443{uri} 308
+	}
 }
 
 # HTTPS for other devices on your network. Set SOIGNEUR_HOST to the name or
@@ -70,5 +105,6 @@
 			lifetime 7d
 		}
 	}
+	header Strict-Transport-Security "max-age=31536000"
 	import app
 }

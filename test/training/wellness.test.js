@@ -25,6 +25,8 @@ describe('HRV normal range', () => {
         expect(hrvState(61, r)).toBe('above');
         expect(hrvState(55, null)).toBeNull();
         expect(hrvState(null, r)).toBeNull();
+        expect(hrvState(0, r)).toBeNull();
+        expect(latestNight([{day: '2026-11-21', hrv: 50}, {day: '2026-11-22', hrv: 0, restingHr: 0, sleepSeconds: 0, bodyBattery: 0}]).day).toBe('2026-11-21');
     });
 });
 

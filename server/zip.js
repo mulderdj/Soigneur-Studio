@@ -14,7 +14,7 @@ const isFit = b => !!b && b.length >= 14 && b.toString('ascii', 8, 12) === '.FIT
 function endRecord(buf) {
     // the end record is within the last 22 + 65535 (comment) bytes
     for(let i = buf.length - 22; i >= Math.max(0, buf.length - 22 - 65535); i--) {
-        if(buf.readUInt32LE(i) === EOCD) return i;
+        if(buf.readUInt32LE(i) === EOCD && i + 22 + buf.readUInt16LE(i + 20) === buf.length) return i;
     }
     return -1;
 }
@@ -35,13 +35,13 @@ function firstFitInZip(buf) {
             const local = buf.readUInt32LE(p + 42);
             const name = buf.toString('utf8', p + 46, p + 46 + nameLen);
             p += 46 + nameLen + extraLen + commentLen;
-            if(!name.toLowerCase().endsWith('.fit') || full > MAX_FIT) continue;
+            if(!name.toLowerCase().endsWith('.fit') || full > MAX_FIT || size > MAX_FIT) continue;
             if(local + 30 > buf.length || buf.readUInt32LE(local) !== LOCAL) return null;
             const start = local + 30 + buf.readUInt16LE(local + 26) + buf.readUInt16LE(local + 28);
             if(start + size > buf.length) return null;
             const body = buf.subarray(start, start + size);
             const data = method === 0 ? Buffer.from(body) : method === 8 ? zlib.inflateRawSync(body, {maxOutputLength: MAX_FIT}) : null;
-            return isFit(data) ? data : null;
+            if(isFit(data)) return data;
         }
         return null;
     } catch(e) {

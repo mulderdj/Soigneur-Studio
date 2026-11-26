@@ -56,12 +56,14 @@ function createIntervalsSync({db, options = {}}) {
             PRIMARY KEY (user_id, id)
         );
         CREATE TABLE IF NOT EXISTS intervals_sync (
-            user_id    TEXT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
-            last_run   INTEGER,
-            last_error TEXT,
-            plan_skipped INTEGER NOT NULL DEFAULT 0
+            user_id       TEXT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+            last_run      INTEGER,
+            last_error    TEXT,
+            plan_skipped  INTEGER NOT NULL DEFAULT 0,
+            backfill_done INTEGER NOT NULL DEFAULT 0
         );
     `);
+    try { db.exec('ALTER TABLE intervals_sync ADD COLUMN backfill_done INTEGER NOT NULL DEFAULT 0'); } catch(e) {}
 
     const q = {
         key:        db.prepare("SELECT data FROM connections WHERE user_id = ? AND service = 'intervals'"),
@@ -82,10 +84,13 @@ function createIntervalsSync({db, options = {}}) {
         skip:       db.prepare('INSERT OR IGNORE INTO intervals_skipped (user_id, id, source) VALUES (?, ?, ?)'),
         skipped:    db.prepare('SELECT source, COUNT(*) AS n FROM intervals_skipped WHERE user_id = ? GROUP BY source'),
         status:     db.prepare('SELECT * FROM intervals_sync WHERE user_id = ?'),
-        setStatus:  db.prepare(`INSERT INTO intervals_sync (user_id, last_run, last_error, plan_skipped) VALUES (?, ?, ?, ?)
+        setStatus:  db.prepare(`INSERT INTO intervals_sync (user_id, last_run, last_error, plan_skipped, backfill_done) VALUES (?, ?, ?, ?, ?)
                                 ON CONFLICT (user_id) DO UPDATE SET last_run = excluded.last_run, last_error = excluded.last_error,
-                                plan_skipped = excluded.plan_skipped`),
+                                plan_skipped = excluded.plan_skipped, backfill_done = MAX(backfill_done, excluded.backfill_done)`),
+        markBackfill: db.prepare(`INSERT INTO intervals_sync (user_id, backfill_done) VALUES (?, 1)
+                                  ON CONFLICT (user_id) DO UPDATE SET backfill_done = 1`),
         planRows:   db.prepare('SELECT id, data, deleted, updated_at FROM plan WHERE user_id = ?'),
+        planRow:    db.prepare('SELECT updated_at, deleted FROM plan WHERE user_id = ? AND id = ?'),
         planSave:   db.prepare(`INSERT INTO plan (user_id, id, data, deleted, updated_at) VALUES (?, ?, ?, 0, ?)
                                 ON CONFLICT (user_id, id) DO UPDATE SET data = excluded.data, deleted = 0, updated_at = excluded.updated_at`),
         planGone:   db.prepare(`UPDATE plan SET deleted = 1, data = '{}', updated_at = ? WHERE user_id = ? AND id = ?`),
@@ -93,6 +98,8 @@ function createIntervalsSync({db, options = {}}) {
     };
 
     const running = new Map(); // userId -> Promise
+    const pendingRun = new Map(); // userId -> Promise (at most one queued follow-up)
+    const timeoutMs = options.timeoutMs ?? 30_000;
     let timer = null;
 
     function wait(ms) {
@@ -119,6 +126,7 @@ function createIntervalsSync({db, options = {}}) {
                     headers: {Authorization: auth, Accept: 'application/json',
                               ...(body !== undefined ? {'Content-Type': 'application/json'} : {})},
                     body: body !== undefined ? JSON.stringify(body) : undefined,
+                    ...(typeof AbortSignal?.timeout === 'function' ? {signal: AbortSignal.timeout(timeoutMs)} : {}),
                 });
                 if(res.status === 401 || res.status === 403) {
                     throw new SyncError('intervals.icu no longer accepts the API key. Enter it again.', {revoked: true});
@@ -156,7 +164,8 @@ function createIntervalsSync({db, options = {}}) {
 
     async function syncActivities(userId, request) {
         const newest = q.newestDay.get(userId)?.day;
-        let oldest = newest ?
+        const backfilled = !!q.status.get(userId)?.backfill_done;
+        let oldest = newest && backfilled ?
               isoDay(Date.parse(newest) - OVERLAP_DAYS * DAY_MS) :
               isoDay(now() - FIRST_DAYS * DAY_MS);
         // rides stored by an older mapping: list them again, back to the oldest
@@ -191,6 +200,7 @@ function createIntervalsSync({db, options = {}}) {
         }
         // stale rides intervals.icu didn't list (gone there): not looked for again
         q.unlisted.run(`${MAPPING}|unlisted`, userId, oldest, `${MAPPING}|%`);
+        if(!backfilled) q.markBackfill.run(userId);
     }
 
     //
@@ -234,6 +244,11 @@ function createIntervalsSync({db, options = {}}) {
         let skipped = 0;
 
         const save = (row, data) => {
+            // guard against TOCTOU overwrite if the app or MCP modified this row during slow HTTP calls
+            if(row.updatedAt > 0) {
+                const cur = q.planRow.get(userId, row.id);
+                if(cur && cur.updated_at !== row.updatedAt) return;
+            }
             const t = now();
             data.intervalsSyncedAt = t;
             q.planSave.run(userId, row.id, JSON.stringify(data), t);
@@ -328,16 +343,27 @@ function createIntervalsSync({db, options = {}}) {
             error = String(e.message ?? e).slice(0, 300);
             if(e.revoked) q.revoke.run(userId);
         }
-        q.setStatus.run(userId, now(), error, planSkipped);
+        q.setStatus.run(userId, now(), error, planSkipped, error ? 0 : 1);
         return {...status(userId), error};
     }
 
     function run(userId) {
-        const prev = running.get(userId) ?? Promise.resolve();
-        const next = prev.then(() => runOnce(userId), () => runOnce(userId));
-        running.set(userId, next);
-        next.finally(() => { if(running.get(userId) === next) running.delete(userId); });
-        return next;
+        if(!running.has(userId)) {
+            const p = runOnce(userId).finally(() => { if(running.get(userId) === p) running.delete(userId); });
+            running.set(userId, p);
+            return p;
+        }
+        // coalesce duplicate triggers: at most one pending follow-up run
+        if(!pendingRun.has(userId)) {
+            const active = running.get(userId);
+            const next = active.then(() => runOnce(userId), () => runOnce(userId)).finally(() => {
+                if(pendingRun.get(userId) === next) pendingRun.delete(userId);
+                if(running.get(userId) === next) running.delete(userId);
+            });
+            pendingRun.set(userId, next);
+            active.finally(() => { if(pendingRun.get(userId) === next) running.set(userId, next); });
+        }
+        return pendingRun.get(userId);
     }
 
     function status(userId) {

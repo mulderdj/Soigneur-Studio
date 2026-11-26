@@ -75,14 +75,16 @@ function createGarminSync({db, options = {}}) {
             PRIMARY KEY (user_id, day)
         );
         CREATE TABLE IF NOT EXISTS garmin_sync (
-            user_id    TEXT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
-            token      TEXT,
-            token_exp  INTEGER,
-            thresholds TEXT,
-            last_run   INTEGER,
-            last_error TEXT
+            user_id       TEXT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+            token         TEXT,
+            token_exp     INTEGER,
+            thresholds    TEXT,
+            last_run      INTEGER,
+            last_error    TEXT,
+            backfill_done INTEGER NOT NULL DEFAULT 0
         );
     `);
+    try { db.exec('ALTER TABLE garmin_sync ADD COLUMN backfill_done INTEGER NOT NULL DEFAULT 0'); } catch(e) {}
 
     const q = {
         conn:       db.prepare("SELECT data FROM connections WHERE user_id = ? AND service = 'garmin'"),
@@ -95,6 +97,7 @@ function createGarminSync({db, options = {}}) {
         setToken:   db.prepare('UPDATE garmin_sync SET token = ?, token_exp = ? WHERE user_id = ?'),
         setThresh:  db.prepare('UPDATE garmin_sync SET thresholds = ? WHERE user_id = ?'),
         setRun:     db.prepare('UPDATE garmin_sync SET last_run = ?, last_error = ? WHERE user_id = ?'),
+        markBackfill: db.prepare('UPDATE garmin_sync SET backfill_done = 1 WHERE user_id = ?'),
         ride:       db.prepare('SELECT summary, fingerprint FROM external_rides WHERE user_id = ? AND id = ?'),
         upsertRide: db.prepare(`INSERT INTO external_rides (user_id, id, summary, day, fingerprint, updated_at) VALUES (?, ?, ?, ?, ?, ?)
                                 ON CONFLICT (user_id, id) DO UPDATE SET summary = excluded.summary, day = excluded.day,
@@ -115,6 +118,9 @@ function createGarminSync({db, options = {}}) {
     };
 
     const running = new Map();
+    const pendingRun = new Map();
+    const timeoutMs = options.timeoutMs ?? 30_000;
+    const withTimeout = (opts = {}) => (typeof AbortSignal?.timeout === 'function' ? {...opts, signal: AbortSignal.timeout(timeoutMs)} : opts);
     let timer = null;
 
     const wait = (ms) => new Promise(r => { const t = setTimeout(r, ms); t.unref?.(); });
@@ -126,7 +132,7 @@ function createGarminSync({db, options = {}}) {
 
     // the key → a bearer token (JWT); refused → GarminError(revoked)
     async function newToken(apiKey) {
-        const res = await fetchImpl(base + TOKEN_PATH, {method: 'POST', headers: {Accept: '*/*', Authorization: `ApiKey ${apiKey}`}});
+        const res = await fetchImpl(base + TOKEN_PATH, withTimeout({method: 'POST', headers: {Accept: '*/*', Authorization: `ApiKey ${apiKey}`}}));
         const text = (await res.text().catch(() => '')).trim();
         if(res.status === 401 || res.status === 403) throw new GarminError(REVOKED, {revoked: true, status: res.status});
         if(!res.ok || !text) throw new GarminError(`Garmin answered ${res.status} to the key.`, {status: res.status});
@@ -156,7 +162,7 @@ function createGarminSync({db, options = {}}) {
                 const gap = last + pauseMs - Date.now();
                 if(gap > 0) await wait(gap);
                 last = Date.now();
-                const res = await fetchImpl(base + path, {headers: {Accept: accept, Authorization: `Bearer ${await token()}`}});
+                const res = await fetchImpl(base + path, withTimeout({headers: {Accept: accept, Authorization: `Bearer ${await token()}`}}));
                 if(res.status === 401 || res.status === 403) {
                     // a token can stop working before it expires: renew it once. Only the
                     // token endpoint refusing the key means the key is gone (newToken
@@ -229,12 +235,14 @@ function createGarminSync({db, options = {}}) {
 
     async function syncActivities(userId, get) {
         const newest = q.newestRide.get(userId)?.day;
-        let from = newest ? isoDay(Date.parse(newest) - ACTIVITY_OVERLAP_DAYS * DAY_MS) : isoDay(now() - ACTIVITY_FIRST_DAYS * DAY_MS);
+        const backfilled = !!q.state.get(userId)?.backfill_done;
+        let from = newest && backfilled ? isoDay(Date.parse(newest) - ACTIVITY_OVERLAP_DAYS * DAY_MS) : isoDay(now() - ACTIVITY_FIRST_DAYS * DAY_MS);
         // rides stored by an older mapping: list them again, back to the oldest
         const stale = q.staleRide.get(userId, MAPPING)?.day;
         if(stale && stale < from) from = stale;
         const to = isoDay(now() + DAY_MS);
-        for(let start = 0; ; start += PAGE) {
+        const MAX_PAGES = 200;
+        for(let start = 0, pages = 0; pages < MAX_PAGES; start += PAGE, pages++) {
             const page = await get(`/activitylist-service/activities/search/activities?start=${start}&limit=${PAGE}&startDate=${from}&endDate=${to}`);
             const list = Array.isArray(page) ? page : (Array.isArray(page?.activityList) ? page.activityList : []);
             for(const a of list) {
@@ -252,6 +260,7 @@ function createGarminSync({db, options = {}}) {
         }
         // stale rides Garmin didn't list (gone there): not looked for again
         q.unlisted.run(MAPPING, userId, from, MAPPING);
+        if(!backfilled) q.markBackfill.run(userId);
     }
 
     async function runOnce(userId) {
@@ -279,11 +288,21 @@ function createGarminSync({db, options = {}}) {
     }
 
     function run(userId) {
-        const prev = running.get(userId) ?? Promise.resolve();
-        const next = prev.then(() => runOnce(userId), () => runOnce(userId));
-        running.set(userId, next);
-        next.finally(() => { if(running.get(userId) === next) running.delete(userId); }).catch(() => {});
-        return next;
+        if(!running.has(userId)) {
+            const p = runOnce(userId).finally(() => { if(running.get(userId) === p) running.delete(userId); });
+            running.set(userId, p);
+            return p;
+        }
+        if(!pendingRun.has(userId)) {
+            const active = running.get(userId);
+            const next = active.then(() => runOnce(userId), () => runOnce(userId)).finally(() => {
+                if(pendingRun.get(userId) === next) pendingRun.delete(userId);
+                if(running.get(userId) === next) running.delete(userId);
+            });
+            pendingRun.set(userId, next);
+            active.finally(() => { if(pendingRun.get(userId) === next) running.set(userId, next); });
+        }
+        return pendingRun.get(userId);
     }
 
     // what the rider sees on the Garmin card (never the key)

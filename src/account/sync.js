@@ -159,11 +159,12 @@ async function syncWorkouts() {
             known.delete(w.id);
             continue;
         }
-        if(!storedIds.has(w.id) && !local('pendingDeletes', []).includes(w.id)) {
+        if(!local('pendingDeletes', []).includes(w.id)) {
             const workout = {...w.data, id: w.id};
             workout.meta = {category: DEFAULT_WORKOUT_CATEGORY, ...(workout.meta ?? {})};
             applyingRemote = true;
             try {
+                if(storedIds.has(w.id)) db.workouts = models.workouts.remove(db.workouts, w.id);
                 db.workouts = models.workouts.add(db.workouts, workout);
                 xf.dispatch('db:workouts', db);
             } finally { applyingRemote = false; }
@@ -265,27 +266,44 @@ async function uploadRide(entry) {
     });
 }
 
-async function flushRides() {
+let flushChain = Promise.resolve(true);
+
+async function flushRidesOnce() {
     const pending = local('pendingRides', []);
-    const left = [];
+    if(!pending.length) return true;
+    const drop = new Set();
+    let failed = false;
     for(const entry of pending) {
         try {
             await uploadRide(entry);
+            drop.add(entry.id);
         } catch(e) {
-            if(e instanceof ApiError && e.status === 400) continue; // unusable, drop
-            left.push(entry);
+            if(e instanceof ApiError && e.status === 400) { drop.add(entry.id); continue; }
+            // if the local .fit was evicted from the 7-ride cap, drop after retry so the queue doesn't wedge forever
+            if(e?.message === 'Ride file not found on this device.' && entry.missingOnce) { drop.add(entry.id); continue; }
+            if(e?.message === 'Ride file not found on this device.') entry.missingOnce = true;
+            failed = true;
             handleError(e, 'rides');
         }
     }
+    // merge against fresh pendingRides so rides saved while uploading are never clobbered
+    const current = local('pendingRides', []);
+    const byId = new Map(pending.map(e => [e.id, e]));
+    const left = current.filter(e => !drop.has(e.id)).map(e => (byId.get(e.id)?.missingOnce ? {...e, missingOnce: true} : e));
     setLocal('pendingRides', left);
-    return left.length === 0;
+    return !failed && left.length === 0;
+}
+
+function flushRides() {
+    flushChain = flushChain.then(flushRidesOnce, flushRidesOnce);
+    return flushChain;
 }
 
 function onRideSaved(summary) {
     if(!linked() || !summary?.id) return;
     // capture the statistics now; the session is reset right after saving
     const pending = local('pendingRides', []);
-    pending.push({id: summary.id, stats: rideStats()});
+    if(!pending.some(e => e.id === summary.id)) pending.push({id: summary.id, stats: rideStats()});
     setLocal('pendingRides', pending);
     setState('syncing', 'Uploading ride');
     flushRides().then(ok => { if(ok) setState('ok', 'Ride saved to your account'); });
@@ -293,20 +311,26 @@ function onRideSaved(summary) {
 
 // --- lifecycle -------------------------------------------------------------
 
-async function syncNow() {
-    if(!linked()) { setState('off'); return; }
-    setState('syncing');
-    try {
-        await pullProfile();
-        await flushDeletes();
-        await syncWorkouts();
-        await history.syncPlan();
-        await history.pullExternal().catch(e => console.warn(':sync :external-rides', e)); // never blocks the rest
-        const ridesOk = await flushRides();
-        if(ridesOk) setState('ok', `Synced ${new Date().toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'})}`);
-    } catch(e) {
-        handleError(e, 'account');
-    }
+let syncInFlight = null;
+
+function syncNow() {
+    if(!linked()) { setState('off'); return Promise.resolve(); }
+    if(syncInFlight) return syncInFlight;
+    syncInFlight = (async () => {
+        setState('syncing');
+        try {
+            await pullProfile();
+            await flushDeletes();
+            await syncWorkouts();
+            await history.syncPlan();
+            await history.pullExternal().catch(e => console.warn(':sync :external-rides', e)); // never blocks the rest
+            const ridesOk = await flushRides();
+            if(ridesOk) setState('ok', `Synced ${new Date().toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'})}`);
+        } catch(e) {
+            handleError(e, 'account');
+        }
+    })().finally(() => { syncInFlight = null; });
+    return syncInFlight;
 }
 
 function start() {

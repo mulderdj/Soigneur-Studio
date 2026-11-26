@@ -8,6 +8,10 @@
 // Hidden by CSS on wider screens.
 //
 
+import { esc } from './training/format.js';
+
+const reducedMotion = () => typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
+
 function activeIndex(scrollLeft, pageWidth, count) {
     if(!(pageWidth > 0) || count <= 0) return 0;
     const i = Math.round(scrollLeft / pageWidth);
@@ -32,7 +36,7 @@ class PanelPager extends HTMLElement {
             const dot = e.target.closest('[data-index]');
             if(!dot) return;
             const panel = this.panels()[Number(dot.dataset.index)];
-            panel?.scrollIntoView({behavior: 'smooth', block: 'nearest', inline: 'start'});
+            panel?.scrollIntoView({behavior: reducedMotion() ? 'instant' : 'smooth', block: 'nearest', inline: 'start'});
         }, signal);
         // panels render after connect; rebuild once they exist
         this.observer = new MutationObserver(() => this.build());
@@ -54,7 +58,7 @@ class PanelPager extends HTMLElement {
         if(panels.length === this.childElementCount) return this.update();
         this.innerHTML = panels.map((p, i) => {
             const title = p.querySelector('.panel__title')?.firstChild?.textContent?.trim() || `Panel ${i + 1}`;
-            return `<button type="button" class="pager__dot" role="tab" data-index="${i}" aria-label="${title}"></button>`;
+            return `<button type="button" class="pager__dot" role="tab" data-index="${i}" aria-label="${esc(title)}"></button>`;
         }).join('');
         this.update();
     }

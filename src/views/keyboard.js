@@ -7,9 +7,14 @@ import { ControlMode, } from '../ble/enums.js';
 function ignoredKey(e) {
     const t = e.target;
     const typing = t?.closest?.('input, textarea, select, [contenteditable=""], [contenteditable="true"]');
+    const interactive = t?.closest?.('button, a, summary, [role="button"], [role="tab"]');
+    const modalOpen = typeof document !== 'undefined' && !!document.querySelector('dialog[open]');
+    const home = typeof document !== 'undefined' ? document.querySelector('#home-page') : null;
+    const offRide = !!(home && !home.classList.contains('active'));
+    const editing = typeof document !== 'undefined' && !!document.querySelector('.is-editing');
     return !!(e.defaultPrevented || e.isComposing || e.keyCode === 229 ||
               e.ctrlKey || e.shiftKey || e.altKey || e.metaKey ||
-              typing || exists(t?.form));
+              typing || interactive || modalOpen || offRide || editing || exists(t?.form));
 }
 
 function Keyboard() {

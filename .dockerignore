@@ -5,4 +5,11 @@ dist
 dev_cert
 test
 doc
+docs
 server
+.env
+.env.*
+*.db
+*.db-shm
+*.db-wal
+.~lock.*

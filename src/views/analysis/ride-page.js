@@ -33,7 +33,8 @@ function problemText(reason, summary) {
 
 const rideFromHash = () => {
     const m = /^#ride=(.+)$/.exec(location.hash);
-    return m ? decodeURIComponent(m[1]) : null;
+    if(!m) return null;
+    try { return decodeURIComponent(m[1]); } catch(e) { return null; }
 };
 
 let lastFrom = 'training';
