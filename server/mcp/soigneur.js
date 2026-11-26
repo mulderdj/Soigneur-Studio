@@ -176,9 +176,12 @@ function createSoigneur({api, today = localToday, cacheMs = CACHE_MS, now = () =
         sortedDays(((await api.get('/me/wellness?since=0'))?.days ?? []).filter(d => typeof d?.day === 'string')));
 
     async function summaryFromFit(r, p) {
-        const meta = {id: r.id, name: r.name ?? 'Ride', workoutId: r.workoutId ?? null, ftp: p.ftp, weight: p.weight};
+        // the FTP the ride was ridden with (as the app: its .fit's, else its saved stats), never today's
+        const pos = x => (Number.isFinite(x) && x > 0 ? x : null);
+        const meta = {id: r.id, name: r.name ?? 'Ride', workoutId: r.workoutId ?? null, ftp: pos(r.stats?.ftp) ?? p.ftp, weight: p.weight};
         try {
             const read = fitToSamples(await api.get(`/me/activities/${encodeURIComponent(r.id)}/fit`, {raw: true}));
+            if(pos(read.ftp)) meta.ftp = read.ftp;
             if(read.samples.length) {
                 const start = read.start ?? ((r.timestamp ?? now()) - read.samples.length * 1000);
                 return rideSummary(read.samples, {...meta, start, distance: read.distance});

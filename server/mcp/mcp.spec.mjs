@@ -35,7 +35,7 @@ const VO2 = {id: 'w-vo2', meta: {name: 'VO2 4×4'}, intervals: [
     {duration: 600, steps: [{duration: 600, power: 0.5}]},
 ]};
 
-function vo2Ride(start = T0) {
+function vo2Ride(start = T0, ftp = FTP) {
     const records = [];
     let t = 0;
     for(const iv of VO2.intervals) {
@@ -47,7 +47,7 @@ function vo2Ride(start = T0) {
             records.push({timestamp: start + t * 1000, power, heart_rate: Math.round(hr), cadence: hard ? 95 : 85, speed: 9, distance: t * 9});
         }
     }
-    return fit.localActivity.encode({records, laps: [], events: [], ftp: FTP});
+    return fit.localActivity.encode({records, laps: [], events: [], ftp});
 }
 
 let app, base, token, readToken, client;
@@ -92,7 +92,7 @@ before(async () => {
     await call('PATCH', '/api/me/activities/r-vo2/summary', {auth: session, body: {training}});
 
     // an older ride the server has only as a .fit (no summary yet): read from its file
-    const old = vo2Ride(T0 - 7 * 864e5);
+    const old = vo2Ride(T0 - 7 * 864e5, 190);     // ridden when the FTP was 190 W
     await call('POST', '/api/me/activities', {auth: session, body: {id: 'r-old', fit: Buffer.from(old.buffer).toString('base64'),
         summary: {name: 'Older', timestamp: T0 - 7 * 864e5, duration: 4200}}});
 
@@ -158,8 +158,9 @@ test('rides: merged across sources, with load, the planned workout and units', a
     assert.equal(run.sport, 'running');
     assert.equal(run.source, 'garmin');
     assert.ok(['hr', 'estimate'].includes(run.load_from));
-    // the ride without a summary was read from its .fit
+    // the ride without a summary was read from its .fit, with the FTP it was ridden with (the .fit's), not today's
     assert.ok(json.rides[0].np_w > 100);
+    assert.equal(json.rides[0].ftp_w, 190);
     assert.equal((await tool('list_rides', {from: '2026-11-01', to: TODAY, sport: 'running'})).json.count, 1);
 });
 
