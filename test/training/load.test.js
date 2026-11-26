@@ -1,4 +1,4 @@
-import { dailyTss, pmc, forecast, formLabel } from '../../src/training/load.js';
+import { dailyTss, pmc, forecast, formLabel, rampRate, rampStatus } from '../../src/training/load.js';
 import { addDays } from '../../src/training/dates.js';
 
 describe('fitness, fatigue and form', () => {
@@ -38,5 +38,19 @@ describe('fitness, fatigue and form', () => {
         const m = dailyTss([{day: '2026-01-01', tss: 50}, {day: '2026-01-01', tss: 30}, {day: '2026-01-02', tss: null}]);
         expect(m.get('2026-01-01')).toBe(80);
         expect(m.get('2026-01-02') ?? 0).toBe(0);
+    });
+
+    test('rampRate computes 7-day CTL change and rampStatus flags rapid build', () => {
+        expect(rampRate([{ctl: 10}, {ctl: 20}])).toBeNull();
+        const m = new Map();
+        for(let i = 0; i < 14; i++) m.set(addDays('2026-01-01', i), i >= 7 ? 120 : 40);
+        const rows = pmc(m, '2026-01-01', '2026-01-14');
+        const r = rampRate(rows);
+        expect(r).toBeCloseTo(rows.at(-1).ctl - rows.at(-8).ctl);
+        expect(r).toBeGreaterThan(8);
+        expect(rampStatus(r).level).toBe('danger');
+        expect(rampStatus(6.2).level).toBe('warn');
+        expect(rampStatus(3.1).level).toBe('ok');
+        expect(rampStatus(-6.0).level).toBe('muted');
     });
 });

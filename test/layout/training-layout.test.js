@@ -94,7 +94,7 @@ describe('editing the Training cards', () => {
         expect(shown(grid).at(-1)).toBe('zones');
     });
 
-    test('Cancel and Reset', () => {
+    test('Cancel and Reset', async () => {
         const {grid} = setup();
         document.querySelector('[data-tl-edit]').click();
         grid.querySelector('[data-tile="zones"] [data-le-hide]').click();
@@ -102,8 +102,9 @@ describe('editing the Training cards', () => {
         expect(shown(grid)).toContain('zones');
         document.querySelector('[data-tl-edit]').click();
         grid.querySelector('[data-tile="zones"] [data-le-hide]').click();
-        window.confirm = () => true;
         document.querySelector('[data-tl="reset"]').click();
+        document.querySelector('#dialog--confirm [data-confirm="ok"]').click();
+        await Promise.resolve();
         expect(shown(grid)).toContain('zones');
     });
 

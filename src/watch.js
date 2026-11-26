@@ -3,6 +3,7 @@ import { kphToMps, mpsToKph, timeDiff, pad } from './utils.js';
 import { models } from './models/models.js';
 import { ControlMode, } from './ble/enums.js';
 import { TimerStatus, EventType, } from './activity/enums.js';
+import { confirmAction } from './views/confirm.js';
 
 const timer = new Worker(new URL('./timer.js', import.meta.url), {type: 'module'});
 
@@ -87,10 +88,16 @@ class Watch {
         xf.sub('ui:watchResume',  e => { self.resume();         });
         xf.sub('ui:watchLap',     e => { self.lap();            });
         xf.sub('ui:watchBack',    e => { self.back();           });
-        xf.sub('ui:watchStop',    e => {
-            const stop = confirm('Confirm Stop?');
+        xf.sub('ui:watchStop',    async e => {
+            const stop = await confirmAction({
+                title: 'End ride?',
+                message: 'Stop the clock and finish this ride?',
+                confirmLabel: 'End ride',
+                danger: true,
+            });
             if(stop) {
                 self.stop();
+                xf.dispatch('ui:toast', 'Ride ended — tap Save to keep it');
             }
         });
     }

@@ -6,7 +6,7 @@
 // the model's shape. colors = {accent, hr, warn, band, muted, line, zones: []}.
 //
 
-import { dailyTss, pmc, forecast, formLabel } from '../../training/load.js';
+import { dailyTss, pmc, forecast, formLabel, rampRate } from '../../training/load.js';
 import { planStatus, plannedTss } from '../../training/plan.js';
 import { hrvRangeOn, sortedDays } from '../../training/wellness.js';
 import { weeklyVolume, zoneTotals, powerCurve, ftpEstimates, WINDOWS } from '../../training/progress.js';
@@ -36,7 +36,7 @@ function formModel({today, summaries = [], plan = [], ftp}, {pastDays = PAST_DAY
     }
     const ahead = forecast(now, planned, today, AHEAD_DAYS);
     const past = pastDays === null ? rows : rows.slice(-pastDays);
-    return {now, past, ahead, hasPlan: planned.size > 0};
+    return {now, past, ahead, hasPlan: planned.size > 0, ramp: rampRate(rows)};
 }
 
 // all history (zoom out to it) with the forecast; opens on 3 months

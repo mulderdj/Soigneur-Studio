@@ -15,6 +15,7 @@ import { layouts } from '../../layout/store.js';
 import { TRAINING_CARDS, CARD_BY_ID, defaultLayouts, screenClass } from '../../layout/tiles.js';
 import { currentLayout } from '../layout.js';
 import { LayoutEditor, editList } from '../layout-editor.js';
+import { confirmAction } from '../confirm.js';
 import { esc } from './format.js';
 
 class TrainingLayout {
@@ -151,8 +152,15 @@ class TrainingLayout {
         this.apply();
     }
 
-    reset() {
-        if(!this.editing || !window.confirm(`Reset the ${this.cls} Training layout?`)) return;
+    async reset() {
+        if(!this.editing) return;
+        const ok = await confirmAction({
+            title: 'Reset Training layout?',
+            message: `Reset the ${this.cls} Training layout to the defaults?`,
+            confirmLabel: 'Reset',
+            danger: true,
+        });
+        if(!ok || !this.editing) return;
         this.draft.training[this.cls] = defaultLayouts().training[this.cls];
         this.apply();
         this.editor?.refresh();

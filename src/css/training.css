@@ -228,6 +228,13 @@
     font-weight: var(--weight-medium);
 }
 
+.fc-ramp {
+    margin-top: var(--space-2);
+    font-weight: var(--weight-medium);
+}
+.fc-ramp[data-level="warn"]   { color: var(--warn); }
+.fc-ramp[data-level="danger"] { color: var(--danger); }
+
 .fc-note {
     margin-top: var(--space-2);
 }

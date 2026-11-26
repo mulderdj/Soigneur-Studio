@@ -130,15 +130,17 @@ describe('editing the layout', () => {
         expect(screenEl(el, 0).querySelector('[data-tile="smo2"]').firstElementChild.id).toBe('data-tile--smo2');
     });
 
-    test('Reset asks, then restores the built-in screens of this class', () => {
+    test('Reset asks, then restores the built-in screens of this class', async () => {
         const el = page();
         el.begin();
         screenEl(el, 0).querySelector('[data-tile="speed"] [data-le-hide]').click();
-        window.confirm = () => false;
         el.querySelector('[data-rs="reset"]').click();
+        document.querySelector('#dialog--confirm [data-confirm="cancel"]').click();
+        await Promise.resolve();
         expect(ids(screenEl(el, 0))).not.toContain('speed');
-        window.confirm = () => true;
         el.querySelector('[data-rs="reset"]').click();
+        document.querySelector('#dialog--confirm [data-confirm="ok"]').click();
+        await Promise.resolve();
         expect(ids(screenEl(el, 0))).toContain('speed');
     });
 
@@ -312,17 +314,21 @@ describe('editing screens', () => {
         expect(el.querySelector('[data-dot="0"]').getAttribute('aria-label')).toBe('Climb');
     });
 
-    test('remove a screen: asks when it has tiles; never the last', () => {
+    test('remove a screen: asks when it has tiles; never the last', async () => {
         const el = page();
         el.begin();
         el.show(1);
-        window.confirm = () => false;
         el.querySelector('[data-rs="remove-screen"]').click();
+        document.querySelector('#dialog--confirm [data-confirm="cancel"]').click();
+        await Promise.resolve();
         expect(el.screens()).toHaveLength(3);
-        window.confirm = () => true;
         el.querySelector('[data-rs="remove-screen"]').click();
+        document.querySelector('#dialog--confirm [data-confirm="ok"]').click();
+        await Promise.resolve();
         expect(el.screens().map(s => s.name)).toEqual(['Ride', 'Chart']);
         el.querySelector('[data-rs="remove-screen"]').click();
+        document.querySelector('#dialog--confirm [data-confirm="ok"]').click();
+        await Promise.resolve();
         expect(el.screens()).toHaveLength(1);
         expect(el.querySelector('[data-rs="remove-screen"]').disabled).toBe(true);
     });

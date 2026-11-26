@@ -9,7 +9,7 @@
 
 import { UPlotCard, token } from './uplot-chart.js';
 import { formModel, formChart, PAST_DAYS, AHEAD_DAYS } from './chart-models.js';
-import { formLabel } from '../../training/load.js';
+import { formLabel, rampStatus } from '../../training/load.js';
 import { esc, fmtDay } from './format.js';
 
 class FormCard extends UPlotCard {
@@ -28,9 +28,11 @@ class FormCard extends UPlotCard {
     }
 
     foot() {
-        const {ahead, hasPlan} = formModel(this.data);
+        const {ahead, hasPlan, ramp} = formModel(this.data);
         const end = ahead.at(-1);
-        return `<p class="card__note fc-note" data-k="note">${esc(hasPlan && end ?
+        const rs = ramp !== null && Math.abs(ramp) >= 0.5 ? rampStatus(ramp) : null;
+        const rampHtml = rs ? `<p class="card__note fc-ramp" data-level="${esc(rs.level)}">${esc(rs.text)}</p>` : '';
+        return `${rampHtml}<p class="card__note fc-note" data-k="note">${esc(hasPlan && end ?
             `With your plan: form ${end.tsb > 0 ? '+' : ''}${Math.round(end.tsb)} (${formLabel(end.tsb).toLowerCase()}) on ${fmtDay(end.day)}.` :
             'Plan workouts on the calendar to see where your form is heading.')}</p>`;
     }

@@ -1,5 +1,6 @@
 import { xf, equals, exists, existance, } from '../functions.js';
 import { models } from '../models/models.js';
+import { confirmAction } from './confirm.js';
 
 class ConnectionSwitch extends HTMLElement {
     constructor() {
@@ -96,10 +97,15 @@ class ProtocolSwitch extends ConnectionSwitch {
             },
         };
     }
-    onEffect(e) {
+    async onEffect(e) {
         console.log(this.status);
         if(equals(this.status, 'on') || equals(this.status, 'loading')) {
-            const proceed = confirm(this.confirmMsg);
+            const proceed = await confirmAction({
+                title: 'Stop ANT+ driver?',
+                message: this.confirmMsg,
+                confirmLabel: 'Stop ANT+',
+                danger: true,
+            });
             if(proceed) {
                 xf.dispatch(`ui:${this.for}:switch`);
             }

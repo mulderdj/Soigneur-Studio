@@ -24,6 +24,7 @@ import { riders } from '../riders.js';
 import { RIDE_TILES, RIDE_BY_ID, MAX_SCREENS, defaultLayouts, screenClass, columnsFor, spanFor } from '../layout/tiles.js';
 import { currentLayout } from './layout.js';
 import { LayoutEditor, editList, editLocked } from './layout-editor.js';
+import { confirmAction } from './confirm.js';
 import { esc } from './training/format.js';
 
 const ELEMENT_ID = {chart: 'dash-chart', workout: 'graph-workout'};
@@ -406,11 +407,19 @@ class RideScreens extends HTMLElement {
         this.say(`Screen ${screens.length} added`);
     }
 
-    removeScreen() {
+    async removeScreen() {
         const screens = this.screens();
         const s = screens[this.screen];
         if(screens.length <= 1 || !s) return;
-        if(s.tiles.length && !window.confirm(`Remove the screen "${s.name}" and its tiles?`)) return;
+        if(s.tiles.length) {
+            const ok = await confirmAction({
+                title: `Remove "${s.name}"?`,
+                message: `Remove the screen "${s.name}" and its tiles?`,
+                confirmLabel: 'Remove',
+                danger: true,
+            });
+            if(!ok || !this.editing) return;
+        }
         screens.splice(this.screen, 1);
         this.screen = Math.min(this.screen, screens.length - 1);
         this.render();
@@ -533,8 +542,15 @@ class RideScreens extends HTMLElement {
         this.render();
     }
 
-    reset() {
-        if(!this.editing || !window.confirm(`Reset the ${this.cls} Ride layout to the built-in screens?`)) return;
+    async reset() {
+        if(!this.editing) return;
+        const ok = await confirmAction({
+            title: 'Reset Ride layout?',
+            message: `Reset the ${this.cls} Ride layout to the built-in screens?`,
+            confirmLabel: 'Reset',
+            danger: true,
+        });
+        if(!ok || !this.editing) return;
         this.draft.ride[this.cls] = defaultLayouts().ride[this.cls];
         this.screen = 0;
         this.render();
