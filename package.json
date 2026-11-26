@@ -19,7 +19,7 @@
         "starttls": "parcel --cert ./dev_cert/cert.pem --key ./dev_cert/key.pem",
         "build": "parcel build",
         "server": "node server/index.js",
-        "test:server": "node --test server/app.spec.mjs server/connections.spec.mjs server/intervals.spec.mjs server/intervals-sync.spec.mjs server/garmin.spec.mjs server/garmin-sync.spec.mjs server/zip.spec.mjs server/ride-files.spec.mjs server/access-tokens.spec.mjs",
+        "test:server": "node --test server/app.spec.mjs server/connections.spec.mjs server/intervals.spec.mjs server/intervals-sync.spec.mjs server/garmin.spec.mjs server/garmin-sync.spec.mjs server/zip.spec.mjs server/ride-files.spec.mjs server/access-tokens.spec.mjs server/mcp/mcp.spec.mjs",
         "check:visual": "node test/visual/check.js"
     },
     "devDependencies": {
@@ -44,6 +44,8 @@
         "unrs-resolver": false
     },
     "dependencies": {
-        "uplot": "^1.6.32"
+        "@modelcontextprotocol/sdk": "1.32.2",
+        "uplot": "^1.6.32",
+        "zod": "4.6.7"
     }
 }

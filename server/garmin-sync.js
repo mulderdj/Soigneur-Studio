@@ -371,6 +371,9 @@ function createGarminSync({db, options = {}}) {
             return {status: 202, body: {queued: true}};
         }, {auth: true});
 
+        // Garmin's threshold heart rates, without the rest of the connection
+        route('GET', '/api/me/thresholds', ({auth}) => ({garmin: status(auth.user.id)?.thresholds ?? {cycling: null, running: null}}), {auth: true});
+
         route('GET', '/api/me/wellness', ({auth, url}) => {
             const since = Number(url.searchParams.get('since') ?? 0) || 0;
             const t = now();

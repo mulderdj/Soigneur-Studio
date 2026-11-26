@@ -31,7 +31,7 @@ const TOKEN_ROUTES = {
         'GET /api/me', 'GET /api/me/profile', 'GET /api/me/workouts', 'GET /api/me/plan',
         'GET /api/me/activities', 'GET /api/me/activities/:id/fit', 'GET /api/me/rides/:id/file',
         'GET /api/me/external-rides', 'GET /api/me/wellness', 'GET /api/me/ride-ratings',
-        'GET /api/me/hidden-rides',
+        'GET /api/me/hidden-rides', 'GET /api/me/thresholds',
     ]),
     plan: new Set(['PUT /api/me/plan/:id', 'DELETE /api/me/plan/:id']),
 };
