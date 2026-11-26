@@ -1,5 +1,6 @@
 import { generateHistory } from '../../src/dev/history-seed.js';
 import { planStatus } from '../../src/training/plan.js';
+import { SUMMARY_VERSION } from '../../src/training/summary.js';
 
 const today = '2026-11-23';
 
@@ -16,7 +17,7 @@ describe('generated training history', () => {
         expect(a.summaries.length).toBeGreaterThanOrEqual(60);
         expect(a.summaries.length).toBeLessThanOrEqual(90);
         for(const s of a.summaries) {
-            expect(s.version).toBe(2);
+            expect(s.version).toBe(SUMMARY_VERSION);
             expect(s.day <= today).toBe(true);
             expect(s.duration).toBeGreaterThan(0);
             expect(s.tss).toBeGreaterThan(0);
