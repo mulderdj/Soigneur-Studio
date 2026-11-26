@@ -252,7 +252,16 @@ async function toDataView(blob) {
     });
 }
 
-// meta: {id, name, timestamp (end, ms), duration (s), workoutId}
+// the FTP a ride was ridden with: its .fit's, else what the app saved with it
+// (stats.ftp), else the one given (an older summary's, or today's). Never
+// today's FTP when the ride says otherwise: a changed FTP doesn't rewrite
+// the rides before it.
+function rideFtp(read, meta, fallback) {
+    const pos = x => (Number.isFinite(x) && x > 0 ? x : null);
+    return pos(read?.ftp) ?? pos(meta?.stats?.ftp) ?? fallback;
+}
+
+// meta: {id, name, timestamp (end, ms), duration (s), workoutId, stats?}
 async function summaryFromFit(blob, meta, {ftp, weight}) {
     let read;
     try {
@@ -264,7 +273,7 @@ async function summaryFromFit(blob, meta, {ftp, weight}) {
     const start = read.start ?? ((meta.timestamp ?? Date.now()) - read.samples.length * 1000);
     return rideSummary(read.samples, {
         id: meta.id, start, name: meta.name, workoutId: meta.workoutId ?? null,
-        ftp, weight, distance: read.distance,
+        ftp: rideFtp(read, meta, ftp), weight, distance: read.distance,
     });
 }
 

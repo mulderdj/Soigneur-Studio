@@ -56,7 +56,7 @@ describe('ride summary', () => {
 describe('best power at every duration the rider model uses', () => {
     test('21 durations, 1 s to 2 h; version 2 so old rides are read again', () => {
         expect(DURATIONS).toEqual([1, 2, 5, 10, 15, 20, 30, 60, 120, 180, 240, 300, 420, 600, 900, 1200, 1800, 2700, 3600, 5400, 7200]);
-        expect(SUMMARY_VERSION).toBe(2);
+        expect(SUMMARY_VERSION).toBe(3);
     });
     test('rolling best averages', () => {
         const powers = [...Array(540).fill(200), ...Array(60).fill(400), ...Array(600).fill(150)];
@@ -90,6 +90,6 @@ describe('.fit back to samples', () => {
     });
 
     test('a file that can\'t be read', () => {
-        expect(fitToSamples(new DataView(new ArrayBuffer(10)))).toEqual({start: null, distance: null, samples: []});
+        expect(fitToSamples(new DataView(new ArrayBuffer(10)))).toEqual({start: null, distance: null, ftp: null, samples: []});
     });
 });

@@ -7,6 +7,7 @@ import { history } from '../../src/training/history.js';
 import { fit } from '../../src/fit/fit.js';
 import { xf } from '../../src/functions.js';
 import { countable } from '../../src/training/merge.js';
+import { SUMMARY_VERSION } from '../../src/training/summary.js';
 
 const STORES = ['session', 'workouts', 'activity', 'rideSummaries', 'plan', 'externalRides', 'hiddenRides', 'wellness', 'rideRatings'];
 let n = 0;
@@ -17,11 +18,11 @@ beforeEach(async () => {
 
 const summary = (id, day, start) => ({version: 1, id, day, start, duration: 3600, tss: 50, zoneSeconds: Array(7).fill(0), best: {}});
 
-function fitBlob(start, seconds = 60) {
+function fitBlob(start, seconds = 60, ftp = 250) {
     const records = Array.from({length: seconds}, (_, i) => ({
         timestamp: start + i * 1000, power: 220, cadence: 90, speed: 9, heart_rate: 140, distance: i * 9,
     }));
-    const view = fit.localActivity.encode({records, laps: [], events: [], ftp: 250});
+    const view = fit.localActivity.encode({records, laps: [], events: [], ftp});
     return new Blob([view.buffer]);
 }
 
@@ -69,16 +70,44 @@ describe('backfill', () => {
 describe('backfill after a summary version change', () => {
     test('a re-read keeps the ride\'s own FTP, weight and workout, and gains the new durations', async () => {
         const t = new Date(2026, 10, 18, 18, 0).getTime();
-        await idb.put('activity', {id: 'r1', blob: fitBlob(t, 200), summary: {id: 'r1', name: 'Rec', timestamp: t + 200000, duration: 200}});
+        await idb.put('activity', {id: 'r1', blob: fitBlob(t, 200, 200), summary: {id: 'r1', name: 'Rec', timestamp: t + 200000, duration: 200}});
         await history.saveSummary({...summary('r1', '2026-11-18', t), name: 'Sweet spot', workoutId: 'w9', ftp: 200, weight: 70});
         await history.backfill({ftp: 280, weight: 80});
         const s = (await history.summaries()).find(x => x.id === 'r1');
-        expect(s.version).toBe(2);
+        expect(s.version).toBe(SUMMARY_VERSION);
         expect(s.ftp).toBe(200);
         expect(s.weight).toBe(70);
         expect(s.workoutId).toBe('w9');
         expect(s.name).toBe('Sweet spot');
         expect(s.best[120]).toBe(220);
+    });
+    test('the FTP the ride was ridden with, not today\'s or a wrongly rebuilt one', async () => {
+        // ridden at 200 W; FTP changed to 220 W later, and the summary rebuilt with 220 (the bug)
+        const t = new Date(2026, 10, 24, 20, 0).getTime();
+        await idb.put('activity', {id: 'r3', blob: fitBlob(t, 120, 200), summary: {id: 'r3', name: 'VO2', timestamp: t + 120000, duration: 120}});
+        await history.saveSummary({...summary('r3', '2026-11-24', t), version: SUMMARY_VERSION - 1, ftp: 220});
+        await history.backfill({ftp: 220, weight: 74});
+        const s = (await history.summaries()).find(x => x.id === 'r3');
+        expect(s.ftp).toBe(200);
+        expect(s.if).toBeCloseTo(1.1, 2);                   // 220 W at 200 W FTP
+    });
+    test('a ride on the server only: its .fit\'s FTP, not today\'s', async () => {
+        const t = new Date(2026, 10, 24, 20, 0).getTime();
+        const records = Array.from({length: 120}, (_, i) => ({timestamp: t + i * 1000, power: 220, cadence: 90, speed: 9, heart_rate: 140, distance: i * 9}));
+        const enc = fit.localActivity.encode({records, laps: [], events: [], ftp: 200});
+        const view = enc.buffer.slice(enc.byteOffset, enc.byteOffset + enc.byteLength);
+        const api = {
+            get: async () => ({activities: [{id: 'srv1', name: 'VO2', timestamp: t + 120000, duration: 120, stats: {ftp: 200}}]}),
+            raw: async () => ({arrayBuffer: async () => view}),
+            patch: async () => ({ok: true}),
+        };
+        history.connect({api, linked: () => true});
+        try {
+            await history.backfill({ftp: 220, weight: 74});
+            expect((await history.summaries()).find(x => x.id === 'srv1').ftp).toBe(200);
+        } finally {
+            history.connect({api: null, linked: () => false});
+        }
     });
     test('a ride that can\'t be re-read keeps its old summary', async () => {
         const t = new Date(2026, 10, 18, 18, 0).getTime();
