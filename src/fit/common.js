@@ -106,6 +106,7 @@ function FitString() {
 
 function FitTimestamp() {
     const garmin_epoch = Date.parse('31 Dec 1989 00:00:00 GMT');
+    const INVALID_TIMESTAMP = 0xFFFFFFFF;
 
     // FitSemanticType -> Bool
     function isTimestamp(type) {
@@ -114,11 +115,13 @@ function FitTimestamp() {
 
     // JSTimestamp -> FitTimestamp
     function apply(jsTimestamp) {
+        if(!Number.isFinite(jsTimestamp)) return INVALID_TIMESTAMP;
         return Math.round((jsTimestamp - garmin_epoch) / 1000);
     }
 
     // FitTimestamp -> JSTimestamp
     function remove(fitTimestamp) {
+        if(fitTimestamp === INVALID_TIMESTAMP) return undefined;
         return (fitTimestamp * 1000) + garmin_epoch;
     }
 
@@ -151,13 +154,24 @@ function FitNumber() {
         throw `Not implemented!`;
     }
 
-    function apply(scale, offset, value, invalid) {
-        if(invalid !== undefined && value === invalid) return value;
-        return ((value ?? 0) * (scale ?? 1)) + ((offset ?? 0) * (scale ?? 1));
+    function isFloatType(base_type) {
+        return float32.includes(base_type) || float64.includes(base_type);
     }
 
-    function remove(scale, offset, value, invalid) {
+    function apply(scale, offset, value, invalid, isFloat = false) {
+        if(value === undefined || value === null || !Number.isFinite(value)) {
+            return invalid ?? 0;
+        }
         if(invalid !== undefined && value === invalid) return value;
+        const scaled = (value * (scale ?? 1)) + ((offset ?? 0) * (scale ?? 1));
+        return isFloat ? scaled : Math.round(scaled);
+    }
+
+    function remove(scale, offset, value, invalid, keepInvalid = false) {
+        if(Number.isNaN(value)) return keepInvalid ? value : undefined;
+        if(invalid !== undefined && value === invalid) {
+            return keepInvalid ? value : undefined;
+        }
         return ((value ?? 0) - ((offset ?? 0) * (scale ?? 1))) / (scale ?? 1);
     }
 
@@ -165,22 +179,30 @@ function FitNumber() {
     // ->
     // DataView
     function encode(field, value, view, i = 0, architecture = true) {
+        const isFloat = isFloatType(field.base_type);
+        if(isFloat && (value === undefined || value === null || !Number.isFinite(value))) {
+            if(float32.includes(field.base_type)) {
+                return view.setUint32(i, 0xFFFFFFFF, architecture);
+            }
+            return view.setFloat64(i, NaN, architecture);
+        }
         return setView(
             field.base_type,
-            apply(field.scale, field.offset, value, field.invalid),
+            apply(field.scale, field.offset, value, field.invalid, isFloat),
             view, i, architecture
         );
     }
 
-    // {base_type: BaseType, scale: Int, offset: Int}, DataView, Int, Bool,
+    // {base_type: BaseType, scale: Int, offset: Int}, DataView, Int, Bool, Bool
     // ->
-    // Number
-    function decode(field, view, i = 0, architecture = true) {
+    // Number | undefined
+    function decode(field, view, i = 0, architecture = true, keepInvalid = false) {
         return remove(
             field.scale,
             field.offset,
             getView(field.base_type, view, i, architecture),
-            field.invalid
+            field.invalid,
+            keepInvalid
         );
     }
 

@@ -86,7 +86,7 @@ class UPlotCard extends HTMLElement {
         this.resize = new ResizeObserver(() => this.plot?.setSize(this.size()));
         this.resize.observe(this.$plot);
         this.theme = new MutationObserver(() => this.rebuild());
-        this.theme.observe(document.body, {attributes: true, attributeFilter: ['class']});
+        this.theme.observe(document.body, {attributes: true, attributeFilter: ['class', 'data-palette']});
         this.rebuild();
     }
 

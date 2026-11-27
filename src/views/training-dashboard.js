@@ -119,7 +119,7 @@ xf.sub('workout:restore', () => {
     const records = (db.records ?? []).filter(r => r && 'power' in r);
     if(records.length === 0 || session.count > 0) return;
     records.forEach(r => session.push({
-        power: r.power, heartRate: r.heart_rate, cadence: r.cadence, target: 0, interval: -1,
+        power: r.power ?? 0, heartRate: r.heart_rate ?? 0, cadence: r.cadence ?? 0, target: 0, interval: -1,
     }));
     live.lastElapsed = db.elapsed ?? records.length;
     notify();
@@ -256,7 +256,7 @@ class LiveChart extends HTMLElement {
         this.onUpdate = () => this.update();
         this.handler = xf.sub('analytics:update', this.onUpdate);
         this.themeObserver = new MutationObserver(() => this.rebuild());
-        this.themeObserver.observe(document.body, {attributes: true, attributeFilter: ['class']});
+        this.themeObserver.observe(document.body, {attributes: true, attributeFilter: ['class', 'data-palette']});
 
         this.syncEmpty();
         this.ensurePlot();

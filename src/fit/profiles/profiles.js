@@ -25,7 +25,9 @@ function Profiles(args = {}) {
 
     // String -> Field{}
     function Field(name) {
-        return {name, ...(fields[name] ?? {})};
+        const def = fields[name] ?? {};
+        const invalid = def.invalid ?? (def.base_type !== undefined ? BaseTypeDefinitions[def.base_type]?.invalid_value : undefined);
+        return {name, ...def, ...(invalid !== undefined ? {invalid} : {})};
     }
 
     // Int -> Field{
@@ -75,6 +77,10 @@ function Profiles(args = {}) {
         return BaseTypeDefinitions[base_type].size;
     }
 
+    function baseTypeToInvalid(base_type) {
+        return BaseTypeDefinitions[base_type]?.invalid_value;
+    }
+
     return Object.freeze({
         BaseType,
         BaseTypeDefinitions,
@@ -91,6 +97,7 @@ function Profiles(args = {}) {
         fieldNameToSize,
         fieldNameToBaseType,
         baseTypeToSize,
+        baseTypeToInvalid,
     });
 }
 

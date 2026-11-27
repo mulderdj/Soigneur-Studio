@@ -39,6 +39,7 @@ beforeEach(() => {
         return {updatedAt: server.updatedAt};
     });
     db.ftp = 220;
+    db.palette = 'default';
 });
 
 // the app loading the rider's stored FTP: db.js sets db.ftp, which announces db:ftp
@@ -99,5 +100,38 @@ describe('profile sync', () => {
         await syncNow();
         expect(db.ftp).toBe(230);
         expect(server.data.ftp).toBe(230);
+    });
+
+    test('palette changes sync to the server and pull from another device', async () => {
+        await syncNow();
+        expect(server.data.palette).toBe('default');
+
+        // Local palette change marks dirty and pushes to server
+        db.palette = 'abricot';
+        xf.dispatch('db:palette', db.palette);
+        expect(local('profileDirty')).toBe(true);
+        await wait(1700);
+        expect(server.data.palette).toBe('abricot');
+        expect(local('profileDirty')).toBe(false);
+
+        // Another device switches back to default; pulling updates local db without pushing back
+        server = {data: {...server.data, palette: 'default'}, updatedAt: server.updatedAt + 5000};
+        api.put.mockClear();
+        await syncNow();
+        expect(db.palette).toBe('default');
+        expect(profilePuts()).toEqual([]);
+    });
+
+    test('legacy synced profile without palette key does not mark default palette dirty on startup', async () => {
+        await syncNow();
+        const synced = JSON.parse(localStorage.getItem('r:sync:profileSynced'));
+        delete synced.palette;
+        localStorage.setItem('r:sync:profileSynced', JSON.stringify(synced));
+        api.put.mockClear();
+
+        xf.dispatch('db:palette', db.palette);
+        expect(local('profileDirty')).toBe(false);
+        await wait(1700);
+        expect(profilePuts()).toEqual([]);
     });
 });

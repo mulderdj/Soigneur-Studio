@@ -38,7 +38,7 @@ h1, h2, h3, h4 {
 
 p { margin: 0; }
 
-a { color: var(--accent); }
+a { color: var(--link, var(--accent)); }
 
 button,
 input,

@@ -45,6 +45,12 @@ function DataRecord(args = {}) {
 
         return definition.fields.reduce(function(acc, field) {
             const _field = profiles.numberToField(definition.name, field.number);
+            const base_type = _field.base_type ?? field.base_type;
+            const resolvedField = {
+                ..._field,
+                base_type,
+                invalid: _field.invalid ?? profiles.baseTypeToInvalid(base_type),
+            };
             const value  = data.fields[_field.name];
             const size = field.size;
             const base_type_size = profiles.baseTypeToSize(field.base_type);
@@ -55,14 +61,14 @@ function DataRecord(args = {}) {
             } else if(size > base_type_size) {
                 // array
                 for(let j = 0, k = 0; j < size; j+=base_type_size, k+=1) {
-                    type.number.encode(_field, value[k], view, acc.i+j, endian, value % 0xFF === 0);
+                    type.number.encode(resolvedField, value?.[k], view, acc.i+j, endian);
                 }
             } else if(type.timestamp.isTimestamp(_field.type)) {
                 // timestamp
                 type.timestamp.encode(field, value, view, acc.i, endian);
             } else {
                 // number
-                type.number.encode(_field, value, view, acc.i, endian);
+                type.number.encode(resolvedField, value, view, acc.i, endian);
             }
 
             acc.i += field.size;
@@ -106,6 +112,12 @@ function DataRecord(args = {}) {
                 const _field = profiles.numberToField(
                     definition.name, field.number
                 );
+                const base_type = _field.base_type ?? field.base_type;
+                const resolvedField = {
+                    ..._field,
+                    base_type,
+                    invalid: _field.invalid ?? profiles.baseTypeToInvalid(base_type),
+                };
                 const size = field.size;
                 const base_type_size = profiles.baseTypeToSize(field.base_type);
 
@@ -118,7 +130,7 @@ function DataRecord(args = {}) {
                     // array
                     value = [];
                     for(let j = 0; j < size; j+=base_type_size) {
-                        const v = type.number.decode(_field, view, acc.i+j, endian);
+                        const v = type.number.decode(resolvedField, view, acc.i+j, endian, true);
                         value.push(v);
                     }
                 } else if(type.timestamp.isTimestamp(_field.type)) {
@@ -126,7 +138,7 @@ function DataRecord(args = {}) {
                     value = type.timestamp.decode(field, view, acc.i, endian);
                 } else {
                     // number
-                    value = type.number.decode(_field, view, acc.i, endian);
+                    value = type.number.decode(resolvedField, view, acc.i, endian, false);
                 }
 
                 acc.fields[_field.name] = value;
