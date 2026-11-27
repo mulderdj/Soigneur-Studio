@@ -39,6 +39,12 @@ const RIDE_TILES = [
     {id: 'workout',               name: 'Workout',          description: 'The workout\'s intervals and where you are', sizes: GRAPH, size: 'large', graph: true},
     {id: 'stats',                 name: 'Statistics',       description: 'Training load, peaks and zones of this ride', sizes: GRAPH, size: 'large', graph: true},
     {id: 'map',                   name: 'Map',              description: 'Live GPS route and position', sizes: GRAPH, size: 'large', graph: true},
+    {id: 'ind-power',             name: 'Power Zone',       description: 'Visual power zone gauge with target marker (tap to switch Bar / Dial / Meter)', sizes: NUMBER, size: 'wide'},
+    {id: 'ind-hr',                name: 'HR Zone',          description: 'Visual heart rate zone gauge (tap to switch Bar / Dial / Meter)', sizes: NUMBER, size: 'wide'},
+    {id: 'ind-cadence',           name: 'Cadence Gauge',    description: 'Visual cadence gauge with optimal zone & target (tap to switch Bar / Dial / Meter)', sizes: NUMBER, size: 'wide'},
+    {id: 'ind-speed',             name: 'Speed Gauge',      description: 'Visual speed gauge (tap to switch Bar / Dial / Meter)', sizes: NUMBER, size: 'wide'},
+    {id: 'ind-wbal',              name: 'W′ Balance',       description: 'Visual anaerobic reserve tank (tap to switch Bar / Dial / Meter)', sizes: NUMBER, size: 'wide'},
+    {id: 'ind-grade',             name: 'Grade Gauge',      description: 'Visual slope & climb indicator (tap to switch Bar / Dial / Meter)', sizes: NUMBER, size: 'wide'},
 ];
 
 const CARD = ['narrow', 'wide', 'full'];
@@ -217,7 +223,7 @@ function heightFor(item, kind = 'ride') {
     if(kind === 'training') return 1;
     const id = item?.id;
     if(id === 'chart' || id === 'map' || id === 'stats') return 3;
-    if(id === 'workout') return 2;
+    if(id === 'workout' || (typeof id === 'string' && id.startsWith('ind-'))) return 2;
     if(id === 'power' && item?.size === 'large') return 2;
     return 1;
 }

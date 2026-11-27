@@ -27,6 +27,7 @@ import { LayoutEditor, editList, editLocked } from './layout-editor.js';
 import { confirmAction } from './confirm.js';
 import { esc } from './training/format.js';
 import './ride-map.js';
+import './ride-indicator.js';
 
 const ELEMENT_ID = {chart: 'dash-chart', workout: 'graph-workout'};
 const elementId = id => ELEMENT_ID[id] ?? `data-tile--${id}`;
@@ -153,6 +154,11 @@ class RideScreens extends HTMLElement {
             el = document.createElement('ride-map');
             el.id = elementId('map');
             el.className = 'tile ride__map';
+            this.$pool.append(el);
+        } else if(!el && create && id.startsWith('ind-') && this.$pool) {
+            el = document.createElement('ride-indicator');
+            el.id = elementId(id);
+            el.dataset.category = id.slice(4);
             this.$pool.append(el);
         }
         return el;
