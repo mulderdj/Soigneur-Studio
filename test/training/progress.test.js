@@ -51,6 +51,18 @@ describe('power curve', () => {
         const c = powerCurve([], today);
         expect(c.recent.watts.every(w => w === null)).toBe(true);
     });
+    test('90-day recent window and prior season comparison', () => {
+        const withPrior = [
+            ...rides,
+            ride('2025-07-10', 3600, 90, 900, z(0, 3600), best(850, 440, 310, 275, 255), 75),
+        ];
+        const c90 = powerCurve(withPrior, today, {recentDays: 90, compare: '90d'});
+        expect(at(c90.recent.watts, 5)).toBe(900);              // 2026-09-01 is within 90 days of 2026-11-25
+        expect(c90.priorSeason).toBeUndefined();
+        const cPrior = powerCurve(withPrior, today, {recentDays: 90, compare: 'prior'});
+        expect(pick(cPrior.priorSeason.watts)).toEqual([850, 440, 310, 275, 255]);
+        expect(at(cPrior.priorSeason.from, 1200).day).toBe('2025-07-10');
+    });
 });
 
 describe('FTP estimate', () => {

@@ -53,11 +53,12 @@ const TRAINING_CARDS = [
     {id: 'efficiency',     name: 'Aerobic efficiency',  sizes: CARD, size: 'full'},
     {id: 'readiness-perf', name: 'Readiness and rides', sizes: CARD, size: 'narrow'},
     {id: 'decoupling',     name: 'Aerobic decoupling',  sizes: CARD, size: 'wide'},
+    {id: 'compliance',     name: 'Plan compliance',     sizes: CARD, size: 'narrow'},
     {id: 'durability',     name: 'Durability',          sizes: CARD, size: 'full'},
 ];
 
 // cards an update adds that a saved layout should show (not hide): at their default place
-const ADDED_VISIBLE = new Set(['readiness', 'model', 'profile', 'efficiency', 'readiness-perf', 'decoupling', 'durability']);
+const ADDED_VISIBLE = new Set(['readiness', 'model', 'profile', 'efficiency', 'readiness-perf', 'decoupling', 'compliance', 'durability']);
 
 const RIDE_BY_ID = new Map(RIDE_TILES.map(t => [t.id, t]));
 const CARD_BY_ID = new Map(TRAINING_CARDS.map(c => [c.id, c]));

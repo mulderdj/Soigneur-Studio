@@ -4,13 +4,14 @@
 //   <decoupling-card>       aerobic decoupling (%) across long steady rides
 //   <durability-card>       best 5 / 20 min power after 1,000–3,000 kJ (% of fresh best)
 //   <readiness-perf-card>   morning HRV or sleep against how the ride went
+//   <compliance-card>       planned workouts completed vs missed and load / duration adherence
 //
-// data = {today, summaries, wellness}
+// data = {today, summaries, wellness, plan, ftp}
 //
 
 import { token } from './uplot-chart.js';
 import { ToggleCard } from './progress-cards.js';
-import { efficiencyChart, decouplingChart, durabilityChart, readinessChart } from '../charts/insight-models.js';
+import { efficiencyChart, decouplingChart, durabilityChart, readinessChart, complianceChart } from '../charts/insight-models.js';
 
 const colors = el => ({accent: token(el, '--accent'), good: token(el, '--good'), warn: token(el, '--warn'), muted: token(el, '--muted')});
 
@@ -81,9 +82,36 @@ class DurabilityCard extends ToggleCard {
     }
 }
 
+class ComplianceCard extends ToggleCard {
+    get title() { return 'Plan compliance'; }
+    get defaultOption() { return 'workouts'; }
+    get options() { return [['workouts', 'Workouts'], ['load', 'Load %']]; }
+    emptyText() { return 'Plan workouts on the calendar to track completed vs missed sessions and load adherence.'; }
+    intro() {
+        const b = this.result?.compliance?.block;
+        if(!b || b.due === 0) return '';
+        return `<dl class="cc-stats">
+            <div><dt>4-wk done</dt><dd data-k="done">${b.done}/${b.due} <small>${b.completionPct} %</small></dd></div>
+            <div><dt>Load</dt><dd data-k="load">${b.loadPct !== null ? `${b.loadPct} %` : '–'}</dd></div>
+            <div><dt>Duration</dt><dd data-k="duration">${b.durationPct !== null ? `${b.durationPct} %` : '–'}</dd></div>
+        </dl>`;
+    }
+    foot() {
+        const legend = this.option === 'load' ?
+            '<p class="card__note pc-legend"><span class="pc-key pc-key--recent"></span> Load % <span class="pc-key pc-key--good"></span> Duration %</p>' :
+            '<p class="card__note pc-legend"><span class="pc-key pc-key--good"></span> Completed <span class="pc-key pc-key--warn"></span> Missed</p>';
+        return `${legend}<p class="card__note">Planned workouts completed vs missed each week, and actual against planned TSS and time.</p>`;
+    }
+    chart() {
+        this.result = complianceChart(this.data, this.option ?? this.defaultOption, colors(this));
+        return this.result;
+    }
+}
+
 customElements.define('efficiency-card', EfficiencyCard);
 customElements.define('decoupling-card', DecouplingCard);
 customElements.define('durability-card', DurabilityCard);
 customElements.define('readiness-perf-card', ReadinessPerfCard);
+customElements.define('compliance-card', ComplianceCard);
 
-export { EfficiencyCard, DecouplingCard, DurabilityCard, ReadinessPerfCard, strength };
+export { EfficiencyCard, DecouplingCard, DurabilityCard, ReadinessPerfCard, ComplianceCard, strength };

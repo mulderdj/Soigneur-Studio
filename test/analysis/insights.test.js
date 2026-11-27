@@ -1,4 +1,4 @@
-import { efforts, reps, hrRecovery, rideCurve, powerHr, efficiency, decouplingTrend, durabilityTrend, readinessPairs, polarised, pearson, weekOf } from '../../src/analysis/insights.js';
+import { efforts, reps, hrRecovery, rideCurve, powerHr, efficiency, decouplingTrend, durabilityTrend, readinessPairs, polarised, classifyIntensity, planCompliance, plannedDuration, weeklySummary, pearson, weekOf } from '../../src/analysis/insights.js';
 
 // a ride of `seconds` with power and heart rate from functions of t
 const ride = (seconds, power, hr) => Array.from({length: seconds}, (_, t) => ({t, power: power(t), heartRate: hr(t)}));
@@ -199,5 +199,95 @@ describe('durability trend', () => {
         ];
         const rows = durabilityTrend(rides, '2026-11-25', {kj: 1000, duration: 300, weeks: 4});
         expect(rows.every(r => r.pct === null)).toBe(true);
+    });
+});
+
+describe('intensity distribution classification', () => {
+    const z = (e, m, h, day = '2026-11-24', extra = {}) => ({
+        id: `${day}-${e}-${m}-${h}`, day, sport: 'cycling',
+        zoneSeconds: [0, e, m, 0, 0, h, 0], ...extra,
+    });
+
+    test('classifies Polarised, Pyramidal, Threshold-heavy, and Base / Endurance', () => {
+        const pol = classifyIntensity([z(3000, 200, 400)], '2026-11-25');
+        expect(pol).toMatchObject({enough: true, pattern: 'polarised', label: 'Polarised'});
+        expect(pol.summary).toMatch(/^Polarised \(83 % easy · 6 % middle · 11 % hard\)$/);
+
+        const pyr = classifyIntensity([z(2700, 700, 200)], '2026-11-25');
+        expect(pyr).toMatchObject({enough: true, pattern: 'pyramidal', label: 'Pyramidal'});
+
+        const thr = classifyIntensity([z(1800, 1600, 200)], '2026-11-25');
+        expect(thr).toMatchObject({enough: true, pattern: 'threshold', label: 'Threshold-heavy'});
+
+        const base = classifyIntensity([z(3400, 150, 50)], '2026-11-25');
+        expect(base).toMatchObject({enough: true, pattern: 'base', label: 'Base / Endurance'});
+    });
+
+    test('requires at least 30 minutes of cycling power data and ignores runs', () => {
+        expect(classifyIntensity([], null)).toMatchObject({enough: false, pattern: null});
+        expect(classifyIntensity([z(1000, 0, 0)], '2026-11-25')).toMatchObject({enough: false, pattern: null});
+        expect(classifyIntensity([z(3600, 0, 0, '2026-11-24', {sport: 'run'})], '2026-11-25')).toMatchObject({enough: false, pattern: null});
+    });
+});
+
+describe('plan compliance and weekly summary', () => {
+    const workout = (power = 0.8, duration = 3600) => ({
+        intervals: [{duration, steps: [{duration, power}]}],
+    });
+
+    test('plannedDuration sums both flat intervals and stepped intervals', () => {
+        expect(plannedDuration({intervals: [{duration: 600}, {duration: 1200, steps: [{duration: 300}, {duration: 900}]}]})).toBe(1800);
+        expect(plannedDuration(null)).toBe(0);
+    });
+
+    test('planCompliance computes weekly done/missed/upcoming and load & duration adherence', () => {
+        const plan = [
+            {id: 'p1', day: '2026-11-16', workout: workout(0.8, 3600), rideId: 'r1', deleted: false},
+            {id: 'p2', day: '2026-11-18', workout: workout(0.8, 3600), rideId: null, deleted: false},
+            {id: 'p3', day: '2026-11-23', workout: workout(0.8, 3600), rideId: 'r2', deleted: false},
+            {id: 'p4', day: '2026-11-27', workout: workout(0.8, 3600), rideId: null, deleted: false},
+            {id: 'del', day: '2026-11-23', workout: workout(0.8, 3600), rideId: null, deleted: true},
+        ];
+        const summaries = [
+            {id: 'r1', day: '2026-11-16', duration: 3600, tss: 64},
+            {id: 'r2', day: '2026-11-23', duration: 3240, tss: 58},
+        ];
+        const out = planCompliance(plan, summaries, '2026-11-25', {weeks: 2, blockWeeks: 2, ftp: 250});
+        expect(out.weeks).toHaveLength(2);
+        expect(out.weeks[0]).toMatchObject({week: '2026-11-16', done: 1, missed: 1, upcoming: 0, due: 2, completionPct: 50, loadPct: 50, durationPct: 50});
+        expect(out.weeks[1]).toMatchObject({week: '2026-11-23', done: 1, missed: 0, upcoming: 1, due: 1, completionPct: 100});
+        expect(out.block).toMatchObject({done: 2, missed: 1, upcoming: 1, due: 3, completionPct: 67});
+        expect(planCompliance([], [], '').weeks).toEqual([]);
+    });
+
+    test('weeklySummary compares vs 4-week norm, tracks CTL, compliance, and standout effort', () => {
+        const summaries = [
+            {id: '1', day: '2026-10-26', sport: 'cycling', duration: 3600, tss: 60, kj: 600, best: {1200: 250}},
+            {id: '2', day: '2026-11-02', sport: 'cycling', duration: 3600, tss: 60, kj: 600, best: {1200: 255}},
+            {id: '3', day: '2026-11-09', sport: 'cycling', duration: 3600, tss: 60, kj: 600, best: {1200: 260}},
+            {id: '4', day: '2026-11-16', sport: 'cycling', duration: 3600, tss: 60, kj: 600, best: {1200: 265}},
+            {id: '5', day: '2026-11-24', sport: 'cycling', name: 'TT effort', duration: 5400, tss: 95, kj: 950, best: {1200: 290}},
+        ];
+        const plan = [
+            {id: 'p1', day: '2026-11-24', workout: workout(0.85, 3600), rideId: '5', deleted: false},
+            {id: 'p2', day: '2026-11-27', workout: workout(0.75, 3600), rideId: null, deleted: false},
+        ];
+        const s = weeklySummary({summaries, plan, today: '2026-11-25', ftp: 250});
+        expect(s.thisWeek).toMatchObject({rides: 1, tss: 95, kj: 950});
+        expect(s.priorSameDays).toMatchObject({rides: 1, tss: 60});
+        expect(s.normPace.tss).toBe(60);
+        expect(s.ctl.now).toBeGreaterThan(0);
+        expect(s.standout).toMatchObject({kind: 'all-time', label: '20 min', watts: 290, period: 'this-week', name: 'TT effort'});
+        expect(s.items.some(x => /So far: \+58 % vs your 4-week pace/.test(x))).toBe(true);
+        expect(s.items.some(x => /Fitness \(CTL\)/.test(x))).toBe(true);
+        expect(s.items.some(x => /Plan: 1 of 2 done this week/.test(x))).toBe(true);
+        expect(s.items.some(x => /new all-time 20 min best at 290 W/.test(x))).toBe(true);
+
+        // when no rides yet this week, falls back to last week's summary and standout
+        const noCur = weeklySummary({summaries: summaries.slice(0, 4), plan: [], today: '2026-11-25', ftp: 250});
+        expect(noCur.standout).toMatchObject({period: 'last-week', kind: 'all-time', watts: 265});
+        expect(noCur.items[0]).toMatch(/^Last week: 1 h · 60 TSS/);
+
+        expect(weeklySummary({summaries: [], plan: [], today: ''}).items).toEqual([]);
     });
 });

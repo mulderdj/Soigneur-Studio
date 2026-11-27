@@ -1,4 +1,4 @@
-import { repsChart, recoveryChart, rideCurveChart, powerHrChart, efficiencyChart, decouplingChart, durabilityChart, readinessChart, polarisedChart } from '../../src/views/charts/insight-models.js';
+import { repsChart, recoveryChart, rideCurveChart, powerHrChart, efficiencyChart, decouplingChart, durabilityChart, readinessChart, polarisedChart, complianceChart } from '../../src/views/charts/insight-models.js';
 
 const iv = (start, end, kind, stats = {}) => ({start, end, kind, stats});
 const work = (n, start, p, hr) => iv(start, start + 240, 'work', {avgPower: p, avgTarget: 200, avgHr: hr, maxHr: hr + 8});
@@ -59,11 +59,12 @@ describe('trend charts', () => {
         expect(out.model.x).toEqual([]);
         expect(out.stats).toMatchObject({n: 0, enough: false});
     });
-    test('3 zones: stacked to 100 %', () => {
-        const {model, readout} = polarisedChart({summaries: [{day: '2026-11-24', zoneSeconds: [1800, 1800, 600, 0, 0, 600, 0]}], today: '2026-11-25'}, {});
+    test('3 zones: stacked to 100 % with intensity classification', () => {
+        const {model, readout, classification} = polarisedChart({summaries: [{day: '2026-11-24', zoneSeconds: [1800, 1800, 600, 0, 0, 600, 0]}], today: '2026-11-25'}, {});
         const i = model.x.length - 1;
         expect(model.series.map(s => s.values[i])).toEqual([100, 87.5, 75]);
         expect(readout(i).rows.map(r => r.value)).toEqual(['75 %', '13 %', '13 %']);
+        expect(classification).toMatchObject({enough: true, pattern: 'polarised', label: 'Polarised'});
     });
     test('decoupling: 5 % reference line, ride points, 28-day rolling mean and readout', () => {
         const summaries = [
@@ -94,5 +95,34 @@ describe('trend charts', () => {
         const out20 = durabilityChart({summaries, today: '2026-11-25'}, 1200, {});
         expect(out20.thresholds).toEqual([1000]);
         expect(durabilityChart({summaries: [], today: '2026-11-25'}, 300, {}).model.x).toEqual([]);
+    });
+    test('compliance: workouts mode, load % mode, readouts, and empty state', () => {
+        const w = (power = 0.8, duration = 3600) => ({intervals: [{duration, steps: [{duration, power}]}]});
+        const plan = [
+            {id: 'p1', day: '2026-11-23', workout: w(0.8, 3600), rideId: 'r1', deleted: false},
+            {id: 'p2', day: '2026-11-24', workout: w(0.8, 3600), rideId: null, deleted: false},
+            {id: 'p3', day: '2026-11-27', workout: w(0.8, 3600), rideId: null, deleted: false},
+        ];
+        const summaries = [{id: 'r1', day: '2026-11-23', duration: 3600, tss: 64}];
+
+        const outW = complianceChart({plan, summaries, today: '2026-11-25', ftp: 250}, 'workouts', {good: 'g', warn: 'w', accent: 'a', muted: 'm'});
+        expect(outW.model.series.map(s => s.label)).toEqual(['Missed', 'Completed']);
+        const last = outW.model.x.length - 1;
+        expect(outW.model.series[0].values[last]).toBe(2); // due = done + missed
+        expect(outW.model.series[1].values[last]).toBe(1); // done
+        const rw = outW.readout(last);
+        expect(rw.rows.map(r => [r.label, r.value])).toEqual([
+            ['Completed', '1 of 2'], ['Missed', '1'], ['Upcoming', '1'], ['Load', '50 %'], ['Duration', '50 %'],
+        ]);
+        expect(rw.rows[0].note).toBe('50 %');
+        expect(outW.readout(0).more).toEqual(['No workouts planned this week']);
+
+        const outL = complianceChart({plan, summaries, today: '2026-11-25', ftp: 250}, 'load', {good: 'g', warn: 'w', accent: 'a', muted: 'm'});
+        expect(outL.model.series.map(s => s.label)).toEqual(['Target (100 %)', 'Load adherence', 'Duration adherence']);
+        expect(outL.model.series[1].values[last]).toBe(50);
+        expect(outL.model.series[2].values[last]).toBe(50);
+        expect(outL.readout(last).rows.find(r => r.label === 'Load').value).toBe('50 %');
+
+        expect(complianceChart({plan: [], summaries: [], today: '2026-11-25'}, 'workouts', {}).model.x).toEqual([]);
     });
 });

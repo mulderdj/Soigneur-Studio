@@ -10,6 +10,7 @@ import { dailyTss, pmc, forecast, formLabel, rampRate } from '../../training/loa
 import { planStatus, plannedTss } from '../../training/plan.js';
 import { hrvRangeOn, sortedDays } from '../../training/wellness.js';
 import { weeklyVolume, zoneTotals, powerCurve, ftpEstimates, WINDOWS } from '../../training/progress.js';
+import { cpTrend } from '../../training/rider-model.js';
 import { addDays } from '../../training/dates.js';
 import { ZONES } from '../../analytics.js';
 import { fmtDay, fmtDuration } from './format.js';
@@ -212,23 +213,42 @@ const MODEL_FROM = 120, MODEL_TO = 1200;
 // the labelled durations on the log axis
 const TICKS = [1, 5, 15, 60, 300, 1200, 3600, 7200];
 
-function curveChart(data, unit = 'w', colors = {}, fit = null) {
-    const c = powerCurve(data.summaries ?? [], data.today);
+const CURVE_MODES = {
+    all:   {recentDays: 42, recentLabel: 'Last 6 weeks',  refKey: 'allTime',     refLabel: 'All time'},
+    '90d': {recentDays: 90, recentLabel: 'Last 90 days',  refKey: 'allTime',     refLabel: 'All time'},
+    prior: {recentDays: 90, recentLabel: 'Last 90 days',  refKey: 'priorSeason', refLabel: 'Prior season'},
+};
+
+function curveDelta(rec, ref, unit) {
+    if(rec === null || ref === null || !(ref > 0)) return null;
+    const diff = rec - ref;
+    const pct = Math.round((diff / ref) * 1000) / 10;
+    const u = unit === 'wkg' ? 'W/kg' : 'W';
+    const fmt = v => (unit === 'wkg' ? Math.abs(v).toFixed(2) : String(Math.round(Math.abs(v))));
+    if(Math.abs(diff) < (unit === 'wkg' ? 0.005 : 0.5)) return 'Matches best (100 %)';
+    const sign = diff > 0 ? '+' : '−';
+    return `${sign}${fmt(diff)} ${u} (${sign}${Math.abs(pct).toFixed(1)} %)`;
+}
+
+function curveChart(data, unit = 'w', colors = {}, fit = null, compare = 'all') {
+    const cfg = CURVE_MODES[compare] ?? CURVE_MODES.all;
+    const c = powerCurve(data.summaries ?? [], data.today, {recentDays: cfg.recentDays, compare});
+    const refBests = c[cfg.refKey] ?? c.allTime;
     const key = unit === 'wkg' ? 'wkg' : 'watts';
     const val = (v) => (v === null || v === undefined ? null : key === 'wkg' ? Math.round(v * 100) / 100 : Math.round(v));
     const show = (v) => (v === null ? '–' : key === 'wkg' ? `${v.toFixed(2)} W/kg` : `${v} W`);
     // only the durations with data (older rides keep five of them)
-    const keep = WINDOWS.map((w, i) => i).filter(i => c.recent.watts[i] !== null || c.allTime.watts[i] !== null);
+    const keep = WINDOWS.map((w, i) => i).filter(i => c.recent.watts[i] !== null || refBests.watts[i] !== null);
     const xs = keep.map(i => WINDOWS[i]);
-    const recent = keep.map(i => val(c.recent[key][i])), all = keep.map(i => val(c.allTime[key][i]));
-    const fromRecent = keep.map(i => c.recent.from[i]), fromAll = keep.map(i => c.allTime.from[i]);
+    const recent = keep.map(i => val(c.recent[key][i])), all = keep.map(i => val(refBests[key][i]));
+    const fromRecent = keep.map(i => c.recent.from[i]), fromAll = keep.map(i => refBests.from[i]);
     const model = {
         x: xs,
         time: false,
         log: true,
         series: [
-            {label: 'Last 6 weeks', color: colors.accent, width: 2.5, points: true, values: recent},
-            {label: 'All time', color: colors.muted, width: 1.5, points: true, values: all},
+            {label: cfg.recentLabel, color: colors.accent, width: 2.5, points: true, values: recent},
+            {label: cfg.refLabel, color: colors.muted, width: 1.5, points: true, values: all},
         ],
         xTicks: TICKS.filter(t => t >= xs[0] && t <= xs.at(-1)),
         xFormat: (v) => (Number.isFinite(v) ? durationLabel(v) : ''),
@@ -241,18 +261,53 @@ function curveChart(data, unit = 'w', colors = {}, fit = null) {
     const readout = (i) => {
         if(i < 0 || i >= xs.length) return null;
         const from = fromRecent[i] ?? fromAll[i];
+        const delta = curveDelta(recent[i], all[i], unit);
         return {
             title: durationLabel(xs[i]),
             rows: [
-                {label: 'Last 6 weeks', color: colors.accent, value: show(recent[i]), note: recordNote(fromRecent[i])},
-                {label: 'All time', color: colors.muted, value: show(all[i]), note: recordNote(fromAll[i])},
+                {label: cfg.recentLabel, color: colors.accent, value: show(recent[i]), note: recordNote(fromRecent[i])},
+                {label: cfg.refLabel, color: colors.muted, value: show(all[i]), note: recordNote(fromAll[i])},
                 ...(fitted && fitted[i] !== null ? [{label: 'Model', color: colors.model, value: show(fitted[i]), note: 'CP + W′ / time'}] : []),
             ],
-            more: [],
+            more: delta ? [`${cfg.recentLabel} vs ${cfg.refLabel.toLowerCase()}: ${delta}`] : [],
             day: from?.day,   // the recent record first: today's form
         };
     };
     return {model, readout};
+}
+
+// rolling 90-day fitted CP (W) and W′ (kJ) per week over 24 weeks, opening on 12
+function cpTrendChart(data, colors = {}) {
+    const rows = Array.isArray(data.trend) && data.trend.length ? data.trend : cpTrend(data.summaries ?? [], data.today, 24);
+    if(!rows.some(r => r.cp !== null)) return {model: {x: [], series: []}, readout: () => null, rows};
+    const kjVal = w => (w === null || w === undefined ? null : Math.round(w / 100) / 10);
+    const model = {
+        x: rows.map(r => daySec(r.week)),
+        series: [
+            {label: 'CP', color: colors.accent, width: 2.5, points: true, values: rows.map(r => r.cp)},
+            {label: 'W′', color: colors.good, width: 2, dash: [5, 4], points: true, scale: 'y2', values: rows.map(r => kjVal(r.wprime))},
+        ],
+        ranges: [['12w', '12 weeks'], ['24w', '24 weeks']],
+        defaultRange: '12w',
+        today: daySec(data.today),
+        xFormat: (t) => shortDay(new Date(t * 1000).toISOString().slice(0, 10)),
+        yFormat: (v) => `${Math.round(v)} W`,
+        y2Format: (v) => `${Number(v).toFixed(1)} kJ`,
+    };
+    const readout = (i) => {
+        const r = rows[i];
+        if(!r) return null;
+        return {
+            title: weekTitle(r.week),
+            rows: [
+                {label: 'CP', color: colors.accent, value: r.cp === null ? '–' : `${r.cp} W`},
+                {label: 'W′', color: colors.good, value: r.wprime === null ? '–' : `${(r.wprime / 1000).toFixed(1)} kJ`},
+                ...(r.r2 !== null ? [{label: 'Fit', value: `R² ${r.r2.toFixed(3)}`}] : []),
+            ],
+            more: [r.cp === null ? 'Not enough 2–20 min efforts in the 90 days before' : 'Rolling 90-day fit'],
+        };
+    };
+    return {model, readout, rows};
 }
 
 // estimated FTP per week (52, opening on 12) and the set FTP
@@ -290,4 +345,4 @@ function ftpChart(data, colors = {}) {
     return {model, readout};
 }
 
-export { formModel, formChart, healthChart, volumeChart, zonesChart, curveChart, ftpChart, PAST_DAYS, AHEAD_DAYS, daySec, longDay, weekTitle, shortDay, durationLabel };
+export { formModel, formChart, healthChart, volumeChart, zonesChart, curveChart, cpTrendChart, ftpChart, PAST_DAYS, AHEAD_DAYS, daySec, longDay, weekTitle, shortDay, durationLabel };

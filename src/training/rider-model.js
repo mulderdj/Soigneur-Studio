@@ -21,6 +21,10 @@ const WPRIME_MIN = 5000, WPRIME_MAX = 60000;
 const OFFER_WPRIME = 1000, OFFER_CP = 0.03;
 
 const addDays = (day, n) => new Date(Date.parse(day) + n * DAY_MS).toISOString().slice(0, 10);
+const weekOf = day => {
+    const d = new Date(`${day}T00:00:00Z`);
+    return addDays(day, -((d.getUTCDay() + 6) % 7));
+};
 const has = x => Number.isFinite(x) && x > 0;
 
 function meanMaximal(summaries = [], today, days = 90) {
@@ -163,12 +167,35 @@ function powerProfile({meanMax = {}, ftp, weight, table = 'men'}) {
     return {rows, sentence, table};
 }
 
+// rolling 90-day fitted CP and W′ per week (oldest first, ending this week)
+function cpTrend(summaries = [], today, weeks = 24, days = 90) {
+    if(!today || !(weeks > 0)) return [];
+    const cycling = summaries.filter(s => s?.day && s.day <= today && isCycling(s));
+    const current = weekOf(today);
+    const out = [];
+    for(let i = weeks - 1; i >= 0; i--) {
+        const week = addDays(current, -7 * i);
+        const sun = addDays(week, 6);
+        const end = sun < today ? sun : today;
+        const fit = fitCp(meanMaximal(cycling, end, days));
+        out.push({
+            week,
+            end,
+            cp: fit.ok ? fit.cp : null,
+            wprime: fit.ok ? fit.wprime : null,
+            r2: fit.ok ? fit.r2 : null,
+        });
+    }
+    return out;
+}
+
 // everything the app needs at once
 function currentModel({summaries, today, ftp, typedWprime, settings}) {
     const meanMax = meanMaximal(summaries, today);
     const fit = fitCp(meanMax);
     const eff = effective({fit, settings, ftp, typedWprime});
-    return {meanMax, fit, effective: eff, offer: settings?.mode === 'auto' ? null : offer({fit, current: eff}), settings};
+    const trend = today ? cpTrend(summaries, today) : [];
+    return {meanMax, fit, effective: eff, offer: settings?.mode === 'auto' ? null : offer({fit, current: eff}), trend, settings};
 }
 
-export { meanMaximal, fitCp, effective, offer, powerProfile, currentModel, CATEGORIES, TABLES };
+export { meanMaximal, fitCp, cpTrend, effective, offer, powerProfile, currentModel, CATEGORIES, TABLES };

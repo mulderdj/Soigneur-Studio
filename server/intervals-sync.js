@@ -36,8 +36,12 @@ function createIntervalsSync({db, options = {}}) {
     const pauseMs = options.pauseMs ?? 200;
     const maxWaitMs = options.maxWaitMs ?? 5 * 60 * 1000;
     const syncEveryMs = options.syncEveryMs ?? 15 * 60 * 1000;
+    const enrichDays = options.enrichDays ?? 90;
+    const enrichMax = options.enrichMax ?? 20;
     const now = options.now ?? (() => Date.now());
     const readOnly = options.readOnly === true; // pull only: never write to intervals.icu
+    let rideFiles = null;
+    function setRideFiles(rf) { rideFiles = rf; }
 
     db.exec(`
         CREATE TABLE IF NOT EXISTS external_rides (
@@ -172,6 +176,8 @@ function createIntervalsSync({db, options = {}}) {
         const stale = q.staleDay.get(userId, `${MAPPING}|%`)?.day;
         if(stale && stale < oldest) oldest = stale;
         const list = await request('GET', `/api/v1/athlete/0/activities?oldest=${oldest}&newest=${isoDay(now() + DAY_MS)}`);
+        const enrichCutoff = isoDay(now() - enrichDays * DAY_MS);
+        let downloads = 0;
 
         for(const a of Array.isArray(list) ? list : []) {
             if(!a?.id) continue;
@@ -195,7 +201,19 @@ function createIntervalsSync({db, options = {}}) {
                 }
             }
             const auukiRideId = q.upload.get(userId, String(a.id))?.activity_id ?? null;
-            const summary = toSummary(a, {powerCurve, auukiRideId});
+            let summary = toSummary(a, {powerCurve, auukiRideId});
+            if(stored?.summary) {
+                try {
+                    const prev = JSON.parse(stored.summary);
+                    if(summary.decoupling === null && prev.decoupling !== null && prev.decoupling !== undefined) summary = {...summary, decoupling: prev.decoupling};
+                    if(prev.durability !== null && prev.durability !== undefined) summary = {...summary, durability: prev.durability};
+                } catch(e) {}
+            }
+            if(rideFiles && summary.durability === null) {
+                const out = await rideFiles.enrichSummary(userId, summary, {allowDownload: downloads < enrichMax && summary.day >= enrichCutoff});
+                summary = out.summary;
+                if(out.downloaded) downloads++;
+            }
             q.upsertRide.run(userId, id, JSON.stringify(summary), summary.day, fp, now());
         }
         // stale rides intervals.icu didn't list (gone there): not looked for again
@@ -439,7 +457,7 @@ function createIntervalsSync({db, options = {}}) {
         }, {auth: true});
     }
 
-    return {run, status, start, close, routes, download};
+    return {run, status, start, close, routes, download, setRideFiles};
 }
 
 module.exports = { createIntervalsSync, SyncError };

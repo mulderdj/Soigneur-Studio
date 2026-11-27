@@ -32,7 +32,7 @@ import { ChartTooltip } from '../charts/tooltip.js';
 
 const DAY = 86400;
 const RANGE_DAYS = {'1m': 30, '3m': 90, '1y': 365};
-const RANGE_ENTRIES = {'12w': 12, '52w': 52, '12m': 12};
+const RANGE_ENTRIES = {'12w': 12, '24w': 24, '52w': 52, '12m': 12};
 
 function token(el, name, fallback = '#888') {
     return getComputedStyle(el).getPropertyValue(name).trim() || fallback;
@@ -83,10 +83,14 @@ class UPlotCard extends HTMLElement {
             this.tooltip = new ChartTooltip(this.$tip, {owner: this});
             this.addEventListener('click', e => this.onClick(e));
         }
-        this.resize = new ResizeObserver(() => this.plot?.setSize(this.size()));
-        this.resize.observe(this.$plot);
-        this.theme = new MutationObserver(() => this.rebuild());
-        this.theme.observe(document.body, {attributes: true, attributeFilter: ['class']});
+        if(typeof ResizeObserver === 'function') {
+            this.resize = new ResizeObserver(() => this.plot?.setSize(this.size()));
+            this.resize.observe(this.$plot);
+        }
+        if(typeof MutationObserver === 'function') {
+            this.theme = new MutationObserver(() => this.rebuild());
+            this.theme.observe(document.body, {attributes: true, attributeFilter: ['class']});
+        }
         this.rebuild();
     }
 

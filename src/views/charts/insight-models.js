@@ -13,7 +13,7 @@
 //   polarisedChart(data, colors)      data = {summaries, today}
 //
 
-import { reps, hrRecovery, rideCurve, powerHr, efficiency, decouplingTrend, durabilityTrend, readinessPairs, polarised, DURABILITY_KJ } from '../../analysis/insights.js';
+import { reps, hrRecovery, rideCurve, powerHr, efficiency, decouplingTrend, durabilityTrend, readinessPairs, polarised, classifyIntensity, planCompliance, DURABILITY_KJ } from '../../analysis/insights.js';
 import { meanMaximal } from '../../training/rider-model.js';
 import { DURATIONS } from '../../training/summary.js';
 import { fmtDay } from '../training/format.js';
@@ -276,7 +276,8 @@ function readinessChart({summaries = [], wellness = []}, x = 'hrv', c = {}) {
 
 function polarisedChart({summaries = [], today}, c = {}) {
     const weeks = polarised(summaries, today, 52);
-    if(!weeks.some(w => w.seconds > 0)) return empty();
+    const classification = classifyIntensity(summaries, today, {weeks: 4});
+    if(!weeks.some(w => w.seconds > 0)) return {...empty(), classification};
     const p = v => Math.round(v * 1000) / 10;
     const model = {
         x: weeks.map(w => daySec(w.week)),
@@ -302,7 +303,59 @@ function polarisedChart({summaries = [], today}, c = {}) {
             {label: 'Hard (Z6–Z7)', color: c.hard, value: `${Math.round(w.hard * 100)} %`},
         ], more: []};
     };
-    return {model, readout, weeks};
+    return {model, readout, weeks, classification};
 }
 
-export { repsChart, recoveryChart, rideCurveChart, powerHrChart, efficiencyChart, decouplingChart, durabilityChart, readinessChart, polarisedChart };
+function complianceChart({plan = [], summaries = [], today, ftp = 250}, metric = 'workouts', c = {}) {
+    const out = planCompliance(plan, summaries, today, {weeks: 24, blockWeeks: 4, ftp});
+    const rows = out.weeks;
+    if(!rows.some(w => w.due > 0)) return {...empty(), compliance: out};
+    const byLoad = metric === 'load';
+    if(byLoad && !rows.some(w => w.loadPct !== null)) return {...empty(), compliance: out};
+    const model = byLoad ? {
+        x: rows.map(w => daySec(w.week)),
+        series: [
+            {label: 'Target (100 %)', color: c.muted, width: 1, dash: [4, 4], values: rows.map(() => 100)},
+            {label: 'Load adherence', color: c.accent, kind: 'bars', values: rows.map(w => w.loadPct)},
+            ...(rows.some(w => w.durationPct !== null) ? [{label: 'Duration adherence', color: c.good, width: 2, points: true, values: rows.map(w => w.durationPct)}] : []),
+        ],
+        ranges: [['12w', '12 weeks'], ['24w', '24 weeks']],
+        defaultRange: '12w',
+        today: daySec(today),
+        xFormat: t => shortDay(new Date(t * 1000).toISOString().slice(0, 10)),
+        yRange: [0, null],
+        yFormat: v => `${Math.round(v)} %`,
+    } : {
+        x: rows.map(w => daySec(w.week)),
+        // stacked: due (done + missed) behind, completed in front
+        series: [
+            {label: 'Missed', color: c.warn, kind: 'bars', values: rows.map(w => (w.due > 0 ? w.due : null))},
+            {label: 'Completed', color: c.good, kind: 'bars', values: rows.map(w => (w.due > 0 ? w.done : null))},
+        ],
+        ranges: [['12w', '12 weeks'], ['24w', '24 weeks']],
+        defaultRange: '12w',
+        today: daySec(today),
+        xFormat: t => shortDay(new Date(t * 1000).toISOString().slice(0, 10)),
+        yRange: [0, null],
+        yFormat: v => (Number.isInteger(v) ? `${v}` : ''),
+    };
+    const readout = (i) => {
+        const w = rows[i];
+        if(!w) return null;
+        if(w.due === 0 && w.upcoming === 0) return {title: weekTitle(w.week), rows: [], more: ['No workouts planned this week']};
+        return {
+            title: weekTitle(w.week),
+            rows: [
+                ...(w.due > 0 ? [{label: 'Completed', color: c.good, value: `${w.done} of ${w.due}`, note: `${w.completionPct} %`}] : []),
+                ...(w.missed > 0 ? [{label: 'Missed', color: c.warn, value: String(w.missed)}] : []),
+                ...(w.upcoming > 0 ? [{label: 'Upcoming', color: c.muted, value: String(w.upcoming)}] : []),
+                ...(w.loadPct !== null ? [{label: 'Load', color: c.accent, value: `${w.loadPct} %`, note: `${Math.round(w.actualTss)} / ${Math.round(w.plannedTss)} TSS`}] : []),
+                ...(w.durationPct !== null ? [{label: 'Duration', color: c.good, value: `${w.durationPct} %`}] : []),
+            ],
+            more: [],
+        };
+    };
+    return {model, readout, compliance: out};
+}
+
+export { repsChart, recoveryChart, rideCurveChart, powerHrChart, efficiencyChart, decouplingChart, durabilityChart, readinessChart, polarisedChart, complianceChart };

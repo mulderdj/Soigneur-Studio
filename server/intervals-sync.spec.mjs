@@ -4,8 +4,20 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import http from 'node:http';
 import { createRequire } from 'node:module';
+import { fit as fitCodec } from '../src/fit/fit.js';
 const require = createRequire(import.meta.url);
 const { createApp } = require('./app.js');
+
+function steadyFit({seconds = 5400, power = 220, hr1 = 140, hr2 = 150} = {}) {
+    const start = Date.UTC(2026, 10, 20, 8, 0, 0);
+    const half = Math.floor(seconds / 2);
+    const records = Array.from({length: seconds}, (_, i) => ({
+        timestamp: start + i * 1000, power, cadence: 88, speed: 9,
+        heart_rate: i < half ? hr1 : hr2, distance: i * 9,
+    }));
+    const view = fitCodec.localActivity.encode({records, laps: [], events: [], ftp: 250});
+    return Buffer.from(view.buffer, view.byteOffset, view.byteLength);
+}
 
 const KEY = 'abcdef1234567890';
 const FIT = Buffer.concat([Buffer.from([14, 0x20, 0, 0, 0, 0, 0, 0]), Buffer.from('.FIT'), Buffer.from('ride-bytes')]);
@@ -17,6 +29,7 @@ function fakeIntervals() {
     const state = {
         activities: [],               // returned by the list call (filtered by oldest/newest)
         curves: {},                   // activity id -> power curve
+        fitFiles: {},                 // activity id -> .fit buffer
         events: new Map(),            // event id -> event
         nextEventId: 900,
         rateLimitNext: 0,             // answer 429 this many times
@@ -43,6 +56,13 @@ function fakeIntervals() {
         if(url.pathname === '/api/v1/athlete/0/activities' && req.method === 'POST') return json(201, [{id: 'i555'}]);
         const pc = /^\/api\/v1\/activity\/([^/]+)\/power-curve$/.exec(url.pathname);
         if(pc) return json(200, state.curves[pc[1]] ?? {secs: [], watts: []});
+        const ff = /^\/api\/v1\/activity\/([^/]+)\/fit-file$/.exec(url.pathname);
+        if(ff) {
+            const buf = state.fitFiles[ff[1]];
+            if(!buf) return json(404, {});
+            res.writeHead(200, {'Content-Type': 'application/octet-stream'});
+            return res.end(buf);
+        }
         if(url.pathname === '/api/v1/athlete/0/events' && req.method === 'GET') {
             const oldest = url.searchParams.get('oldest'), newest = url.searchParams.get('newest');
             return json(200, [...state.events.values()].filter(e => e.start_date_local.slice(0, 10) >= oldest && e.start_date_local.slice(0, 10) <= newest));
@@ -494,5 +514,33 @@ test('a stale ride intervals.icu no longer lists does not keep every sync reachi
         await app.intervalsSync.run(userId);
         const list = fake.log.find(l => l.path === '/api/v1/athlete/0/activities');
         assert.ok(Date.parse(list.query.oldest) > Date.now() - 30 * DAY, `oldest ${list.query.oldest}`);
+    } finally { stop(); }
+});
+
+test('outdoor .fit enrichment populates decoupling and durability on intervals.icu sync and preserves them', async () => {
+    const {app, call, token, userId, fake, stop} = await setup();
+    try {
+        await connect(call, token);
+        fake.state.activities = [
+            activity('i801', 2, {moving_time: 5400, icu_average_watts: 220, icu_weighted_avg_watts: 220, icu_joules: 1188000}),
+            activity('i802', 2, {moving_time: 1800, icu_average_watts: 200, icu_weighted_avg_watts: 200, icu_joules: 360000}),
+        ];
+        fake.state.fitFiles.i801 = steadyFit();
+        await app.intervalsSync.run(userId);
+
+        const rides = (await call('GET', '/api/me/external-rides', {token})).json.rides;
+        const longRide = rides.find(r => r.id === 'icu-i801');
+        const shortRide = rides.find(r => r.id === 'icu-i802');
+        assert.ok(longRide.decoupling > 4, `expected decoupling, got ${longRide.decoupling}`);
+        assert.equal(longRide.durability[1000][300], 220);
+        assert.equal(shortRide.decoupling, null);
+        assert.equal(fake.log.filter(l => l.path.endsWith('/fit-file')).length, 1);
+
+        // second sync does not re-download and retains enriched metrics
+        await app.intervalsSync.run(userId);
+        assert.equal(fake.log.filter(l => l.path.endsWith('/fit-file')).length, 1);
+        const after = (await call('GET', '/api/me/external-rides', {token})).json.rides.find(r => r.id === 'icu-i801');
+        assert.equal(after.decoupling, longRide.decoupling);
+        assert.deepEqual(after.durability, longRide.durability);
     } finally { stop(); }
 });

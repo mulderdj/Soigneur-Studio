@@ -724,6 +724,8 @@ function createApp(options = {}) {
         db, garmin: garminSync, intervals: intervalsSync, ...(options.rideFiles ?? {}),
         ownFit: (userId, id) => q.activity.get(userId, id)?.fit ?? null,
     });
+    garminSync.setRideFiles(rideFiles);
+    intervalsSync.setRideFiles(rideFiles);
     garminSync.setOnDisconnect((userId, service) => rideFiles.forget(userId, service));
     connections.setOnRemove((userId, service) => rideFiles.forget(userId, service));
     rideFiles.routes(route, {validId});

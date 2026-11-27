@@ -3,9 +3,34 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import http from 'node:http';
+import zlib from 'node:zlib';
 import { createRequire } from 'node:module';
+import { fit as fitCodec } from '../src/fit/fit.js';
 const require = createRequire(import.meta.url);
 const { createApp } = require('./app.js');
+
+function zipOne(name, data) {
+    const body = zlib.deflateRawSync(data), n = Buffer.from(name), crc = zlib.crc32(data);
+    const local = Buffer.alloc(30); local.writeUInt32LE(0x04034b50, 0); local.writeUInt16LE(8, 8);
+    local.writeUInt32LE(crc, 14); local.writeUInt32LE(body.length, 18); local.writeUInt32LE(data.length, 22); local.writeUInt16LE(n.length, 26);
+    const central = Buffer.alloc(46); central.writeUInt32LE(0x02014b50, 0); central.writeUInt16LE(8, 10);
+    central.writeUInt32LE(crc, 16); central.writeUInt32LE(body.length, 20); central.writeUInt32LE(data.length, 24); central.writeUInt16LE(n.length, 28);
+    const cd = Buffer.concat([central, n]);
+    const end = Buffer.alloc(22); end.writeUInt32LE(0x06054b50, 0); end.writeUInt16LE(1, 8); end.writeUInt16LE(1, 10);
+    end.writeUInt32LE(cd.length, 12); end.writeUInt32LE(30 + n.length + body.length, 16);
+    return Buffer.concat([local, n, body, cd, end]);
+}
+
+function steadyFit({seconds = 5400, power = 220, hr1 = 140, hr2 = 150} = {}) {
+    const start = Date.UTC(2026, 10, 20, 8, 0, 0);
+    const half = Math.floor(seconds / 2);
+    const records = Array.from({length: seconds}, (_, i) => ({
+        timestamp: start + i * 1000, power, cadence: 88, speed: 9,
+        heart_rate: i < half ? hr1 : hr2, distance: i * 9,
+    }));
+    const view = fitCodec.localActivity.encode({records, laps: [], events: [], ftp: 250});
+    return Buffer.from(view.buffer, view.byteOffset, view.byteLength);
+}
 
 const KEY = 'gpk_test_0123456789abcdef';
 const DAY = 86400000;
@@ -23,7 +48,7 @@ function fakeGarmin() {
     const state = {
         tokenTtl: 86400, tokens: new Set(), revoked: false, rateLimitNext: 0, sleep404: false,
         keys: new Set([KEY]), tokenKey: new Map(), forbidden: null, delayMs: 0,
-        hrv: [], daily: [], sleep: [], bodyBattery: [], stress: [], weight: [], vo2: [], zones: [], activities: [],
+        hrv: [], daily: [], sleep: [], bodyBattery: [], stress: [], weight: [], vo2: [], zones: [], activities: [], fitZips: {},
     };
     const inRange = (day, a, b) => day >= a && day <= b;
     const server = http.createServer(async (req, res) => {
@@ -72,6 +97,12 @@ function fakeGarmin() {
                   .sort((a, b) => (a.startTimeLocal < b.startTimeLocal ? 1 : -1));
             const start = Number(q.start ?? 0), limit = Number(q.limit ?? 20);
             return json(200, list.slice(start, start + limit));
+        }
+        if((m = /^\/download-service\/files\/activity\/(\d+)$/.exec(url.pathname))) {
+            const z = state.fitZips[m[1]];
+            if(!z) return json(404, {});
+            res.writeHead(200, {'Content-Type': 'application/x-zip-compressed'});
+            return res.end(z);
         }
         json(404, {});
     });
@@ -344,5 +375,33 @@ test('a stale ride Garmin no longer lists does not keep every run reaching back 
         const m = fake.log.length;
         await app.garminSync.run(userId);
         assert.equal(fake.log.slice(m).find(l => l.path === '/activitylist-service/activities/search/activities').query.startDate, daysAgo(9));
+    } finally { stop(); }
+});
+
+test('outdoor .fit enrichment populates decoupling and durability once and preserves them on re-sync', async () => {
+    const {app, call, token, userId, fake, stop} = await setup();
+    try {
+        fake.state.activities = [
+            activity(501, 2, {duration: 5400, avgPower: 220, normPower: 220}),
+            activity(502, 2, {duration: 1800, avgPower: 200, normPower: 200}), // too short (< 45 min, < 1000 kJ)
+        ];
+        fake.state.fitZips['501'] = zipOne('501_ACTIVITY.fit', steadyFit());
+        await connect(call, token);
+        await app.garminSync.run(userId);
+
+        const rides = (await call('GET', '/api/me/external-rides', {token})).json.rides;
+        const longRide = rides.find(r => r.id === 'garmin-501');
+        const shortRide = rides.find(r => r.id === 'garmin-502');
+        assert.ok(longRide.decoupling > 4, `expected decoupling, got ${longRide.decoupling}`);
+        assert.equal(longRide.durability[1000][300], 220);
+        assert.equal(shortRide.decoupling, null);
+        assert.equal(fake.log.filter(l => l.path.startsWith('/download-service/')).length, 1);
+
+        // re-syncing does not re-download and keeps the enriched fields
+        await app.garminSync.run(userId);
+        assert.equal(fake.log.filter(l => l.path.startsWith('/download-service/')).length, 1);
+        const after = (await call('GET', '/api/me/external-rides', {token})).json.rides.find(r => r.id === 'garmin-501');
+        assert.equal(after.decoupling, longRide.decoupling);
+        assert.deepEqual(after.durability, longRide.durability);
     } finally { stop(); }
 });

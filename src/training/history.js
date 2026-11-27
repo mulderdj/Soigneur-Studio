@@ -410,6 +410,32 @@ async function allPlanEntries() {
 // parser was there, or by an older app) is read from its .zwo now
 const needsSteps = (e) => e.origin === 'intervals' && e.zwo && e.workout && !(e.workout.intervals?.length > 0);
 
+async function enrichExternalFromFit(id, view) {
+    if(!/^(garmin|icu)-/.test(id)) return;
+    try {
+        const existing = await idb.get(EXTERNAL, id);
+        if(!existing || (existing.sport ?? 'cycling') !== 'cycling') return;
+        if(existing.durability !== null && existing.durability !== undefined && existing.decoupling !== null && existing.decoupling !== undefined) return;
+        const read = fitToSamples(view);
+        if(!read.samples.length) return;
+        const s = rideSummary(read.samples, {
+            id, start: existing.start ?? read.start ?? Date.now(), name: existing.name,
+            ftp: rideFtp(read, null, existing.ftp > 0 ? existing.ftp : 250),
+            weight: existing.weight > 0 ? existing.weight : 75,
+            distance: existing.distance ?? read.distance,
+        });
+        const next = {
+            ...existing,
+            decoupling: s.decoupling ?? existing.decoupling ?? null,
+            durability: s.durability ?? existing.durability ?? null,
+        };
+        if(next.decoupling !== existing.decoupling || JSON.stringify(next.durability) !== JSON.stringify(existing.durability)) {
+            await idb.put(EXTERNAL, next);
+            changed();
+        }
+    } catch(e) { /* leave summary as is */ }
+}
+
 // a ride's .fit for the ride page: this device's copy (own rides), else the
 // account server (which fetches Garmin and intervals.icu rides). Never
 // throws: {view} or {reason, message}
@@ -421,7 +447,9 @@ async function rideFile(id) {
     if(!remote.linked() || !remote.api) return {reason: 'no-account', message: 'Sign in to your account to open this ride.'};
     try {
         const res = await remote.api.raw(`/me/rides/${encodeURIComponent(id)}/file`);
-        return {view: new DataView(await res.arrayBuffer())};
+        const view = new DataView(await res.arrayBuffer());
+        await enrichExternalFromFit(id, view);
+        return {view};
     } catch(e) {
         return {reason: e.reason ?? (e.status === 0 ? 'offline' : 'refused'), message: e.message};
     }
