@@ -102,7 +102,7 @@ rider-menu {
     display: flex;
     align-items: center;
     gap: var(--space-2);
-    padding: 0 var(--space-2) 0 var(--space-4);
+    padding: 0 var(--space-2) 0 var(--space-3);
     border-bottom: var(--line-w) solid var(--line);
 }
 
@@ -139,24 +139,33 @@ rider-menu {
 }
 
 .rm--body {
-    padding: var(--space-4);
+    padding: var(--space-3);
     overflow-y: auto;
 }
 
+@media (max-width: 599px) {
+    .rm--body {
+        padding: var(--space-2) var(--space-3);
+    }
+}
+
 .rm--lead {
-    margin-bottom: var(--space-3);
+    margin-bottom: var(--space-2);
 }
 
 .rm--note,
 .rm--empty {
-    margin-top: var(--space-3);
+    margin-top: var(--space-2);
     color: var(--muted);
-    font-size: var(--text-s);
+    font-size: var(--text-xs);
 }
 
 .rm--h {
-    margin: var(--space-5) 0 var(--space-2);
-    font-size: var(--text-m);
+    margin: var(--space-3) 0 var(--space-1);
+    color: var(--muted);
+    font-size: var(--text-s);
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
 }
 
 /* ---------- lists, cards ---------- */
@@ -199,8 +208,8 @@ rider-menu {
 .rm--card {
     display: flex;
     align-items: center;
-    gap: var(--space-3);
-    padding: var(--space-3) var(--space-4);
+    gap: var(--space-2);
+    padding: var(--space-2) var(--space-3);
     border-radius: var(--radius-m);
     background-color: var(--surface-2);
 }
@@ -227,7 +236,7 @@ rider-menu {
     display: flex;
     flex-wrap: wrap;
     gap: var(--space-2);
-    margin-top: var(--space-4);
+    margin-top: var(--space-2);
 }
 
 .rm--form {

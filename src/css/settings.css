@@ -8,27 +8,37 @@
 .sub-tab.settings {
     display: grid;
     grid-template-columns: minmax(0, 1fr);
-    gap: var(--space-4);
+    gap: var(--space-2);
     text-align: left;
 }
 
+@media (min-width: 600px) {
+    .settings,
+    .sub-tab.settings {
+        gap: var(--space-3);
+    }
+}
+
 .settings__heading {
-    margin: var(--space-2) 0 var(--space-3);
-    font-size: var(--text-l);
+    margin: var(--space-1) 0 var(--space-2);
+    color: var(--muted);
+    font-size: var(--text-s);
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
 }
 
 /* ---------- profile ---------- */
 
 .settings-tiles--cont {
     display: grid;
-    gap: var(--space-3);
+    gap: var(--space-2);
 }
 
 .settings-tile {
     display: grid;
     grid-template-columns: minmax(56px, auto) minmax(0, 1fr) auto;
     align-items: center;
-    gap: var(--space-3);
+    gap: var(--space-2);
 }
 
 .settings-tile--label {
@@ -49,15 +59,15 @@
     grid-template-columns: minmax(56px, auto) auto;
     justify-content: start;
     align-items: center;
-    gap: var(--space-3);
-    margin-top: var(--space-3);
+    gap: var(--space-2);
+    margin-top: var(--space-2);
 }
 
 /* ---------- devices ---------- */
 
 .settings__devices {
     display: grid;
-    gap: var(--space-3);
+    gap: var(--space-2);
     align-content: start;
 }
 
@@ -66,15 +76,15 @@
 }
 
 .device-card {
-    padding: var(--space-3);
+    padding: var(--space-2) var(--space-3);
 }
 
 .device-card--header {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: var(--space-3);
-    margin-bottom: var(--space-3);
+    gap: var(--space-2);
+    margin-bottom: var(--space-2);
 }
 
 .device-card--header > div:empty {
@@ -88,18 +98,19 @@
 
 .device-card--body {
     display: grid;
-    gap: var(--space-2);
+    gap: var(--space-1);
 }
 
 .device-card--body--row {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(96px, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(84px, 1fr));
     align-items: stretch;
-    gap: var(--space-2);
+    gap: var(--space-1);
 }
 
 .device-card .tile {
-    min-height: 80px;
+    min-height: 64px;
+    padding: var(--space-2);
     background-color: var(--surface-2);
 }
 
@@ -245,7 +256,8 @@ battery-level.critical::before { background-color: var(--danger); }
 .settings__options .list-row {
     justify-content: space-between;
     border-bottom: 0;
-    padding: var(--space-2) 0;
+    padding: var(--space-1) 0;
+    min-height: 48px;
 }
 
 .option--name {
@@ -419,9 +431,9 @@ hr-thresholds {
 /* the logo with its title (About): the ink follows the theme */
 .about__logo {
     display: block;
-    width: min(320px, 100%);
+    width: min(220px, 100%);
     height: auto;
-    margin: var(--space-2) 0 var(--space-3);
+    margin: var(--space-1) 0 var(--space-2);
     color: var(--ink);
 }
 }
