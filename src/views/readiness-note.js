@@ -1,3 +1,4 @@
+// @ts-check
 //
 // <readiness-note>: above the Ride screens, before a hard planned workout on
 // a take-care or rest morning. One tap: ride it easier (take care), a

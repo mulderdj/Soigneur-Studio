@@ -1,3 +1,4 @@
+// @ts-check
 import { xf, exists, equals } from './functions.js';
 import { models } from './models/models.js';
 import { Sound } from './sound.js';
@@ -359,6 +360,7 @@ xf.reg('activity:save:success', (e, db) => {
     models.session.reset(db);
 });
 xf.sub('ui:activity:upload:by:id', (id) => {
+    // @ts-expect-error -- Activity has no upload(); nothing dispatches this event any more
     models.activity.upload(id);
 });
 // download the current activity as a .fit file

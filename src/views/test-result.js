@@ -1,3 +1,4 @@
+// @ts-check
 //
 // <test-result>: the result of a built-in test, on the Ride page, when the
 // test ends or is stopped after its first effort. One-tap offers; Close

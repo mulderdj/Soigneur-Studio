@@ -1,3 +1,4 @@
+// @ts-check
 import { equals, isString } from '../functions.js';
 import { uuid } from '../storage/uuid.js';
 

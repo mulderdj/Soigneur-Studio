@@ -1,3 +1,4 @@
+// @ts-check
 //
 // Client for the self-hosted account server (server/app.js), served on the
 // same origin under /api.
@@ -38,6 +39,11 @@ function tokenOf(rider = riders.current()) {
     return rider?.account?.token;
 }
 
+/**
+ * @param {string} method
+ * @param {string} path
+ * @param {{body?: any, token?: string, raw?: boolean}} [opts]
+ */
 async function request(method, path, {body, token = tokenOf(), raw = false} = {}) {
     let res;
     try {

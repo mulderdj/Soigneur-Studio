@@ -1,3 +1,4 @@
+// @ts-check
 //
 // Dots under the stats panels on a phone, where the panels sit side by side
 // in a row you swipe through one at a time.
@@ -33,7 +34,8 @@ class PanelPager extends HTMLElement {
             this.frame = requestAnimationFrame(() => { this.frame = null; this.update(); });
         }, {passive: true, ...signal});
         this.addEventListener('click', e => {
-            const dot = e.target.closest('[data-index]');
+            /** @type {HTMLElement|null} */
+            const dot = /** @type {Element} */ (e.target).closest('[data-index]');
             if(!dot) return;
             const panel = this.panels()[Number(dot.dataset.index)];
             panel?.scrollIntoView({behavior: reducedMotion() ? 'instant' : 'smooth', block: 'nearest', inline: 'start'});

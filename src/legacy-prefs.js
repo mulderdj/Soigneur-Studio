@@ -1,3 +1,4 @@
+// @ts-check
 //
 // One-time cleanup of stored values for features this version removed:
 // dock mode, the upstream intervals.icu planned list, and the Ride Report

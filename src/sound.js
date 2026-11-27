@@ -1,3 +1,4 @@
+// @ts-check
 import { equals, exists, xf } from './functions.js';
 
 const notes = [
@@ -61,6 +62,7 @@ function Sound(args) {
     // one standart triange wave,
     // gain is turned up and down to produce beeps,
     function interval() {
+        /** @type {OscillatorOptions} */
         const options = {
             type: 'triangle',
         };

@@ -1,3 +1,4 @@
+// @ts-check
 var interval;
 
 function onStart() {

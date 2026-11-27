@@ -1,3 +1,4 @@
+// @ts-check
 //
 // Edit layout: move, size and remove the tiles of one list (a Ride screen,
 // the Training cards). The page renders the list as [data-tile] children of

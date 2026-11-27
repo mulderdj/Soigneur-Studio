@@ -1,3 +1,4 @@
+// @ts-check
 import { xf, exists, existance, equals, clamp, debounce, toFixed, escapeHtml } from '../functions.js';
 import { formatTime, translate } from '../utils.js';
 import { models } from '../models/models.js';

@@ -1,4 +1,5 @@
-import { exists, existance, first, last, equals, isObject, isFunction, isArray } from './functions.js';
+// @ts-check
+import { exists, existance, first, last, equals, isObject, isFunction, isArray, delay } from './functions.js';
 
 // format
 function formatTime(args = {}) {
@@ -80,9 +81,11 @@ function getStartEndOfWeek(fromDate = new Date(), iso = false) {
     const dayOfWeek = date.getDay();
 
     const mondayOffset = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
+    /** @type {Date|string} */
     let startOfWeek = new Date(date);
     startOfWeek.setDate(startOfWeek.getDate() + mondayOffset);
 
+    /** @type {Date|string} */
     let endOfWeek = new Date(startOfWeek);
     endOfWeek.setDate(endOfWeek.getDate() + 6);
 
@@ -216,7 +219,7 @@ function arrayToHexColor(arr) {
 function avgColor(hex1, hex2) {
     const color1 = hexColorToArray(hex1);
     const color2 = hexColorToArray(hex2);
-    const color =  color1.map((channel, i) => parseInt((channel+color2[i])/2));
+    const color =  color1.map((channel, i) => parseInt(String((channel+color2[i])/2)));
     return arrayToHexColor(color);
 }
 // end Graphs
@@ -255,7 +258,7 @@ function toFitSpeed(speed, unit = 'kph') {
     const scale = 1000;
 
     if(unit === 'kph') {
-        return parseInt((speed / 3.6) * scale, 10);
+        return parseInt(String((speed / 3.6) * scale), 10);
     }
     return speed;
 }
@@ -264,7 +267,7 @@ function toFitDistance(distance, unit = 'km') {
     const scale = 100;
 
     if(unit === 'km') {
-        return parseInt((distance * 1000) * scale, 10);
+        return parseInt(String((distance * 1000) * scale), 10);
     }
     return distance;
 }

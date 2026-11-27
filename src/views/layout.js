@@ -1,3 +1,4 @@
+// @ts-check
 //
 // Which layout the app is in. The CSS breakpoints match these numbers
 // (see src/css/ride.css); JS uses this where behaviour changes per layout.

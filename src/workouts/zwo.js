@@ -1,3 +1,4 @@
+// @ts-check
 import { equals, existance, exists,
          empty, first, last, repeat,
          capitalize, toFixed } from '../functions.js';
@@ -325,7 +326,9 @@ function IntervalsT(args = {}) {
         const duration   = calcDuration(element);
         const stepsCount = existance(element.Repeat, 1);
 
+        /** @type {any} */
         const onStep  = OnStep(element);
+        /** @type {any} */
         const offStep = OffStep(element);
         const steps   = repeat(stepsCount)(function(acc) {
             acc.push({duration: onStep.duration, steps: [onStep]});
@@ -430,7 +433,7 @@ function Warmup(args = {}) {
         const cadenceLow  = element.CadenceLow;
         const cadenceHigh = element.CadenceHigh;
 
-        const stepsCount = Math.max(1, parseInt(duration / timeDx));
+        const stepsCount = Math.max(1, parseInt(String(duration / timeDx)));
         const stepDur    = stepsCount === 1 ? duration : timeDx;
         const powerDx    = stepsCount > 1 ? (powerHigh - powerLow) / (stepsCount - 1) : 0;
         const cadenceDx  = stepsCount > 1 ? (cadenceHigh - cadenceLow) / (stepsCount - 1) : 0;
@@ -499,7 +502,7 @@ function Cooldown(args = {}) {
         const powerLow  = element.PowerHigh;
         const powerHigh = element.PowerLow;
 
-        const stepsCount = Math.max(1, parseInt(duration / timeDx));
+        const stepsCount = Math.max(1, parseInt(String(duration / timeDx)));
         const stepDur    = stepsCount === 1 ? duration : timeDx;
         const powerDx    = stepsCount > 1 ? (powerHigh - powerLow) / (stepsCount - 1) : 0;
 

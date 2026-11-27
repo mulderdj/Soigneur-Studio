@@ -1,3 +1,4 @@
+// @ts-check
 let workouts = [
         `<workout_file>
     <author>Marinov</author>
