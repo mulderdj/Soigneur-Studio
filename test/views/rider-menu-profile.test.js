@@ -24,18 +24,21 @@ describe('RiderMenu Profile tab', () => {
         document.body.innerHTML = '';
     });
 
-    test('uses Profile as first tab, removes Sensors tab, and aliases riders -> profile', async () => {
+    test('uses Profile as first tab, keeps device riders in Users tab, and aliases riders -> users', async () => {
         document.body.innerHTML = '<rider-menu></rider-menu>';
         const el = document.querySelector('rider-menu');
         await el.open();
 
         const tabs = Array.from(el.querySelectorAll('[data-tab]')).map(b => [b.dataset.tab, b.textContent]);
-        expect(tabs).toEqual([['profile', 'Profile'], ['account', 'Account']]);
+        expect(tabs).toEqual([['profile', 'Profile'], ['account', 'Account'], ['users', 'Users']]);
         expect(el.querySelector('[data-tab="sensors"]')).toBeNull();
         expect(el.querySelector('hr-thresholds')).not.toBeNull();
+        expect(el.querySelector('[data-form="add-rider"]')).toBeNull();
 
         el.tab = 'riders';
-        expect(el.tab).toBe('profile');
+        expect(el.tab).toBe('users');
+        el.render();
+        expect(el.querySelector('[data-form="add-rider"]')).not.toBeNull();
     });
 
     test('edits FTP and Weight in metric units, dispatches events, and shows Saved feedback', async () => {

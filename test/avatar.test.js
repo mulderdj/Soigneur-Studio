@@ -113,7 +113,7 @@ describe('RiderMenu avatar rendering', () => {
         expect(el.querySelector('.rm--body .rm--avatar img')).toBeNull();
         expect(el.querySelector('[data-act="remove-avatar"]')).toBeNull();
 
-        // Set avatar: pill, Riders list, and Account card show <img> and Remove photo button
+        // Set avatar: pill, Profile card, Users list, and Account card show <img> and Remove photo button
         riders.setAvatar(riders.current().id, VALID_PNG);
         el.render();
 
@@ -121,10 +121,16 @@ describe('RiderMenu avatar rendering', () => {
         expect(pillImg).not.toBeNull();
         expect(pillImg.getAttribute('src')).toBe(VALID_PNG);
 
+        const profileImg = el.querySelector('.rm--body .rm--card .rm--avatar img.rm--avatar-img');
+        expect(profileImg).not.toBeNull();
+        expect(profileImg.getAttribute('src')).toBe(VALID_PNG);
+        expect(el.querySelector('[data-act="remove-avatar"]')).not.toBeNull();
+
+        el.tab = 'users';
+        el.render();
         const rowImg = el.querySelector('.rm--body .rm--row .rm--avatar img.rm--avatar-img');
         expect(rowImg).not.toBeNull();
         expect(rowImg.getAttribute('src')).toBe(VALID_PNG);
-        expect(el.querySelector('[data-act="remove-avatar"]')).not.toBeNull();
 
         // Account card also renders <img> and Remove photo button
         riders.linkAccount(riders.current().id, {accountId: 'a1', username: 'dj', role: 'rider', token: 'tok'});

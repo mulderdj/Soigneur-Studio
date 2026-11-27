@@ -104,7 +104,7 @@ class RiderMenu extends HTMLElement {
     }
 
     set tab(v) {
-        this._tab = v === 'riders' ? 'profile' : v;
+        this._tab = v === 'riders' ? 'users' : v;
     }
 
     isOpen() {
@@ -248,7 +248,7 @@ class RiderMenu extends HTMLElement {
         const r = riders.current();
         const t = [['profile', 'Profile'], ['account', 'Account']];
         if(r.account?.token) t.push(['rides', 'Ride history']);
-        if(r.account?.token && r.account.role === 'admin') t.push(['users', 'Users']);
+        t.push(['users', 'Users']);
         if(!t.some(([k]) => k === this.tab)) this.tab = 'profile';
         return t;
     }
@@ -274,7 +274,6 @@ class RiderMenu extends HTMLElement {
 
     render_profile() {
         const cur = riders.current();
-        const list = riders.list();
         const s = cur.account ? (cur.account.token ? syncStatus() : {state: 'error', message: 'Signed out'}) : {state: 'off', message: ''};
         const syncText = s.message || (SYNC_LABEL[s.state] ?? s.state);
         const imperial = this._measurement === 'imperial';
@@ -309,30 +308,7 @@ class RiderMenu extends HTMLElement {
                     <span class="rm--metrics-status" role="status" aria-live="polite">${this._metricsSaved ? 'Saved' : ''}</span>
                 </div>
             </form>
-            <hr-thresholds></hr-thresholds>
-            <h3 class="rm--h">Riders on this device</h3>
-            <ul class="rm--list">
-                ${list.map(r => `
-                <li class="rm--row list-row${r.current ? ' is-current' : ''}">
-                    <button type="button" class="rm--avatar rm--avatar-btn" data-act="pick-avatar" data-id="${esc(r.id)}" title="Change photo" aria-label="Change photo for ${esc(r.name)}">${avatarMarkup(r)}</button>
-                    <span class="rm--who">
-                        <b>${esc(r.name)}</b>
-                        <small>${r.account ? `Account @${esc(r.account.username)}${r.account.token ? '' : ', signed out'}` : 'This device only'}</small>
-                    </span>
-                    <span class="rm--actions">
-                        ${r.current ? '<span class="rm--tag badge">Riding now</span>' :
-                          `<button type="button" class="btn rm--btn" data-act="switch" data-id="${esc(r.id)}">Switch</button>`}
-                        <button type="button" class="btn rm--btn rm--quiet btn--quiet" data-act="rename" data-id="${esc(r.id)}">Rename</button>
-                        ${!r.current && r.id !== riders.DEFAULT_ID ?
-                          `<button type="button" class="btn rm--btn rm--quiet rm--danger btn--quiet btn--danger" data-act="remove" data-id="${esc(r.id)}">Remove</button>` : ''}
-                    </span>
-                </li>`).join('')}
-            </ul>
-            <form class="rm--form rm--inline" data-form="add-rider">
-                <label class="field">New rider <input class="input" name="name" maxlength="40" placeholder="Name" required></label>
-                <button type="submit" class="btn rm--btn rm--primary btn--primary">Add rider</button>
-            </form>
-            <p class="rm--note">Switching reloads the app with that rider's data. Removing a rider deletes their data from this device only.</p>`;
+            <hr-thresholds></hr-thresholds>`;
     }
 
     render_account() {
@@ -608,12 +584,45 @@ class RiderMenu extends HTMLElement {
     }
 
     async render_users() {
-        this.$body.innerHTML = '<p class="rm--empty">Loading users…</p>';
+        const cur = riders.current();
+        const list = riders.list();
+        const isAdmin = Boolean(cur.account?.token && cur.account.role === 'admin');
+
+        this.$body.innerHTML = `
+            <h3 class="rm--h">Riders on this device</h3>
+            <ul class="rm--list">
+                ${list.map(r => `
+                <li class="rm--row list-row${r.current ? ' is-current' : ''}">
+                    <button type="button" class="rm--avatar rm--avatar-btn" data-act="pick-avatar" data-id="${esc(r.id)}" title="Change photo" aria-label="Change photo for ${esc(r.name)}">${avatarMarkup(r)}</button>
+                    <span class="rm--who">
+                        <b>${esc(r.name)}</b>
+                        <small>${r.account ? `Account @${esc(r.account.username)}${r.account.token ? '' : ', signed out'}` : 'This device only'}</small>
+                    </span>
+                    <span class="rm--actions">
+                        ${r.current ? '<span class="rm--tag badge">Riding now</span>' :
+                          `<button type="button" class="btn rm--btn" data-act="switch" data-id="${esc(r.id)}">Switch</button>`}
+                        <button type="button" class="btn rm--btn rm--quiet btn--quiet" data-act="rename" data-id="${esc(r.id)}">Rename</button>
+                        ${!r.current && r.id !== riders.DEFAULT_ID ?
+                          `<button type="button" class="btn rm--btn rm--quiet rm--danger btn--quiet btn--danger" data-act="remove" data-id="${esc(r.id)}">Remove</button>` : ''}
+                    </span>
+                </li>`).join('')}
+            </ul>
+            <form class="rm--form rm--inline" data-form="add-rider">
+                <label class="field">New rider <input class="input" name="name" maxlength="40" placeholder="Name" required></label>
+                <button type="submit" class="btn rm--btn rm--primary btn--primary">Add rider</button>
+            </form>
+            <p class="rm--note">Switching reloads the app with that rider's data. Removing a rider deletes their data from this device only.</p>
+            ${isAdmin ? '<h3 class="rm--h">Server accounts</h3><div data-k="server-users"><p class="rm--empty">Loading accounts…</p></div>' : ''}`;
+
+        if(!isAdmin) return;
+        const box = this.$body.querySelector('[data-k="server-users"]');
+        if(!box) return;
+
         try {
             const {users, signup} = await api.get('/users');
-            if(this.tab !== 'users') return;
+            if(this.tab !== 'users' || !box.isConnected) return;
             const me = riders.current().account?.accountId;
-            this.$body.innerHTML = `
+            box.innerHTML = `
                 <p class="rm--lead">${users.length} account${users.length === 1 ? '' : 's'} on this server. Self sign-up is ${signup ? 'open (ALLOW_SIGNUP=true)' : 'closed; you create the accounts'}.</p>
                 <div class="rm--scroll"><table class="rm--table">
                     <thead><tr><th>Rider</th><th>Role</th><th>Status</th><th></th></tr></thead>
@@ -642,7 +651,7 @@ class RiderMenu extends HTMLElement {
                 </form>
                 <p class="rm--note">Give the rider their username and temporary password; they can change it under Account.</p>`;
         } catch(e) {
-            this.$body.innerHTML = `<p class="rm--empty">${esc(e.message)}</p>`;
+            if(box.isConnected) box.innerHTML = `<p class="rm--empty">${esc(e.message)}</p>`;
         }
     }
 
