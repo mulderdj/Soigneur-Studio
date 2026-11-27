@@ -379,7 +379,12 @@ class RideChart extends HTMLElement {
 
     bindTouch(plot, touchDevice) {
         if(!plot?.over) return;
-        plot.over.addEventListener('mouseleave', () => { if(!touchDevice) this.tooltip?.hide(); });
+        plot.over.addEventListener('mouseleave', () => {
+            if(!touchDevice) {
+                this.tooltip?.hide();
+                this.dispatchEvent(new CustomEvent('ride-chart:cursor', {detail: {index: null}, bubbles: true}));
+            }
+        });
         const scrub = (e) => {
             const t = e.touches?.[0];
             if(!t) return;
@@ -439,8 +444,10 @@ class RideChart extends HTMLElement {
         const i = u.cursor?.idx;
         if(i == null || !(u.cursor.left >= 0)) {
             this.tooltip?.hide();
+            this.dispatchEvent(new CustomEvent('ride-chart:cursor', {detail: {index: null}, bubbles: true}));
             return;
         }
+        this.dispatchEvent(new CustomEvent('ride-chart:cursor', {detail: {index: i}, bubbles: true}));
         const c = this._colors ?? this.colors();
         const rows = this.list
             .filter(s => s.show && num(s.raw[i]))

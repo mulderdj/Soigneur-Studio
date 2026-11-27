@@ -13,6 +13,7 @@ describe('the defaults', () => {
         expect(ids(D.ride.phone.screens[0]).slice(0, 2)).toEqual(['power', 'target']);
         expect(ids(D.ride.phone.screens[2])).toContain('chart');
         expect(RIDE_TILES.find(t => t.id === 'fuelling')).toMatchObject({id: 'fuelling', name: 'Carbs', size: 'small'});
+        expect(RIDE_TILES.find(t => t.id === 'map')).toMatchObject({id: 'map', name: 'Map', size: 'large', graph: true});
     });
     test('every Training card once, in today\'s order', () => {
         expect(D.training.large.cards.map(c => c.id)).toEqual(['readiness', 'form', 'week', 'health', 'calendar', 'volume', 'curve', 'model', 'profile', 'zones', 'ftp', 'efficiency', 'readiness-perf', 'decoupling', 'compliance', 'durability']);

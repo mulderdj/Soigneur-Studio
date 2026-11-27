@@ -26,6 +26,7 @@ import { currentLayout } from './layout.js';
 import { LayoutEditor, editList, editLocked } from './layout-editor.js';
 import { confirmAction } from './confirm.js';
 import { esc } from './training/format.js';
+import './ride-map.js';
 
 const ELEMENT_ID = {chart: 'dash-chart', workout: 'graph-workout'};
 const elementId = id => ELEMENT_ID[id] ?? `data-tile--${id}`;
@@ -146,7 +147,16 @@ class RideScreens extends HTMLElement {
 
     screens() { return this.layout().ride[this.cls].screens; }
 
-    live(id) { return document.getElementById(elementId(id)); }
+    live(id, {create = false} = {}) {
+        let el = document.getElementById(elementId(id));
+        if(!el && create && id === 'map' && this.$pool) {
+            el = document.createElement('ride-map');
+            el.id = elementId('map');
+            el.className = 'tile ride__map';
+            this.$pool.append(el);
+        }
+        return el;
+    }
 
     // --- building ---
 
@@ -316,7 +326,7 @@ class RideScreens extends HTMLElement {
                     if(!slot.querySelector('.rs-placeholder')) slot.innerHTML = this.placeholder(id);
                     continue;
                 }
-                const el = this.live(id);
+                const el = this.live(id, {create: true});
                 if(!el) continue;
                 placed.add(id);
                 if(el.parentElement !== slot) slot.replaceChildren(el);

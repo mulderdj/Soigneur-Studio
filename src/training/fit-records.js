@@ -59,6 +59,23 @@ function fitToSamples(view) {
 
 const HOLD_S = 15;      // a value is held this long (smart recording writes every few seconds); a longer gap is a pause
 
+const SEMICIRCLE_TO_DEG = 180 / 2147483648;
+const SINT32_INVALID = 0x7fffffff;
+
+function toDeg(x, limit) {
+    if(!Number.isFinite(x) || x === SINT32_INVALID || x === -2147483648) return null;
+    const deg = Math.abs(x) <= 180 ? x : x * SEMICIRCLE_TO_DEG;
+    return Math.abs(deg) <= limit ? deg : null;
+}
+
+function gpsPair(f) {
+    const lat = toDeg(f?.position_lat, 90);
+    const lon = toDeg(f?.position_long, 180);
+    if(lat === null || lon === null) return null;
+    if(lat === 0 && lon === 0) return null;
+    return {lat, lon};
+}
+
 const FIELDS = {
     power:     f => valid(f.power, 4000),
     heartRate: f => valid(f.heart_rate, 255),
@@ -66,6 +83,8 @@ const FIELDS = {
     speed:     f => valid(f.speed, 100) ?? valid(f.enhanced_speed, 100),
     distance:  f => valid(f.distance, 1e7),
     altitude:  f => altitude(f.altitude) ?? altitude(f.enhanced_altitude),
+    lat:       f => gpsPair(f)?.lat ?? null,
+    lon:       f => gpsPair(f)?.lon ?? null,
 };
 const KEYS = Object.keys(FIELDS);
 
