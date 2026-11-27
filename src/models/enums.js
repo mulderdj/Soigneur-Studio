@@ -2,52 +2,50 @@
 import { equals, isString } from '../functions.js';
 import { uuid } from '../storage/uuid.js';
 
-const DialogMsg = {
+const DialogMsg = Object.freeze({
     noAuth: ':no-auth',
-};
+});
 
-const OAuthService = {
+const OAuthService = Object.freeze({
     strava: 'strava',
     intervals: 'intervals',
     trainingPeaks: 'trainingPeaks',
-};
+});
 
 function StateParam() {
     const storageKey = 'oauth-state';
 
-    function encode(name) {
-        const param = name+'_'+uuid();
-        return param;
+    function getSessionStorage() {
+        return typeof sessionStorage !== 'undefined' ? sessionStorage : undefined;
     }
+
+    function encode(serviceName) {
+        return `${serviceName}_${uuid()}`;
+    }
+
     function decode(param) {
-        if(!isString(param)) {
+        if (!isString(param)) {
             return { service: '', id: '' };
         }
-        const parts = param.split('_');
-
-        return {
-            service: parts[0] ?? '',
-            id: parts[1] ?? '',
-        };
+        const [service = '', id = ''] = param.split('_');
+        return { service, id };
     }
 
     function store(state) {
-        if(!isString(state)) {
-            return;
-        }
-        sessionStorage.setItem(storageKey, state);
+        if (!isString(state)) return;
+        getSessionStorage()?.setItem(storageKey, state);
     }
 
     function restore() {
-        const saved = sessionStorage.getItem(storageKey);
+        const saved = getSessionStorage()?.getItem(storageKey);
         return isString(saved) ? saved : '';
     }
 
     function consume(state) {
         const saved = restore();
         const matches = !equals(saved, '') && equals(saved, state);
-        if(matches) {
-            sessionStorage.removeItem(storageKey);
+        if (matches) {
+            getSessionStorage()?.removeItem(storageKey);
         }
         return matches;
     }
@@ -68,5 +66,4 @@ export {
     DialogMsg,
     StateParam,
     stateParam,
-}
-
+};

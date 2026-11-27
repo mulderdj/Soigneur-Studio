@@ -1,179 +1,161 @@
 // @ts-check
-import { exists, existance, first, last, equals, isObject, isFunction, isArray, delay } from './functions.js';
+import { exists, existance, equals, isArray, delay } from './functions.js';
 
-// format
-function formatTime(args = {}) {
-    const defaults = {
-        unit:   'seconds',
-        format: 'hh:mm:ss',
-    };
+const GARMIN_EPOCH_MS = Date.UTC(1989, 11, 31, 0, 0, 0);
+const SEMICIRCLES_PER_DEG = (2 ** 31) / 180;
+const DEG_PER_SEMICIRCLE = 180 / (2 ** 31);
 
-    const value  = args.value;
-    const format = args.format ?? defaults.format;
-    const unit   = args.unit ?? defaults.unit;
+const CRC16_NIBBLE_TABLE = [
+    0x0000, 0xCC01, 0xD801, 0x1400, 0xF001, 0x3C00, 0x2800, 0xE401,
+    0xA001, 0x6C00, 0x7800, 0xB401, 0x5000, 0x9C01, 0x8801, 0x4400,
+];
 
-    if(unit === 'seconds') {
-        let hour = Math.floor(value / 3600);
-        let min  = Math.floor(value % 3600 / 60);
-        let sec  = value % 60;
-        let sD   = (sec < 10)  ? `0${sec}`  : `${sec}`;
-        let mD   = (min < 10)  ? `0${min}`  : `${min}`;
-        let hD   = (hour < 10) ? `0${hour}` : `${hour}`;
-        let hDs  = (hour < 10) ? `${hour}`  : `${hour}`;
-        let res  = ``;
+function twoDigits(n) {
+    return String(Math.trunc(n)).padStart(2, '0');
+}
 
-        if(format === 'hh:mm:ss') {
-            res = `${hD}:${mD}:${sD}`;
-        }
-        if(format === 'mm:ss') {
-            if(value < 3600) {
-                res = `${mD}:${sD}`;
-            } else {
-                res = `${hD}:${mD}:${sD}`;
-            }
-        }
+function formatTime(options = {}) {
+    const value = options.value;
+    const fmt = options.format ?? 'hh:mm:ss';
+    const unit = options.unit ?? 'seconds';
 
-        return res;
+    if (unit !== 'seconds') {
+        return value;
     }
 
-    return value;
+    const total = Math.max(0, Math.floor(value));
+    const hours = Math.floor(total / 3600);
+    const minutes = Math.floor((total % 3600) / 60);
+    const seconds = total % 60;
+
+    const hh = twoDigits(hours);
+    const mm = twoDigits(minutes);
+    const ss = twoDigits(seconds);
+
+    if (fmt === 'mm:ss') {
+        return total < 3600 ? `${mm}:${ss}` : `${hh}:${mm}:${ss}`;
+    }
+    if (fmt === 'hh:mm:ss') {
+        return `${hh}:${mm}:${ss}`;
+    }
+    return '';
 }
 
 function dateToDashString(date) {
-    const day    = (date.getDate()).toString().padStart(2, '0');
-    const month  = (date.getMonth()+1).toString().padStart(2, '0');
-    const year   = date.getFullYear().toString();
-    const hour   = (date.getHours()).toString().padStart(2, '0');
-    const minute = (date.getMinutes()).toString().padStart(2, '0');
+    const day = twoDigits(date.getDate());
+    const month = twoDigits(date.getMonth() + 1);
+    const year = String(date.getFullYear());
+    const hour = twoDigits(date.getHours());
+    const minute = twoDigits(date.getMinutes());
     return `${day}-${month}-${year}-at-${hour}-${minute}h`;
 }
 
 function time() {
-    const date = new Date();
-    const hours = (date.getHours()).toString().padStart(2,'0');
-    const minutes = (date.getMinutes()).toString().padStart(2,'0');
-    const seconds = (date.getSeconds()).toString().padStart(2,'0');
-    const milliseconds = (date.getSeconds().toString()).padStart(4,'0');
-    return `${hours}:${minutes}:${seconds}:${milliseconds}`;
+    const nowDate = new Date();
+    const hh = twoDigits(nowDate.getHours());
+    const mm = twoDigits(nowDate.getMinutes());
+    const ss = twoDigits(nowDate.getSeconds());
+    const ms = String(nowDate.getMilliseconds()).padStart(4, '0');
+    return `${hh}:${mm}:${ss}:${ms}`;
 }
 
 function isoDate(date = new Date(), local = true) {
-    if(local) {
-        const day   = (date.getDate()).toString().padStart(2, '0');
-        const month = (date.getMonth()+1).toString().padStart(2, '0');
-        const year  = date.getFullYear().toString();
-        return `${year}-${month}-${day}`;
-    } else {
-        // toISOString returns always the utc date
-        return date.toISOString().split('T')[0];
+    if (!local) {
+        return date.toISOString().slice(0, 10);
     }
+    const year = String(date.getFullYear());
+    const month = twoDigits(date.getMonth() + 1);
+    const day = twoDigits(date.getDate());
+    return `${year}-${month}-${day}`;
 }
 
 function isoDateToWeekDay(isoDateString = isoDate()) {
-    let date = new Date(isoDateString);
-    let day = date.getDate();
-    let weekDay = date.toLocaleString('en-US', {weekday: 'short'});
-    return { day, weekDay };
+    const date = new Date(isoDateString);
+    return {
+        day: date.getDate(),
+        weekDay: date.toLocaleString('en-US', { weekday: 'short' }),
+    };
 }
 
 function getStartEndOfWeek(fromDate = new Date(), iso = false) {
-    const date = new Date(fromDate);
-    const dayOfWeek = date.getDay();
+    const base = new Date(fromDate);
+    const weekday = base.getDay();
+    const mondayShift = weekday === 0 ? -6 : 1 - weekday;
 
-    const mondayOffset = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
-    /** @type {Date|string} */
-    let startOfWeek = new Date(date);
-    startOfWeek.setDate(startOfWeek.getDate() + mondayOffset);
+    const monday = new Date(base);
+    monday.setDate(monday.getDate() + mondayShift);
 
-    /** @type {Date|string} */
-    let endOfWeek = new Date(startOfWeek);
-    endOfWeek.setDate(endOfWeek.getDate() + 6);
-
-    if(iso) {
-        startOfWeek = isoDate(startOfWeek);
-        endOfWeek = isoDate(endOfWeek);
-    }
+    const sunday = new Date(monday);
+    sunday.setDate(sunday.getDate() + 6);
 
     return {
-            startOfWeek,
-            endOfWeek,
-        };
-
+        startOfWeek: iso ? isoDate(monday) : monday,
+        endOfWeek: iso ? isoDate(sunday) : sunday,
+    };
 }
 
-function isToday(dateString) {
-    const date = new Date(dateString);
-    const today = new Date();
-
+function isToday(dateInput) {
+    const target = new Date(dateInput);
+    const current = new Date();
     return (
-        date.getFullYear() === today.getFullYear() &&
-        date.getMonth() === today.getMonth() &&
-        date.getDate() === today.getDate()
+        target.getFullYear() === current.getFullYear() &&
+        target.getMonth() === current.getMonth() &&
+        target.getDate() === current.getDate()
     );
 }
 
-function format(x, precision = 1000) {
-    return Math.round(x * precision) / precision;
+function format(value, precision = 1000) {
+    return Math.round(value * precision) / precision;
 }
 
 function kphToMps(kph) {
     return format(kph / 3.6);
-};
+}
 
 function mpsToKph(mps) {
     return 3.6 * mps;
-};
-
-// Async
-
-// var res = await backoff({max: 4, wait: 1000, fn: maybeFailOp, msg: 'debug'});
-// needs a way to be canceled
-async function backoff(args = {}) {
-    const defaults = {
-        max:     1,
-        wait:    1000,
-        rate:    ((x) => x * 1),
-        success: ((x) => x),
-        fail:    ((x) => x),
-    };
-
-    const max     = existance(args.max, defaults.max);
-    const wait    = existance(args.wait, defaults.wait);
-    const fn      = existance(args.fn);
-    const success = existance(args.success, defaults.success);
-    const fail    = existance(args.fail, defaults.fail);
-    const rate    = existance(args.rate, defaults.rate);
-    const msg     = args.msg;
-
-    async function recur(max, wait, fn, success, fail, msg) {
-        try {
-            const result = await fn(max);
-            return success(result);
-        } catch(e) {
-            if(max <= 0) return fail(e);
-            if(exists(msg)) console.log(`:retry :${msg} :in ${rate(wait)} :left ${max}`);
-            await delay(wait);
-            return recur(max-1, rate(wait), fn, success, fail, msg);
-        }
-    }
-
-    return await recur(max, wait, fn, success, fail, msg);
 }
 
-// Math
-const bod = Math.pow(2, 31) / 180;
-const dob = 180 / Math.pow(2, 31);
+async function backoff(options = {}) {
+    const maxRetries = existance(options.max, 1);
+    const initialWait = existance(options.wait, 1000);
+    const fn = existance(options.fn);
+    const onSuccess = existance(options.success, x => x);
+    const onFail = existance(options.fail, x => x);
+    const nextWait = existance(options.rate, x => x);
+    const label = options.msg;
+
+    let remaining = maxRetries;
+    let waitMs = initialWait;
+
+    while (true) {
+        try {
+            const out = await fn(remaining);
+            return onSuccess(out);
+        } catch (err) {
+            if (remaining <= 0) {
+                return onFail(err);
+            }
+            if (exists(label)) {
+                console.log(`[retry] ${label} in ${nextWait(waitMs)}ms (${remaining} left)`);
+            }
+            await delay(waitMs);
+            waitMs = nextWait(waitMs);
+            remaining -= 1;
+        }
+    }
+}
 
 function degToSemicircles(degrees) {
-    return degrees * bod;
+    return degrees * SEMICIRCLES_PER_DEG;
 }
 
 function semicirclesToDeg(semicircles) {
-    return semicircles * dob;
+    return semicircles * DEG_PER_SEMICIRCLE;
 }
 
 function digits(n) {
-    return Math.log(n) * Math.LOG10E + 1 | 0;
+    return (Math.log(Math.max(1, Math.abs(n))) * Math.LOG10E + 1) | 0;
 }
 
 function rand(min = 0, max = 10) {
@@ -185,163 +167,137 @@ function lte(a, b) { return a <= b; }
 function gt(a, b) { return a > b; }
 function lt(a, b) { return a < b; }
 
-function inRange(min, max, value, lb=gte, ub=lte) {
-    return (lb(value, min) && ub(value, max));
+function inRange(min, max, value, lowerCmp = gte, upperCmp = lte) {
+    return lowerCmp(value, min) && upperCmp(value, max);
 }
 
-function divisors(number) {
-    let divisors = [1];
-    for(let i=2; i < number/2; i++) {
-        if(number % i === 0) { divisors.push(i); }
+function divisors(n) {
+    const result = [1];
+    const limit = n / 2;
+    for (let d = 2; d < limit; d++) {
+        if (n % d === 0) {
+            result.push(d);
+        }
     }
-    return divisors;
-}
-// end Math
-
-// Graphs
-function translate(value, leftMin, leftMax, rightMin, rightMax) {
-    const leftSpan = leftMax - leftMin;
-    const rightSpan = rightMax - rightMin;
-
-    const valueScaled = (value - leftMin) / (leftSpan);
-
-    return rightMin + (valueScaled * rightSpan);
+    return result;
 }
 
-function hexColorToArray(hex) {
-    return hex.replace('#','').match(/.{1,2}/g).map(x => parseInt(x, 16));
+function translate(value, inMin, inMax, outMin, outMax) {
+    const normalized = (value - inMin) / (inMax - inMin);
+    return outMin + normalized * (outMax - outMin);
 }
 
-function arrayToHexColor(arr) {
-    return '#' + arr.map(x => x.toString(16).toUpperCase()).join('');
+function hexColorToArray(hexColor) {
+    const clean = hexColor.replace('#', '');
+    const pairs = clean.match(/.{1,2}/g) ?? [];
+    return pairs.map(part => parseInt(part, 16));
 }
 
-function avgColor(hex1, hex2) {
-    const color1 = hexColorToArray(hex1);
-    const color2 = hexColorToArray(hex2);
-    const color =  color1.map((channel, i) => parseInt(String((channel+color2[i])/2)));
-    return arrayToHexColor(color);
+function arrayToHexColor(channels) {
+    return '#' + channels.map(ch => Math.trunc(ch).toString(16).toUpperCase().padStart(2, '0')).join('');
 }
-// end Graphs
 
-// WebBLE
+function avgColor(hexA, hexB) {
+    const a = hexColorToArray(hexA);
+    const b = hexColorToArray(hexB);
+    return arrayToHexColor(a.map((ch, idx) => Math.trunc((ch + b[idx]) / 2)));
+}
+
 function hex(n) {
-    let h = parseInt(n).toString(16).toUpperCase();
-    if(h.length === 1) {
-        h = '0'+ h;
-    }
-    return '0x' + h;
-}
-// end WebBLE
-
-// ANT+ and .FIT
-const garmin_epoch = Date.parse('31 Dec 1989 00:00:00 GMT');
-
-function toFitTimestamp(timestamp) {
-    return Math.round((timestamp - garmin_epoch) / 1000);
+    return '0x' + Math.trunc(Number(n)).toString(16).toUpperCase().padStart(2, '0');
 }
 
-function toJsTimestamp(fitTimestamp) {
-    return (fitTimestamp * 1000) + garmin_epoch;
+function toFitTimestamp(timestampMs) {
+    return Math.round((timestampMs - GARMIN_EPOCH_MS) / 1000);
+}
+
+function toJsTimestamp(fitSeconds) {
+    return fitSeconds * 1000 + GARMIN_EPOCH_MS;
 }
 
 function now() {
     return toFitTimestamp(Date.now());
 }
 
-function timeDiff(timestamp1, timestamp2) {
-    let difference = (timestamp1 / 1000) - (timestamp2 / 1000);
-    return Math.round(Math.abs(difference));
-};
+function timeDiff(t1, t2) {
+    return Math.round(Math.abs(t1 / 1000 - t2 / 1000));
+}
 
 function toFitSpeed(speed, unit = 'kph') {
-    const scale = 1000;
-
-    if(unit === 'kph') {
-        return parseInt(String((speed / 3.6) * scale), 10);
+    if (unit === 'kph') {
+        return Math.trunc((speed / 3.6) * 1000);
     }
     return speed;
 }
 
 function toFitDistance(distance, unit = 'km') {
-    const scale = 100;
-
-    if(unit === 'km') {
-        return parseInt(String((distance * 1000) * scale), 10);
+    if (unit === 'km') {
+        return Math.trunc(distance * 1000 * 100);
     }
     return distance;
 }
 
-function splitAt(xs, at) {
-    if(!isArray(xs)) throw new Error(`splitAt takes an array: ${xs}`);
-    let i = -1;
-    return xs.reduce((acc, x) => {
-        if((equals(x, at)) || (equals(acc.length, 0) && !equals(x, at))) {
-            acc.push([x]); i++;
-        } else {
-            acc[i].push(x);
-        }
-        return acc;
-    },[]);
-}
-
-function pad(xs = [], length = 0, value = 0) {
-    for(let i = xs.length-1; i < length; i += 1) {
-        xs.push(value);
+function splitAt(items, delimiter) {
+    if (!isArray(items)) {
+        throw new TypeError(`splitAt expects an array, received: ${items}`);
     }
-    return xs;
+    /** @type {any[][]} */
+    const groups = [];
+    for (const item of items) {
+        if (equals(item, delimiter) || groups.length === 0) {
+            groups.push([item]);
+        } else {
+            groups[groups.length - 1].push(item);
+        }
+    }
+    return groups;
 }
 
-function calculateCRC(uint8array, start, end) {
-    const crcTable = [
-        0x0000, 0xCC01, 0xD801, 0x1400, 0xF001, 0x3C00, 0x2800, 0xE401,
-        0xA001, 0x6C00, 0x7800, 0xB401, 0x5000, 0x9C01, 0x8801, 0x4400,
-    ];
+function pad(items = [], targetLength = 0, fillValue = 0) {
+    while (items.length < targetLength) {
+        items.push(fillValue);
+    }
+    return items;
+}
 
+function calculateCRC(bytes, start, end) {
     let crc = 0;
     for (let i = start; i < end; i++) {
-        const byte = uint8array[i];
-        let tmp = crcTable[crc & 0xF];
-        crc = (crc >> 4) & 0x0FFF;
-        crc = crc ^ tmp ^ crcTable[byte & 0xF];
-        tmp = crcTable[crc & 0xF];
-        crc = (crc >> 4) & 0x0FFF;
-        crc = crc ^ tmp ^ crcTable[(byte >> 4) & 0xF];
+        const byte = bytes[i];
+        let tmp = CRC16_NIBBLE_TABLE[crc & 0x0f];
+        crc = ((crc >> 4) & 0x0fff) ^ tmp ^ CRC16_NIBBLE_TABLE[byte & 0x0f];
+        tmp = CRC16_NIBBLE_TABLE[crc & 0x0f];
+        crc = ((crc >> 4) & 0x0fff) ^ tmp ^ CRC16_NIBBLE_TABLE[(byte >> 4) & 0x0f];
     }
-
     return crc;
 }
 
-function typeToAccessor(basetype, method = 'set') {
-    const uint8   = [0, 2, 7, 10, 13, 'enum', 'uint8', 'string', 'byte'];
-    const uint16  = [132, 139, 'uint16', 'uint16z'];
-    const uint32  = [134, 140, 'uint32', 'uint32z'];
-    const uint64  = [143, 144, 'uint64', 'uint64z'];
+const FIT_BASE_TYPE_ACCESSORS = new Map([
+    [0, 'Uint8'], ['enum', 'Uint8'],
+    [1, 'Int8'], ['sint8', 'Int8'],
+    [2, 'Uint8'], ['uint8', 'Uint8'],
+    [7, 'Uint8'], ['string', 'Uint8'],
+    [10, 'Uint8'],
+    [13, 'Uint8'], ['byte', 'Uint8'],
+    [131, 'Int16'], ['sint16', 'Int16'],
+    [132, 'Uint16'], ['uint16', 'Uint16'],
+    [133, 'Int32'], ['sint32', 'Int32'],
+    [134, 'Uint32'], ['uint32', 'Uint32'],
+    [136, 'Float32'], ['float32', 'Float32'],
+    [137, 'Float64'], ['float64', 'Float64'],
+    [139, 'Uint16'], ['uint16z', 'Uint16'],
+    [140, 'Uint32'], ['uint32z', 'Uint32'],
+    [142, 'Int64'], ['sint64', 'Int64'],
+    [143, 'Uint64'], ['uint64', 'Uint64'],
+    [144, 'Uint64'], ['uint64z', 'Uint64'],
+]);
 
-    const int8    = [1, 'sint8'];
-    const int16   = [131, 'sint16'];
-    const int32   = [133, 'sint32'];
-    const int64   = [142, 'sint64'];
-
-    const float32 = [136, 'float32'];
-    const float64 = [137, 'float64'];
-
-    if(uint8.includes(basetype))   return `${method}Uint8`;
-    if(uint16.includes(basetype))  return `${method}Uint16`;
-    if(uint32.includes(basetype))  return `${method}Uint32`;
-    if(uint64.includes(basetype))  return `${method}Uint64`;
-    if(int8.includes(basetype))    return `${method}Int8`;
-    if(int16.includes(basetype))   return `${method}Int16`;
-    if(int32.includes(basetype))   return `${method}Int32`;
-    if(int64.includes(basetype))   return `${method}Int64`;
-    if(float32.includes(basetype)) return `${method}Float32`;
-    if(float64.includes(basetype)) return `${method}Float64`;
-
-    return `${method}Uint8`;
+function typeToAccessor(baseType, prefix = 'set') {
+    const suffix = FIT_BASE_TYPE_ACCESSORS.get(baseType) ?? 'Uint8';
+    return `${prefix}${suffix}`;
 }
 
 export {
-    // format
     formatTime,
     dateToDashString,
     isoDate,
@@ -352,14 +308,10 @@ export {
     kphToMps,
     mpsToKph,
     time,
-
-    // data
     pad,
-
-    // async
     backoff,
-
-    // math
+    degToSemicircles,
+    semicirclesToDeg,
     digits,
     rand,
     gte,
@@ -368,17 +320,11 @@ export {
     lt,
     inRange,
     divisors,
-
-    // graph
     translate,
     hexColorToArray,
     arrayToHexColor,
     avgColor,
-
-    // WebBLE
     hex,
-
-    // ANT+ and .FIT
     toFitTimestamp,
     toJsTimestamp,
     now,

@@ -1,61 +1,63 @@
 // @ts-check
-//
-// LocalStorageItem
-//
-
 import { equals, exists, existance } from '../functions.js';
 import { riders } from '../riders.js';
 
-function LocalStorageItem(args = {}) {
-    const defaults = {
-        fallback: '',
-        isValid:  function (v) { return exists(v); },
-        parse:    function(str) { return str; },
-        encode:   function(str) { return str; },
-    };
+/**
+ * Rider-scoped localStorage item wrapper with validation and serialization.
+ * @param {{
+ *   key?: string,
+ *   fallback?: any,
+ *   isValid?: (val: any) => boolean,
+ *   parse?: (raw: string) => any,
+ *   encode?: (val: any) => string,
+ * }} [options]
+ */
+function LocalStorageItem(options = {}) {
+    const key = options.key;
+    if (!exists(key)) {
+        throw new Error('LocalStorageItem requires a storage key');
+    }
 
-    let key      = args.key;
-    let fallback = existance(args.fallback, defaults.fallback);
-    let isValid  = existance(args.isValid, defaults.isValid);
-    let parse    = existance(args.parse, defaults.parse);
-    let encode   = existance(args.encode, defaults.encode);
+    const fallback = existance(options.fallback, '');
+    const isValid = existance(options.isValid, val => exists(val));
+    const parse = existance(options.parse, raw => raw);
+    const encode = existance(options.encode, val => String(val));
 
-    if(!exists(key)) throw new Error('LocalStorageItem needs a key!');
+    function scopedKey() {
+        return riders.key(key);
+    }
 
-    function restore() {
-        const inStorageValue = get();
-
-        if(equals(inStorageValue, fallback)) {
-            set(fallback);
-        }
-
-        return get();
+    function storage() {
+        return typeof window !== 'undefined' ? window.localStorage : globalThis.localStorage;
     }
 
     function get() {
-        const value = window.localStorage.getItem(riders.key(key));
-
-        if(!exists(value)) {
-            console.warn(`Trying to get non-existing value from Local Storage at key ${key}!`);
+        const raw = storage().getItem(scopedKey());
+        if (!exists(raw)) {
             return fallback;
         }
-
-        return parse(value);
+        return parse(raw);
     }
 
     function set(value) {
-        if(isValid(value)) {
-            window.localStorage.setItem(riders.key(key), encode(value));
+        if (isValid(value)) {
+            storage().setItem(scopedKey(), encode(value));
             return value;
-        } else {
-            console.warn(`Trying to enter invalid ${key} value in Local Storage: ${typeof value}`, value);
-            window.localStorage.setItem(riders.key(key), fallback);
-            return fallback;
         }
+        storage().setItem(scopedKey(), encode(fallback));
+        return fallback;
+    }
+
+    function restore() {
+        const current = get();
+        if (equals(current, fallback)) {
+            set(fallback);
+        }
+        return get();
     }
 
     function remove() {
-        window.localStorage.removeItem(riders.key(key));
+        storage().removeItem(scopedKey());
     }
 
     return Object.freeze({
@@ -67,4 +69,3 @@ function LocalStorageItem(args = {}) {
 }
 
 export { LocalStorageItem };
-

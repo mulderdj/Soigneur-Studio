@@ -1,164 +1,128 @@
 // @ts-check
-//
-// IDB
-//
-
-import { exists, existance, empty, } from '../functions.js';
+import { exists, existance, empty } from '../functions.js';
 import { uuid } from './uuid.js';
 
-function promisify(request) {
+const DEFAULT_STORES = [
+    'session',
+    'workouts',
+    'activity',
+    'rideSummaries',
+    'plan',
+    'externalRides',
+    'hiddenRides',
+    'wellness',
+    'rideRatings',
+];
+
+function wrapRequest(request) {
     return new Promise((resolve, reject) => {
-        request.onsuccess = function(event) {
-            return resolve(request.result);
-        };
-        request.onerror = function(event) {
-            return reject(request.error);
-        };
+        request.onsuccess = () => resolve(request.result);
+        request.onerror = () => reject(request.error);
     });
 }
 
-function IDB(args = {}) {
-    let db;
-
-    function setDB(idb) {
-        db = idb;
-        // let a newer version (another tab, or a later start()) upgrade
-        // instead of waiting forever on this connection
-        db.onversionchange = () => db.close();
+function getIndexedDB() {
+    if (typeof window !== 'undefined' && window.indexedDB) {
+        return window.indexedDB;
     }
+    return globalThis.indexedDB;
+}
 
-    async function start(database = '', version = 1, stores = []) {
-        if(!exists(database)) {
-            throw new Error(`:idb idb.start() needs database name!`);
-        };
-        if(empty(database)) {
-            throw new Error(`:idb idb.start() called with empty name!`);
-        };
-        await open(database, version, stores);
-    }
+function createIdbManager() {
+    /** @type {IDBDatabase | undefined} */
+    let database;
 
-    function open(name, version, storeNames) {
-        console.log(`:idb :open :db '${name}' :store-name '${storeNames}' ...`);
-        let openReq = window.indexedDB.open(name, version);
-
-        return new Promise((resolve, reject) => {
-            openReq.onupgradeneeded = function(e) {
-                setDB(openReq.result);
-                console.log(`:idb :version ${db.version} :old ${e.oldVersion}`);
-
-                switch(e.oldVersion) {
-                // switch(db.version) {
-                case 0: createStores(storeNames);
-                case 1: update(storeNames);
-                case 2: update(storeNames);
-                case 3: createStores(storeNames); // v4: rideSummaries, plan
-                case 4: createStores(storeNames); // v5: externalRides, hiddenRides
-                case 5: createStores(storeNames); // v6: wellness, rideRatings
-                case 6: latest(storeNames);
-                }
-            };
-            openReq.onerror = function() {
-                console.error(`:idb :error :open :db '${name}'`, openReq.error);
-                return reject(openReq.error);
-            };
-            openReq.onsuccess = function() {
-                setDB(openReq.result);
-                console.log(`:idb :version ${db.version}`);
-                return resolve(openReq.result);
-            };
-        });
-    }
-
-    function deleteStore(name) {
-        let deleteReq = db.deleteObjectStore(name);
-
-        return promisify(deleteReq).then(res => {
-            console.log(`:idb :delete-store '${name}'`);
-            return res;
-        }).catch(err => {
-            console.error(`:idb :error :delete-store '${name}'`, err);
-            return {};
-        });
+    function attachConnection(conn) {
+        database = conn;
+        database.onversionchange = () => database?.close();
     }
 
     function createStore(name, keyPath = 'id') {
-        if (!db.objectStoreNames.contains(name)) {
-            db.createObjectStore(name, {keyPath: keyPath});
-            console.log(`:idb :create-store '${name}'`);
-        } else {
-            console.warn(`:idb :error :createStore 'trying to create store with existing name: ${name}'`);
+        if (!database) return;
+        if (!database.objectStoreNames.contains(name)) {
+            database.createObjectStore(name, { keyPath });
         }
     }
 
-    function createStores(storeNames, keyPaths = []) {
-        storeNames.forEach((storeName, i) => {
-            createStore(storeName, existance(keyPaths[i], 'id'));
+    function ensureStores(storeNames, keyPaths = []) {
+        storeNames.forEach((storeName, idx) => {
+            createStore(storeName, existance(keyPaths[idx], 'id'));
         });
     }
 
-    async function update(storeNames) {
-        console.log(`:idb :update :stores ${storeNames}`);
-        // create IndexedDB > db > session, workouts
-        await createStores(storeNames);
+    function open(name, version = 6, storeNames = DEFAULT_STORES) {
+        const factory = getIndexedDB();
+        const request = factory.open(name, version);
+
+        return new Promise((resolve, reject) => {
+            request.onupgradeneeded = () => {
+                attachConnection(request.result);
+                ensureStores(storeNames);
+            };
+            request.onerror = () => reject(request.error);
+            request.onsuccess = () => {
+                attachConnection(request.result);
+                resolve(request.result);
+            };
+        });
     }
 
-    function latest(storeNames) {
-        console.log(`:idb :latest :stores ${storeNames}`);
+    async function start(name = '', version = 6, stores = DEFAULT_STORES) {
+        if (!exists(name) || empty(name)) {
+            throw new Error('idb.start requires a non-empty database name');
+        }
+        await open(name, version, stores);
     }
 
-    function transaction(storeName, method, param = undefined, type = 'readonly') {
-        if(!db.objectStoreNames.contains(storeName)) return undefined;
+    function deleteStore(name) {
+        if (!database) return Promise.resolve({});
+        try {
+            database.deleteObjectStore(name);
+            return Promise.resolve({});
+        } catch {
+            return Promise.resolve({});
+        }
+    }
 
-        let transaction = db.transaction(storeName, type);
-        let store = transaction.objectStore(storeName);
-        let req;
-
-        if(param === undefined) {
-            req = store[method]();
-        } else {
-            req = store[method](param);
+    function runStoreOp(storeName, method, arg = undefined, mode = /** @type {IDBTransactionMode} */ ('readonly')) {
+        if (!database || !database.objectStoreNames.contains(storeName)) {
+            return undefined;
         }
 
-        return promisify(req).then(res => {
-            console.log(`:idb :${method} :store '${storeName}' :success`);
-            return res;
-        }).catch(err => {
-            console.error(`:idb :error :${method} :store '${storeName}'`, err);
-            return [];
-        });
+        const tx = database.transaction(storeName, mode);
+        const store = tx.objectStore(storeName);
+        const req = arg === undefined ? store[method]() : store[method](arg);
+
+        return wrapRequest(req).catch(() => []);
     }
 
     function add(storeName, item) {
-        return transaction(storeName, 'add', item, 'readwrite');
+        return runStoreOp(storeName, 'add', item, 'readwrite');
     }
 
     function put(storeName, item) {
-        return transaction(storeName, 'put', item, 'readwrite');
+        return runStoreOp(storeName, 'put', item, 'readwrite');
     }
 
     function get(storeName, key) {
-        return transaction(storeName, 'get', key, 'readonly');
+        return runStoreOp(storeName, 'get', key, 'readonly');
     }
 
     function getAll(storeName) {
-        return transaction(storeName, 'getAll', undefined, 'readonly');
+        return runStoreOp(storeName, 'getAll', undefined, 'readonly');
     }
 
-    function remove(storeName, id) {
-        return transaction(storeName, 'delete', id, 'readwrite');
+    function remove(storeName, key) {
+        return runStoreOp(storeName, 'delete', key, 'readwrite');
     }
 
     function clear(storeName) {
-        return transaction(storeName, 'clear', undefined, 'readwrite');
+        return runStoreOp(storeName, 'clear', undefined, 'readwrite');
     }
 
-    function setId(item, id = undefined) {
-        if(!exists(item.id)) {
-            if(!exists(id)) {
-                id = uuid();
-            };
-            item.id = id;
-            console.log(`:idb :setId`, id);
+    function setId(item, explicitId = undefined) {
+        if (!exists(item.id)) {
+            item.id = exists(explicitId) ? explicitId : uuid();
         }
         return item;
     }
@@ -178,6 +142,6 @@ function IDB(args = {}) {
     });
 }
 
-const idb = IDB();
+const idb = createIdbManager();
 
-export { idb };
+export { idb, createIdbManager, DEFAULT_STORES };

@@ -1,348 +1,430 @@
 // @ts-check
-import { equals, exists, empty, first, last, xf, avg, max, toFixed, print, } from './functions.js';
-import { kphToMps, mpsToKph, timeDiff, pad } from './utils.js';
+import { equals, exists, empty, xf } from './functions.js';
 import { models } from './models/models.js';
-import { ControlMode, } from './ble/enums.js';
-import { TimerStatus, EventType, } from './activity/enums.js';
+import { ControlMode } from './ble/enums.js';
+import { TimerStatus, EventType } from './activity/enums.js';
 import { confirmAction } from './views/confirm.js';
 
-const timer = new Worker(new URL('./timer.js', import.meta.url), {type: 'module'});
+const DEFAULT_CUE_DURATION_S = 10;
+const AUTO_PAUSE_TICKS = 4;
+const AUTO_RESUME_WATTS = 40;
 
-class Watch {
-    constructor(args) {
-        this.elapsed          = 0;
-        this.lapTime          = 0;
-        this.stepTime         = 0;
+function createFallbackClock() {
+    /** @type {ReturnType<typeof setInterval> | undefined} */
+    let intervalId;
+    /** @type {Set<(ev: { data: string }) => void>} */
+    const listeners = new Set();
 
-        this.intervalIndex    = 0;
-        this.stepIndex        = 0;
+    function stopClock() {
+        if (intervalId !== undefined) {
+            clearInterval(intervalId);
+            intervalId = undefined;
+        }
+    }
+
+    function startClock() {
+        stopClock();
+        intervalId = setInterval(() => {
+            for (const listener of listeners) {
+                listener({ data: 'tick' });
+            }
+        }, 1000);
+    }
+
+    return {
+        postMessage(command) {
+            if (command === 'start') startClock();
+            else if (command === 'stop' || command === 'pause') stopClock();
+        },
+        addEventListener(type, handler) {
+            if (type === 'message') listeners.add(handler);
+        },
+        removeEventListener(type, handler) {
+            if (type === 'message') listeners.delete(handler);
+        },
+    };
+}
+
+const clockWorker = typeof Worker === 'function'
+    ? new Worker(new URL('./timer.js', import.meta.url), { type: 'module' })
+    : createFallbackClock();
+
+function flattenTextCues(intervals) {
+    /** @type {Array<{ start: number, end: number, message: string }>} */
+    const cues = [];
+    if (!exists(intervals) || empty(intervals)) return cues;
+
+    let timelineCursor = 0;
+
+    for (let i = 0; i < intervals.length; i++) {
+        const steps = intervals[i].steps ?? [];
+        for (let s = 0; s < steps.length; s++) {
+            const step = steps[s];
+            if (!exists(step.duration)) continue;
+
+            const messages = step.messages ?? [];
+            for (let m = 0; m < messages.length; m++) {
+                const entry = messages[m];
+                if (!exists(entry.offset)) continue;
+                const start = timelineCursor + entry.offset;
+                const duration = exists(entry.duration) ? entry.duration : DEFAULT_CUE_DURATION_S;
+                cues.push({
+                    start,
+                    end: start + duration,
+                    message: entry.message,
+                });
+            }
+
+            timelineCursor += step.duration;
+        }
+    }
+
+    return cues;
+}
+
+function resolveWorkoutSecond(intervals, intervalIndex, stepIndex, stepDuration, stepTimeRemaining) {
+    if (!exists(intervals) || empty(intervals)) return 0;
+
+    let cursor = 0;
+
+    for (let i = 0; i < intervalIndex; i++) {
+        const steps = intervals[i]?.steps ?? [];
+        for (let s = 0; s < steps.length; s++) {
+            if (exists(steps[s].duration)) {
+                cursor += steps[s].duration;
+            }
+        }
+    }
+
+    const activeSteps = intervals[intervalIndex]?.steps ?? [];
+    for (let s = 0; s < stepIndex; s++) {
+        if (exists(activeSteps[s]?.duration)) {
+            cursor += activeSteps[s].duration;
+        }
+    }
+
+    if (exists(stepDuration)) {
+        cursor += stepDuration - stepTimeRemaining;
+    }
+
+    return cursor;
+}
+
+function activeCueAt(cues, second) {
+    if (!exists(cues) || empty(cues)) return '';
+    let current = '';
+    for (let i = 0; i < cues.length; i++) {
+        if (second >= cues[i].start && second < cues[i].end) {
+            current = cues[i].message;
+        }
+    }
+    return current;
+}
+
+class SessionWatch {
+    constructor() {
+        this.elapsed = 0;
+        this.lapTime = 0;
+        this.stepTime = 0;
+
+        this.intervalIndex = 0;
+        this.stepIndex = 0;
         this.intervalDuration = 0;
-        this.stepDuration     = 0;
+        this.stepDuration = 0;
 
-        this.state            = 'stopped';
-        this.stateWorkout     = 'stopped';
+        this.state = TimerStatus.stopped;
+        this.stateWorkout = TimerStatus.stopped;
+        this.intervalType = 'duration';
 
-        // Distance
-        this.intervalType      = 'duration';
-        // end Distance
+        /** @type {any[]} */
+        this.intervals = [];
+        /** @type {Array<{ start: number, end: number, message: string }>} */
+        this.textEvents = [];
+        this.textEvent = '';
+        this.workoutType = 'workout';
 
-        this.intervals         = [];
-        this.textEvents        = [];
-        this.textEvent         = '';
-        this.workoutType       = "workout";
-        this.autoStartCounter  = 3;
-        this.autoPauseCounter  = 0;
+        this.autoStartCounter = 3;
+        this.autoPauseCounter = 0;
         this.hasBeenAutoPaused = false;
-        this.autoPause         = true;
-        this.autoStart         = true;
-        /** @type {number|undefined} */
+        this.autoPause = true;
+        this.autoStart = true;
+
+        /** @type {number | undefined} */
         this.lapDuration = undefined;
         /** @type {any} */
         this.points = undefined;
+
         this.init();
     }
+
     init() {
-        const self = this;
+        xf.sub('db:elapsed', val => { this.elapsed = val; });
+        xf.sub('db:lapTime', val => { this.lapTime = val; });
+        xf.sub('db:stepTime', val => { this.stepTime = val; });
+        xf.sub('db:intervalDuration', val => {
+            this.intervalDuration = val;
+            this.lapDuration = val;
+        });
+        xf.sub('db:stepDuration', val => { this.stepDuration = val; });
+        xf.sub('db:intervalIndex', val => { this.intervalIndex = val; });
+        xf.sub('db:stepIndex', val => { this.stepIndex = val; });
+        xf.sub('db:watchStatus', val => { this.state = val; });
+        xf.sub('db:workoutStatus', val => {
+            this.stateWorkout = val;
 
-        // Data subs
-        xf.sub('db:elapsed',       elapsed => { self.elapsed       = elapsed; });
-        xf.sub('db:lapTime',          time => { self.lapTime       = time; });
-        xf.sub('db:stepTime',         time => { self.stepTime      = time; });
-        xf.sub('db:intervalDuration', time => { self.lapDuration   = time; });
-        xf.sub('db:stepDuration',     time => { self.stepDuration  = time; });
-        xf.sub('db:intervalIndex',   index => { self.intervalIndex = index; });
-        xf.sub('db:stepIndex',       index => { self.stepIndex     = index; });
-        xf.sub('db:watchStatus',     state => { self.state         = state; });
-        xf.sub('db:workoutStatus',   state => {
-            self.stateWorkout = state;
-
-            if(!self.isWorkoutStarted()) {
-                self.dispatchTextEvent();
+            if (!this.isWorkoutStarted()) {
+                this.dispatchTextEvent();
             }
 
-            if(self.isWorkoutDone()) {
+            if (this.isWorkoutDone()) {
                 xf.dispatch('watch:lap');
-                // reset to slope mode 0% when workout is done
                 xf.dispatch('ui:slope-target-set', 0);
                 xf.dispatch('ui:mode-set', ControlMode.sim);
-                console.log(`Workout done!`);
             }
         });
-        xf.sub('db:workout',       workout => {
-            self.intervals  = workout.intervals;
-            self.textEvents = flattenMessages(self.intervals);
-            if(workout.meta.category?.toLowerCase().includes("test")) {
-                self.workoutType = "test";
-                // no auto-pause during a test (onPower1s); the rider's own
-                // setting is left as it is, so it applies again afterwards
-            } else {
-                self.workoutType = "workout";
-            }
-            console.log(`:workout :type ${self.workoutType}`);
-            self.dispatchTextEvent();
-        });
-        xf.sub('db:power1s', self.onPower1s.bind(this));
-        xf.sub('db:sources', self.onSources.bind(this));
-        timer.addEventListener('message', self.onTick.bind(self));
 
-        // UI subs
-        xf.sub('ui:workoutStart', e => { self.startWorkout();   });
-        xf.sub('ui:watchStart',   e => { self.start();          });
-        xf.sub('workout:restore', e => { self.restoreWorkout(); });
-        xf.sub('ui:watchPause',   e => { self.pause();          });
-        xf.sub('ui:watchResume',  e => { self.resume();         });
-        xf.sub('ui:watchLap',     e => { if(self.isStarted()) self.lap(); });
-        xf.sub('ui:watchBack',    e => { self.back();           });
-        xf.sub('ui:watchStop',    async e => {
-            const stop = await confirmAction({
+        xf.sub('db:workout', workout => {
+            this.intervals = workout?.intervals ?? [];
+            this.points = workout?.points;
+            this.textEvents = flattenTextCues(this.intervals);
+            const category = workout?.meta?.category?.toLowerCase() ?? '';
+            this.workoutType = category.includes('test') ? 'test' : 'workout';
+            this.dispatchTextEvent();
+        });
+
+        xf.sub('db:power1s', watts => this.onPower1s(watts));
+        xf.sub('db:sources', sources => this.onSources(sources));
+        clockWorker.addEventListener('message', () => this.onTick());
+
+        xf.sub('ui:workoutStart', () => this.startWorkout());
+        xf.sub('ui:watchStart', () => this.start());
+        xf.sub('workout:restore', () => this.restoreWorkout());
+        xf.sub('ui:watchPause', () => this.pause());
+        xf.sub('ui:watchResume', () => this.resume());
+        xf.sub('ui:watchLap', () => {
+            if (this.isStarted()) this.lap();
+        });
+        xf.sub('ui:watchBack', () => this.back());
+        xf.sub('ui:watchStop', async () => {
+            const confirmed = await confirmAction({
                 title: 'End ride?',
                 message: 'Stop the clock and finish this ride?',
                 confirmLabel: 'End ride',
                 danger: true,
             });
-            if(stop) {
-                self.stop();
+            if (confirmed) {
+                this.stop();
                 xf.dispatch('ui:toast', 'Ride ended — tap Save to keep it');
             }
         });
     }
-    isStarted()        { return this.state        === 'started'; };
-    isPaused()         { return this.state        === 'paused'; };
-    isStopped()        { return this.state        === 'stopped'; };
-    isWorkoutStarted() { return this.stateWorkout === 'started'; };
-    isWorkoutDone()    { return this.stateWorkout === 'done'; };
-    isIntervalType(type) {
-        return equals(this.intervalType, type);
+
+    isStarted() { return this.state === TimerStatus.started; }
+    isPaused() { return this.state === TimerStatus.paused; }
+    isStopped() { return this.state === TimerStatus.stopped; }
+    isWorkoutStarted() { return this.stateWorkout === TimerStatus.started; }
+    isWorkoutDone() { return this.stateWorkout === 'done'; }
+    isIntervalType(type) { return equals(this.intervalType, type); }
+    status() { return this.state; }
+
+    onSources(sources) {
+        if (!exists(sources)) return;
+        this.autoPause = sources.autoPause ?? this.autoPause;
+        this.autoStart = sources.autoStart ?? this.autoStart;
     }
-    status() {
-        return this.state;
-    }
-    onSources(value) {
-        this.autoPause = value.autoPause ?? this.autoPause;
-        this.autoStart = value.autoStart ?? this.autoStart;
-    }
-    onPower1s(power) {
-        if(this.autoPause && this.workoutType !== 'test') {
-            if(power === 0 && this.isStarted()) {
+
+    onPower1s(watts) {
+        if (this.autoPause && this.workoutType !== 'test') {
+            if (watts === 0 && this.isStarted()) {
                 this.autoPauseCounter += 1;
             } else {
                 this.autoPauseCounter = 0;
             }
 
-            if(this.autoPauseCounter >= 4) {
+            if (this.autoPauseCounter >= AUTO_PAUSE_TICKS) {
                 this.autoPauseCounter = 0;
-                xf.dispatch(`ui:watchPause`);
+                xf.dispatch('ui:watchPause');
                 this.hasBeenAutoPaused = true;
             }
 
-            if(power > 40 && this.hasBeenAutoPaused) {
-                xf.dispatch(`ui:watchResume`);
+            if (watts > AUTO_RESUME_WATTS && this.hasBeenAutoPaused) {
+                xf.dispatch('ui:watchResume');
             }
         }
 
-        if(this.autoStart && this.isStopped()) {
-            // check
-            if(this.autoStartCounter < 0) return;
-            if(this.autoStartCounter === 0) {
+        if (this.autoStart && this.isStopped()) {
+            if (this.autoStartCounter < 0) return;
+
+            if (this.autoStartCounter === 0) {
                 this.autoStartCounter = -1;
-                xf.dispatch(`ui:watchStart`);
+                xf.dispatch('ui:watchStart');
                 xf.dispatch('ui:workoutStart');
-                xf.dispatch(`ui:autoStartCounter`, -1);
+                xf.dispatch('ui:autoStartCounter', -1);
                 return;
             }
-            // update
-            if(power === 0) {
+
+            if (watts === 0) {
                 this.autoStartCounter = 3;
-                xf.dispatch(`ui:autoStartCounter`, this.autoStartCounter);
-            }
-            if(power > 40) {
+                xf.dispatch('ui:autoStartCounter', this.autoStartCounter);
+            } else if (watts > AUTO_RESUME_WATTS) {
                 this.autoStartCounter -= 1;
-                xf.dispatch(`ui:autoStartCounter`, this.autoStartCounter);
+                xf.dispatch('ui:autoStartCounter', this.autoStartCounter);
             }
         }
     }
+
     start() {
-        const self = this;
-        if(self.isStarted() && !self.isWorkoutStarted()) {
-            self.pause();
-        } else {
-            timer.postMessage('start');
-            xf.dispatch('watch:started');
-
-            xf.dispatch('watch:event', {
-                timestamp: Date.now(),
-                type: EventType.start,
-            });
+        if (this.isStarted() && !this.isWorkoutStarted()) {
+            this.pause();
+            return;
         }
+        clockWorker.postMessage('start');
+        xf.dispatch('watch:started');
+        xf.dispatch('watch:event', {
+            timestamp: Date.now(),
+            type: EventType.start,
+        });
     }
+
     startWorkout() {
-        const self = this;
-
-        // in case of pressing play button during auto start countdown
         this.autoStartCounter = -1;
-        xf.dispatch(`ui:autoStartCounter`, -1);
+        xf.dispatch('ui:autoStartCounter', -1);
 
-        if(self.isWorkoutStarted() || (
-            // check for intervalIndex allows for multiple workouts in one session
-            self.isWorkoutDone() && self.intervalIndex > 0
-        )) {
+        if (this.isWorkoutStarted() || (this.isWorkoutDone() && this.intervalIndex > 0)) {
             return;
         }
 
-        let intervalTime = 0;
-        let stepTime     = 0;
+        if (exists(this.intervals) && !empty(this.intervals)) {
+            const firstIntervalDur = this.intervals[0]?.duration ?? 0;
+            const firstStepDur = this.intervals[0]?.steps?.[0]?.duration ?? 0;
 
-        if(exists(self.intervals)) {
-            intervalTime = self.intervals[0]?.duration ?? 0;
-            stepTime     = self.intervals[0]?.steps[0].duration ?? 0;
-
-            xf.dispatch('watch:intervalIndex',  0);
+            xf.dispatch('watch:intervalIndex', 0);
             xf.dispatch('watch:stepIndex', 0);
-
             xf.dispatch('workout:started');
-
-            xf.dispatch('watch:intervalDuration', intervalTime);
-            xf.dispatch('watch:stepDuration',     stepTime);
-            xf.dispatch('watch:lapTime',          intervalTime);
-            xf.dispatch('watch:stepTime',         stepTime);
+            xf.dispatch('watch:intervalDuration', firstIntervalDur);
+            xf.dispatch('watch:stepDuration', firstStepDur);
+            xf.dispatch('watch:lapTime', firstIntervalDur);
+            xf.dispatch('watch:stepTime', firstStepDur);
         }
 
-        if(exists(self.points)) {
-            self.intervalType = 'distance';
+        if (exists(this.points)) {
+            this.intervalType = 'distance';
+        } else {
+            this.intervalType = 'duration';
         }
 
-        if(!self.isStarted()) {
-            self.start();
+        if (!this.isStarted()) {
+            this.start();
         }
 
-        self.dispatchTextEvent();
+        this.dispatchTextEvent();
     }
+
     restoreWorkout() {
-        const self = this;
-
-        if(self.isWorkoutStarted()) {
+        if (this.isWorkoutStarted()) {
             xf.dispatch('workout:started');
         }
-        if(self.isStarted()) {
-            self.pause();
+        if (this.isStarted()) {
+            this.pause();
         }
     }
-    resume() {
-        const self = this;
-        if(!self.isStarted()) {
-            timer.postMessage('start');
-            xf.dispatch('watch:started');
 
+    resume() {
+        if (!this.isStarted()) {
+            clockWorker.postMessage('start');
+            xf.dispatch('watch:started');
             xf.dispatch('watch:event', {
                 timestamp: Date.now(),
                 type: EventType.start,
             });
-
             this.hasBeenAutoPaused = false;
         }
     }
-    pause() {
-        const self = this;
-        timer.postMessage('pause');
-        xf.dispatch('watch:paused');
 
+    pause() {
+        clockWorker.postMessage('pause');
+        xf.dispatch('watch:paused');
         xf.dispatch('watch:event', {
             timestamp: Date.now(),
             type: EventType.stop,
         });
     }
+
     stop() {
-        const self = this;
-        if(self.isStarted() || self.isPaused()) {
-            timer.postMessage('stop');
+        if (!this.isStarted() && !this.isPaused()) return;
 
-            xf.dispatch('watch:event', {
-                timestamp: Date.now(),
-                type: EventType.stop,
-            });
+        clockWorker.postMessage('stop');
+        xf.dispatch('watch:event', {
+            timestamp: Date.now(),
+            type: EventType.stop,
+        });
 
-
-            if(self.isWorkoutStarted()) {
-                xf.dispatch('workout:stopped');
-            }
-
-            self.lap();
-
-            // should be called after event and lap are created
-            xf.dispatch('watch:stopped');
-
-            if(exists(self.intervals)) {
-                xf.dispatch('watch:intervalIndex', 0);
-                xf.dispatch('watch:stepIndex',     0);
-            }
-            xf.dispatch('watch:elapsed', 0);
-            xf.dispatch('watch:lapTime', 0);
+        if (this.isWorkoutStarted()) {
+            xf.dispatch('workout:stopped');
         }
+
+        this.lap();
+        xf.dispatch('watch:stopped');
+
+        if (exists(this.intervals) && !empty(this.intervals)) {
+            xf.dispatch('watch:intervalIndex', 0);
+            xf.dispatch('watch:stepIndex', 0);
+        }
+        xf.dispatch('watch:elapsed', 0);
+        xf.dispatch('watch:lapTime', 0);
     }
-    onTick() {
-        const self   = this;
-        let elapsed  = self.elapsed + 1;
-        let lapTime  = self.lapTime;
-        let stepTime = self.stepTime;
 
-        if(self.isWorkoutStarted() && !equals(self.stepTime, 0)) {
-            lapTime  -= 1;
-            stepTime -= 1;
+    onTick() {
+        const nextElapsed = this.elapsed + 1;
+        let nextLapTime = this.lapTime;
+        let nextStepTime = this.stepTime;
+
+        if (this.isWorkoutStarted() && !equals(this.stepTime, 0)) {
+            nextLapTime -= 1;
+            nextStepTime -= 1;
         } else {
-            lapTime  += 1;
+            nextLapTime += 1;
         }
 
-        if(equals(lapTime, 4) && stepTime > 0) {
+        if (equals(nextLapTime, 4) && nextStepTime > 0) {
             xf.dispatch('watch:beep', 'interval');
         }
-        xf.dispatch('watch:elapsed',  elapsed);
-        xf.dispatch('watch:lapTime',  lapTime);
-        xf.dispatch('watch:stepTime', stepTime);
 
-        if(self.isWorkoutStarted() &&
-           (stepTime <= 0) &&
-            this.isIntervalType('duration')) {
+        xf.dispatch('watch:elapsed', nextElapsed);
+        xf.dispatch('watch:lapTime', nextLapTime);
+        xf.dispatch('watch:stepTime', nextStepTime);
 
-            self.step();
+        if (this.isWorkoutStarted() && nextStepTime <= 0 && this.isIntervalType('duration')) {
+            this.step();
         }
 
-        // stepTime is written before stepIndex, so choose the message after step()
-        self.dispatchTextEvent();
+        this.dispatchTextEvent();
     }
+
     dispatchTextEvent() {
         let message = '';
-
-        if(this.isWorkoutStarted() && exists(this.intervals) && !empty(this.intervals)) {
-            const second = workoutSecond(
+        if (this.isWorkoutStarted() && exists(this.intervals) && !empty(this.intervals)) {
+            const second = resolveWorkoutSecond(
                 this.intervals,
                 this.intervalIndex,
                 this.stepIndex,
                 this.stepDuration,
                 this.stepTime,
             );
-            message = messageAt(this.textEvents, second);
+            message = activeCueAt(this.textEvents, second);
         }
 
-        if(equals(message, this.textEvent)) return;
-
+        if (equals(message, this.textEvent)) return;
         this.textEvent = message;
         xf.dispatch('watch:workoutTextEvent', message);
     }
+
     lap() {
-        const self = this;
-
-        if(self.isWorkoutStarted()) {
-            let i             = self.intervalIndex;
-            let s             = self.stepIndex;
-            let intervals     = self.intervals;
-            let moreIntervals = i < (intervals.length - 1);
-
-            if(moreIntervals) {
-                i += 1;
-                s  = 0;
-
-                self.nextInterval(intervals, i, s);
-                self.nextStep(intervals, i, s);
+        if (this.isWorkoutStarted()) {
+            const nextIdx = this.intervalIndex + 1;
+            if (nextIdx < this.intervals.length) {
+                this.advanceInterval(this.intervals, nextIdx, 0);
+                this.advanceStep(this.intervals, nextIdx, 0);
             } else {
                 xf.dispatch('workout:done');
             }
@@ -351,56 +433,26 @@ class Watch {
             xf.dispatch('watch:lapTime', 0);
         }
     }
+
     step() {
-        const self        = this;
-        let i             = self.intervalIndex;
-        let s             = self.stepIndex;
-        let intervals     = self.intervals;
-        let steps         = intervals[i].steps;
-        let moreIntervals = i < (intervals.length  - 1);
-        let moreSteps     = s < (steps.length - 1);
-
-        if(moreSteps) {
-            s += 1;
-            self.nextStep(intervals, i, s);
-        } else if (moreIntervals) {
-            i += 1;
-            s  = 0;
-
-            self.nextInterval(intervals, i, s);
-            self.nextStep(intervals, i, s);
+        const currentSteps = this.intervals[this.intervalIndex]?.steps ?? [];
+        if (this.stepIndex + 1 < currentSteps.length) {
+            this.advanceStep(this.intervals, this.intervalIndex, this.stepIndex + 1);
+        } else if (this.intervalIndex + 1 < this.intervals.length) {
+            const nextIntervalIdx = this.intervalIndex + 1;
+            this.advanceInterval(this.intervals, nextIntervalIdx, 0);
+            this.advanceStep(this.intervals, nextIntervalIdx, 0);
         } else {
             xf.dispatch('workout:done');
         }
     }
-    nextInterval(intervals, intervalIndex, stepIndex) {
-        if(exists(intervals[intervalIndex].duration)) {
-            return this.nextDurationInterval(intervals, intervalIndex, stepIndex);
-        }
-        return undefined;
-    }
-    nextStep(intervals, intervalIndex, stepIndex) {
-        if(this.isDurationStep(intervals, intervalIndex, stepIndex)) {
-            this.intervalType = 'duration';
-            return this.nextDurationStep(intervals, intervalIndex, stepIndex);
-        }
-        return undefined;
-    }
+
     back() {
-        const self = this;
-
-        if(self.isWorkoutStarted()) {
-            let i             = self.intervalIndex;
-            let s             = self.stepIndex;
-            let intervals     = self.intervals;
-            let lessIntervals = (i - 1) >= 0;
-
-            if(lessIntervals) {
-                i -= 1;
-                s  = 0;
-
-                self.nextInterval(intervals, i, s);
-                self.nextStep(intervals, i, s);
+        if (this.isWorkoutStarted()) {
+            if (this.intervalIndex > 0) {
+                const prevIdx = this.intervalIndex - 1;
+                this.advanceInterval(this.intervals, prevIdx, 0);
+                this.advanceStep(this.intervals, prevIdx, 0);
             }
         } else {
             xf.dispatch('watch:lap');
@@ -408,181 +460,83 @@ class Watch {
         }
     }
 
-    isDurationStep(intervals, intervalIndex, stepIndex) {
-        return exists(intervals[intervalIndex].steps[stepIndex].duration);
+    advanceInterval(intervals, intervalIdx, _stepIdx) {
+        const duration = intervals[intervalIdx]?.duration;
+        if (exists(duration)) {
+            xf.dispatch('watch:intervalDuration', duration);
+            xf.dispatch('watch:lapTime', duration);
+            xf.dispatch('watch:intervalIndex', intervalIdx);
+            xf.dispatch('watch:lap');
+        }
     }
-    nextDurationInterval(intervals, intervalIndex, stepIndex) {
-        const intervalDuration = this.intervalsToDuration(intervals, intervalIndex);
-        const stepDuration     = this.intervalsToStepDuration(intervals, intervalIndex, stepIndex);
-        this.dispatchInterval(intervalDuration, intervalIndex);
-    }
-    nextDurationStep(intervals, intervalIndex, stepIndex) {
-        const stepDuration = this.intervalsToStepDuration(intervals, intervalIndex, stepIndex);
-        this.dispatchStep(stepDuration, stepIndex);
-    }
-    intervalsToDuration(intervals, intervalIndex) {
-        return intervals[intervalIndex].duration;
-    }
-    intervalsToStepDuration(intervals, intervalIndex, stepIndex) {
-        const steps = intervals[intervalIndex].steps;
-        return steps[stepIndex].duration;
-    }
-    dispatchInterval(intervalDuration, intervalIndex) {
-        xf.dispatch('watch:intervalDuration', intervalDuration);
-        xf.dispatch('watch:lapTime',          intervalDuration);
-        xf.dispatch('watch:intervalIndex',    intervalIndex);
-        xf.dispatch('watch:lap');
-    }
-    dispatchStep(stepDuration, stepIndex) {
-        xf.dispatch('watch:stepDuration', stepDuration);
-        xf.dispatch('watch:stepTime',     stepDuration);
-        xf.dispatch('watch:stepIndex',    stepIndex);
-        xf.dispatch('watch:step');
+
+    advanceStep(intervals, intervalIdx, stepIdx) {
+        const stepDuration = intervals[intervalIdx]?.steps?.[stepIdx]?.duration;
+        if (exists(stepDuration)) {
+            this.intervalType = 'duration';
+            xf.dispatch('watch:stepDuration', stepDuration);
+            xf.dispatch('watch:stepTime', stepDuration);
+            xf.dispatch('watch:stepIndex', stepIdx);
+            xf.dispatch('watch:step');
+        }
     }
 }
 
-// These regs have access to the global db state and can mutate it
-xf.reg('watch:lapDuration',    (time, db) => db.intervalDuration = time);
-xf.reg('watch:stepDuration',   (time, db) => db.stepDuration     = time);
-xf.reg('watch:lapTime',        (time, db) => db.lapTime          = time);
-xf.reg('watch:stepTime',       (time, db) => db.stepTime         = time);
-xf.reg('watch:workoutTextEvent', (message, db) => {
-    db.workoutTextEvent = message;
-});
-xf.reg('watch:intervalIndex', (index, db) => db.intervalIndex    = index);
-xf.reg('watch:stepIndex',     (index, db) => {
-    db.stepIndex         = index;
-    const intervalIndex  = db.intervalIndex;
-    const powerTarget    = db.workout.intervals[intervalIndex].steps[index].power;
-    const slopeTarget    = db.workout.intervals[intervalIndex].steps[index].slope;
-    const cadenceTarget  = db.workout.intervals[intervalIndex].steps[index].cadence;
-    const distanceTarget = db.workout.intervals[intervalIndex].steps[index].distance;
+xf.reg('watch:intervalDuration', (duration, dbState) => { dbState.intervalDuration = duration; });
+xf.reg('watch:lapDuration', (duration, dbState) => { dbState.intervalDuration = duration; });
+xf.reg('watch:stepDuration', (duration, dbState) => { dbState.stepDuration = duration; });
+xf.reg('watch:lapTime', (seconds, dbState) => { dbState.lapTime = seconds; });
+xf.reg('watch:stepTime', (seconds, dbState) => { dbState.stepTime = seconds; });
+xf.reg('watch:workoutTextEvent', (message, dbState) => { dbState.workoutTextEvent = message; });
+xf.reg('watch:intervalIndex', (index, dbState) => { dbState.intervalIndex = index; });
 
-    if(exists(slopeTarget)) {
+xf.reg('watch:stepIndex', (index, dbState) => {
+    dbState.stepIndex = index;
+    const step = dbState.workout?.intervals?.[dbState.intervalIndex]?.steps?.[index];
+    if (!exists(step)) return;
+
+    const { power: powerTarget, slope: slopeTarget, cadence: cadenceTarget, distance: distanceTarget } = step;
+
+    if (exists(slopeTarget)) {
         xf.dispatch('ui:slope-target-set', slopeTarget);
-        if(!equals(db.mode, ControlMode.sim)) {
+        if (!equals(dbState.mode, ControlMode.sim)) {
             xf.dispatch('ui:mode-set', ControlMode.sim);
         }
     }
-    if(exists(distanceTarget)) {
+
+    if (exists(distanceTarget)) {
         xf.dispatch('ui:distance-target-set', distanceTarget);
     }
-    if(exists(cadenceTarget)) {
-        xf.dispatch('ui:cadence-target-set', cadenceTarget);
-    } else {
-        xf.dispatch('ui:cadence-target-set', 0);
-    }
-    if(exists(powerTarget)) {
-        xf.dispatch('ui:power-target-set', models.ftp.toAbsolute(powerTarget, db.ftp));
-        if(!exists(slopeTarget) && !equals(db.mode, ControlMode.erg)) {
+
+    xf.dispatch('ui:cadence-target-set', exists(cadenceTarget) ? cadenceTarget : 0);
+
+    if (exists(powerTarget)) {
+        xf.dispatch('ui:power-target-set', models.ftp.toAbsolute(powerTarget, dbState.ftp));
+        if (!exists(slopeTarget) && !equals(dbState.mode, ControlMode.erg)) {
             xf.dispatch('ui:mode-set', ControlMode.erg);
         }
     } else {
         xf.dispatch('ui:power-target-set', 0);
     }
 });
-xf.reg('workout:started', (x, db) => db.workoutStatus = 'started');
-xf.reg('workout:stopped', (x, db) => db.workoutStatus = 'stopped');
-xf.reg('workout:done',    (x, db) => db.workoutStatus = 'done');
-xf.reg('watch:started',   (x, db) => {
-    db.watchStatus = 'started';
-    if(db.lapStartTime === false) {
-        db.lapStartTime = Date.now(); // if first lap
+
+xf.reg('workout:started', (_, dbState) => { dbState.workoutStatus = TimerStatus.started; });
+xf.reg('workout:stopped', (_, dbState) => { dbState.workoutStatus = TimerStatus.stopped; });
+xf.reg('workout:done', (_, dbState) => { dbState.workoutStatus = 'done'; });
+
+xf.reg('watch:started', (_, dbState) => {
+    dbState.watchStatus = TimerStatus.started;
+    if (dbState.lapStartTime === false) {
+        dbState.lapStartTime = Date.now();
     }
 });
-xf.reg('watch:paused',  (x, db) => db.watchStatus = 'paused');
-xf.reg('watch:stopped', (x, db) => db.watchStatus = 'stopped');
+xf.reg('watch:paused', (_, dbState) => { dbState.watchStatus = TimerStatus.paused; });
+xf.reg('watch:stopped', (_, dbState) => { dbState.watchStatus = TimerStatus.stopped; });
 
 xf.reg('watch:elapsed', models.session.elapsed);
 xf.reg('watch:lap', models.session.lap);
 xf.reg('watch:event', models.session.event);
 
-const defaultDuration = 10;
+const watch = new SessionWatch();
 
-function flattenMessages(intervals) {
-    const textEvents = [];
-
-    if(!exists(intervals) || empty(intervals)) return textEvents;
-
-    let cursor = 0;
-
-    for(let i = 0; i < intervals.length; i++) {
-        const steps = intervals[i].steps ?? [];
-
-        for(let s = 0; s < steps.length; s++) {
-            const step = steps[s];
-
-            if(!exists(step.duration)) continue;
-
-            const messages = step.messages ?? [];
-
-            for(let m = 0; m < messages.length; m++) {
-                const textEvent = messages[m];
-
-                if(!exists(textEvent.offset)) continue;
-
-                const start    = cursor + textEvent.offset;
-                const duration = exists(textEvent.duration) ? textEvent.duration : defaultDuration;
-
-                textEvents.push({
-                    start,
-                    end: start + duration,
-                    message: textEvent.message,
-                });
-            }
-
-            cursor += step.duration;
-        }
-    }
-
-    return textEvents;
-}
-
-
-function workoutSecond(intervals, intervalIndex, stepIndex, stepDuration, stepTime) {
-    if(!exists(intervals) || empty(intervals)) return 0;
-
-    let cursor = 0;
-
-    for(let i = 0; i < intervalIndex; i++) {
-        const steps = intervals[i]?.steps ?? [];
-
-        for(let s = 0; s < steps.length; s++) {
-            if(exists(steps[s].duration)) cursor += steps[s].duration;
-        }
-    }
-
-    const steps = intervals[intervalIndex]?.steps ?? [];
-
-    for(let s = 0; s < stepIndex; s++) {
-        if(exists(steps[s]) && exists(steps[s].duration)) {
-            cursor += steps[s].duration;
-        }
-    }
-
-    if(exists(stepDuration)) {
-        cursor += stepDuration - stepTime;
-    }
-
-    return cursor;
-}
-
-function messageAt(textEvents, second) {
-    let message = '';
-
-    if(!exists(textEvents) || empty(textEvents)) return message;
-
-    for(let i = 0; i < textEvents.length; i++) {
-        const textEvent = textEvents[i];
-
-        if(second >= textEvent.start && second < textEvent.end) {
-            message = textEvent.message;
-        }
-    }
-
-    return message;
-}
-
-const watch = new Watch();
-
-export { watch };
+export { watch, SessionWatch, flattenTextCues, resolveWorkoutSecond, activeCueAt };
