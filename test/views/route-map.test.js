@@ -126,6 +126,8 @@ describe('Web Mercator helpers', () => {
         expect(tileUrl(12, 2099, 1461, false, 'cyclosm')).toBe('https://a.tile-cyclosm.openstreetmap.fr/cyclosm/12/2099/1461.png');
         expect(tileUrl(12, 2099, 1461, false, 'satellite')).toBe('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/12/1461/2099');
         expect(tileUrl(12, 2099, 1461, false, 'osm')).toBe('https://tile.openstreetmap.org/12/2099/1461.png');
+        expect(tileUrl(12, 2099, 1461, false, 'mapy', {apiKey: ''})).toBeNull();
+        expect(tileUrl(12, 2099, 1461, false, 'mapy', {apiKey: 'mapykey'})).toBe('https://api.mapy.com/v1/maptiles/outdoor/256/12/2099/1461?apikey=mapykey');
         expect(tileUrl(12, 2099, 1461, false, 'thunderforest', {apiKey: ''})).toBeNull();
         expect(tileUrl(12, 2099, 1461, false, 'thunderforest', {apiKey: 'secret'})).toBe('https://tile.thunderforest.com/cycle/12/2099/1461.png?apikey=secret');
         expect(tileUrl(12, 2099, 1461, false, 'custom', {

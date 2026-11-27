@@ -362,6 +362,7 @@ const MAP_PROVIDERS = {
     cyclosm:       {label: 'CyclOSM',       maxZoom: 18, attribution: '© OSM · CyclOSM'},
     satellite:     {label: 'Satellite',     maxZoom: 18, attribution: '© Esri'},
     osm:           {label: 'OSM',           maxZoom: 18, attribution: '© OpenStreetMap'},
+    mapy:          {label: 'Mapy.com',      maxZoom: 19, attribution: '© Seznam.cz · Mapy.com'},
     thunderforest: {label: 'Thunderforest', maxZoom: 18, attribution: '© OSM · Thunderforest'},
     custom:        {label: 'Custom',        maxZoom: 18, attribution: '© Map tiles'},
 };
@@ -397,6 +398,11 @@ function tileUrl(z, x, y, light, style = 'standard', cfg = {}) {
         return `https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/${z}/${y}/${x}`;
     case 'osm':
         return `https://tile.openstreetmap.org/${z}/${x}/${y}.png`;
+    case 'mapy': {
+        const key = (cfg.apiKey ?? '').trim();
+        if(!key) return null;
+        return `https://api.mapy.com/v1/maptiles/outdoor/256/${z}/${x}/${y}?apikey=${encodeURIComponent(key)}`;
+    }
     case 'thunderforest': {
         const key = (cfg.apiKey ?? '').trim();
         if(!key) return null;
@@ -833,6 +839,7 @@ class RouteMap extends HTMLElement {
         const active = this.getMapStyle();
         const cfg = currentMapConfig();
         const options = ['standard', 'terrain', 'cyclosm', 'satellite', 'osm'];
+        if(cfg.apiKey || active === 'mapy') options.push('mapy');
         if(cfg.apiKey || active === 'thunderforest') options.push('thunderforest');
         if(cfg.customUrl || active === 'custom') options.push('custom');
         const sig = options.join(',');

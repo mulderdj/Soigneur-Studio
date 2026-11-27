@@ -528,13 +528,14 @@ class MaterialSeed extends Model {
 class MapStyle extends Model {
     postInit(args = {}) {
         const self = this;
-        self.values = ['standard', 'terrain', 'cyclosm', 'satellite', 'osm', 'thunderforest', 'custom'];
+        self.values = ['standard', 'terrain', 'cyclosm', 'satellite', 'osm', 'mapy', 'thunderforest', 'custom'];
         self.labels = {
             standard:      'Standard (Dark/Light)',
             terrain:       'Terrain (OpenTopoMap)',
             cyclosm:       'CyclOSM',
             satellite:     'Satellite (Esri)',
             osm:           'OpenStreetMap',
+            mapy:          'Mapy.com Outdoor',
             thunderforest: 'Thunderforest',
             custom:        'Custom URL',
         };

@@ -1792,7 +1792,7 @@ class MapProviderConfig extends HTMLElement {
         const signal = {signal: this._abort.signal};
 
         const syncStyle = style => {
-            const needsKey = style === 'thunderforest' || style === 'custom';
+            const needsKey = style === 'mapy' || style === 'thunderforest' || style === 'custom';
             const needsUrl = style === 'custom';
             this.hidden = !needsKey && !needsUrl;
             if(this.$urlWrap) this.$urlWrap.hidden = !needsUrl;
