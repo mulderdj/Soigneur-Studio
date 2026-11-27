@@ -67,6 +67,7 @@ let db = {
     weight: models.weight.default,
     theme: models.theme.default,
     palette: models.palette.default,
+    materialSeed: models.materialSeed.default,
     mapStyle: models.mapStyle.default,
     measurement: models.measurement.default,
     volume: models.volume.default,
@@ -306,6 +307,10 @@ xf.reg('ui:palette-switch', (_, db) => {
     db.palette = models.palette.switch(db.palette);
     models.palette.backup(db.palette);
 });
+xf.reg('ui:materialSeed-set', (seed, db) => {
+    db.materialSeed = models.materialSeed.set(seed);
+    models.materialSeed.backup(db.materialSeed);
+});
 xf.reg('ui:mapStyle-set', (style, db) => {
     db.mapStyle = models.mapStyle.set(style);
     models.mapStyle.backup(db.mapStyle);
@@ -441,6 +446,7 @@ xf.reg('app:start', async function(_, db) {
     db.weight = models.weight.set(models.weight.restore());
     db.theme = models.theme.set(models.theme.restore());
     db.palette = models.palette.set(models.palette.restore());
+    db.materialSeed = models.materialSeed.set(models.materialSeed.restore());
     db.mapStyle = models.mapStyle.set(models.mapStyle.restore());
     db.measurement = models.measurement.set(models.measurement.restore());
     db.volume = models.volume.set(models.volume.restore());

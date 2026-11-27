@@ -4,6 +4,7 @@ import { formatTime } from '../utils.js';
 import { models } from '../models/models.js';
 import { DialogMsg } from '../models/enums.js';
 import { formatReminderSetting, nextReminderSetting } from '../fuelling.js';
+import { applyMaterialTheme, clearMaterialTheme, extractSeedFromFile, normalizeSeed } from '../theme-material.js';
 
 
 //
@@ -1530,29 +1531,46 @@ function currentThemeMode() {
     return 'DARK';
 }
 
-function updateThemeColor(themeMode = currentThemeMode(), palette = undefined) {
+function syncThemeSurface(themeMode = currentThemeMode(), palette = undefined, seed = undefined) {
     if(typeof document === 'undefined' || !document.body) return;
-    const activePalette = (palette ?? document.body.dataset.palette) === 'abricot' ? 'abricot' : 'default';
+    const rawPalette = palette ?? document.body.dataset.palette ?? 'default';
+    const activePalette = rawPalette === 'abricot' || rawPalette === 'material' ? rawPalette : 'default';
     const mode = effectiveColorMode(themeMode);
-    const color = THEME_COLORS[activePalette][mode];
+    let color = THEME_COLORS.default[mode];
+
+    if(activePalette === 'material') {
+        const activeSeed = normalizeSeed(seed ?? models.materialSeed.state ?? models.materialSeed.default);
+        const tokens = applyMaterialTheme(activeSeed, mode === 'dark', document.body);
+        document.body.setAttribute('data-palette', 'material');
+        color = tokens['--bg'];
+    } else {
+        clearMaterialTheme(document.body);
+        color = THEME_COLORS[activePalette][mode];
+    }
+
     const meta = document.querySelector('meta[name="theme-color"]');
     if(meta) meta.setAttribute('content', color);
 }
 
+function updateThemeColor(themeMode = currentThemeMode(), palette = undefined) {
+    syncThemeSurface(themeMode, palette);
+}
+
 function applyThemeMode(themeMode) {
     if(typeof document === 'undefined' || !document.body) return;
-    document.body.className = equals(themeMode, 'DARK') ? 'dark-theme' : equals(themeMode, 'WHITE') ? 'white-theme' : 'auto-theme';
-    updateThemeColor(themeMode);
+    document.body.classList.remove('dark-theme', 'white-theme', 'auto-theme');
+    document.body.classList.add(equals(themeMode, 'DARK') ? 'dark-theme' : equals(themeMode, 'WHITE') ? 'white-theme' : 'auto-theme');
+    syncThemeSurface(themeMode);
 }
 
 function applyPalette(palette) {
     if(typeof document === 'undefined' || !document.body) return;
-    if(palette === 'abricot') {
-        document.body.dataset.palette = 'abricot';
+    if(palette === 'abricot' || palette === 'material') {
+        document.body.dataset.palette = palette;
     } else {
         delete document.body.dataset.palette;
     }
-    updateThemeColor(currentThemeMode(), palette);
+    syncThemeSurface(currentThemeMode(), palette);
 }
 
 function applyMapStyle(style) {
@@ -1566,11 +1584,16 @@ function applyMapStyle(style) {
 
 if(typeof window !== 'undefined') {
     xf.sub('db:palette', applyPalette);
+    xf.sub('db:materialSeed', seed => {
+        if(document.body?.dataset?.palette === 'material') {
+            syncThemeSurface(currentThemeMode(), 'material', seed);
+        }
+    });
     xf.sub('db:mapStyle', applyMapStyle);
     xf.sub('db:sources', s => { if(s?.theme) applyThemeMode(s.theme); });
     if(typeof window.matchMedia === 'function') {
         const mq = window.matchMedia('(prefers-color-scheme: light)');
-        mq.addEventListener?.('change', () => updateThemeColor());
+        mq.addEventListener?.('change', () => syncThemeSurface());
     }
 }
 
@@ -1639,6 +1662,64 @@ class PaletteLayout extends DataView {
 }
 
 customElements.define('palette-layout', PaletteLayout);
+
+class MaterialSeedControl extends HTMLElement {
+    connectedCallback() {
+        if(!this.$picker) {
+            this.innerHTML = `
+                <div class="list--row--inner option list-row material-seed__row">
+                    <div class="option--name">Theme color</div>
+                    <div class="material-seed__controls">
+                        <input type="color" class="material-seed__picker" aria-label="Material You seed color" title="Pick seed color">
+                        <button type="button" class="btn btn--secondary material-seed__wall">Wallpaper</button>
+                        <input type="file" class="material-seed__file" accept="image/*" hidden>
+                    </div>
+                </div>`;
+            this.$picker = this.querySelector('.material-seed__picker');
+            this.$wall   = this.querySelector('.material-seed__wall');
+            this.$file   = this.querySelector('.material-seed__file');
+        }
+        this._abort?.abort();
+        this._abort = new AbortController();
+        const signal = {signal: this._abort.signal};
+
+        const syncVisible = pal => {
+            this.hidden = pal !== 'material';
+        };
+        const syncSeed = seed => {
+            if(this.$picker) this.$picker.value = normalizeSeed(seed);
+        };
+
+        syncVisible(models.palette.state || models.palette.default);
+        syncSeed(models.materialSeed.state || models.materialSeed.default);
+
+        xf.sub('db:palette', syncVisible, signal);
+        xf.sub('db:materialSeed', syncSeed, signal);
+
+        this.$picker.addEventListener('input', () => {
+            xf.dispatch('ui:materialSeed-set', this.$picker.value);
+        }, signal);
+        this.$wall.addEventListener('click', () => {
+            this.$file.value = '';
+            this.$file.click();
+        }, signal);
+        this.$file.addEventListener('change', async () => {
+            const file = this.$file.files?.[0];
+            if(!file) return;
+            try {
+                const seed = await extractSeedFromFile(file);
+                xf.dispatch('ui:materialSeed-set', seed);
+            } catch(_) {}
+        }, signal);
+    }
+
+    disconnectedCallback() {
+        this._abort?.abort();
+        this._abort = null;
+    }
+}
+
+customElements.define('material-seed-control', MaterialSeedControl);
 
 class MapStyleLayout extends DataView {
     postInit() {

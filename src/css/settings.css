@@ -597,4 +597,22 @@ hr-thresholds {
     margin: var(--space-1) 0 var(--space-2);
     color: var(--ink);
 }
+
+material-seed-control[hidden] { display: none; }
+
+.material-seed__controls {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+}
+
+.material-seed__picker {
+    width: var(--tap);
+    height: var(--tap);
+    padding: 3px;
+    border: var(--line-w) solid var(--line);
+    border-radius: var(--radius-s);
+    background-color: var(--surface-2);
+    cursor: pointer;
+}
 }

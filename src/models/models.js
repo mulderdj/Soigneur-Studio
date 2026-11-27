@@ -473,10 +473,11 @@ class Theme extends Model {
 class Palette extends Model {
     postInit(args = {}) {
         const self = this;
-        self.values = ['default', 'abricot'];
+        self.values = ['default', 'abricot', 'material'];
         self.labels = {
             default: 'Default',
             abricot: 'Abricot Siena',
+            material: 'Material You',
         };
         const storageModel = {
             key: self.prop,
@@ -497,6 +498,30 @@ class Palette extends Model {
             return self.set(self.default);
         }
         return self.set(self.values[(idx + 1) % self.values.length]);
+    }
+}
+
+class MaterialSeed extends Model {
+    postInit(args = {}) {
+        const self = this;
+        const storageModel = {
+            key: self.prop,
+            fallback: self.defaultValue(),
+            isValid: (v) => self.defaultIsValid(v),
+        };
+        self.state = self.default;
+        self.storage = new args.storage(storageModel);
+    }
+    defaultValue() { return '#006874'; }
+    defaultIsValid(value) { return typeof value === 'string' && /^#[0-9a-fA-F]{6}$/.test(value.trim()); }
+    set(value) {
+        if(!this.defaultIsValid(value)) {
+            this.onInvalid(value);
+            this.state = this.default;
+            return this.state;
+        }
+        this.state = value.trim().toUpperCase();
+        return this.state;
     }
 }
 
@@ -1584,6 +1609,7 @@ const ftp = new FTP({prop: 'ftp', storage: LocalStorageItem});
 const weight = new Weight({prop: 'weight', storage: LocalStorageItem});
 const theme = new Theme({prop: 'theme', storage: LocalStorageItem});
 const palette = new Palette({prop: 'palette', storage: LocalStorageItem});
+const materialSeed = new MaterialSeed({prop: 'materialSeed', storage: LocalStorageItem});
 const mapStyle = new MapStyle({prop: 'mapStyle', storage: LocalStorageItem});
 const volume = new Volume({prop: 'volume', storage: LocalStorageItem});
 const measurement = new Measurement({prop: 'measurement', storage: LocalStorageItem});
@@ -1638,6 +1664,7 @@ let models = {
     volume,
     theme,
     palette,
+    materialSeed,
     mapStyle,
     measurement,
     dataTileSwitch,

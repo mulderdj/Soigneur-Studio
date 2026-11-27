@@ -10,6 +10,11 @@ module.exports = {
         "<rootDir>/test/visual/"
     ],
     "transform": {
-        "^.+\\.js$": "babel-jest"
-    }
+        "^.+\\.js$": ["babel-jest", {
+            "plugins": ["@babel/plugin-transform-modules-commonjs"]
+        }]
+    },
+    "transformIgnorePatterns": [
+        "/node_modules/(?!@material/material-color-utilities/)"
+    ]
 };
