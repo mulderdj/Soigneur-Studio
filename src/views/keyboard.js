@@ -1,3 +1,4 @@
+// @ts-check
 import { xf, exists } from '../functions.js';
 import { ControlMode, } from '../ble/enums.js';
 
@@ -14,6 +15,7 @@ const SHORTCUTS = [
 
 function toggleShortcutsDialog() {
     if(typeof document === 'undefined' || !document.body) return;
+    /** @type {HTMLDialogElement} */
     let dlg = document.querySelector('#dialog--shortcuts');
     if(dlg?.open) { dlg.close?.(); return; }
     if(!dlg) {
@@ -31,7 +33,7 @@ function toggleShortcutsDialog() {
             </dl>
             <p class="card__note">Ride shortcuts are active on the Ride page while not typing or editing layout.</p>`;
         dlg.addEventListener('click', e => {
-            if(e.target === dlg || e.target.closest('[data-kb-close]')) dlg.close?.();
+            if(e.target === dlg || /** @type {Element} */ (e.target).closest('[data-kb-close]')) dlg.close?.();
         });
         document.body.append(dlg);
     }
@@ -64,6 +66,7 @@ function isHelpKey(e) {
     return !(typing || interactive || otherModal || exists(t?.form));
 }
 
+/** @this {any} */
 function Keyboard() {
 
     const isKeyUp    = (code) => code === 'ArrowUp';

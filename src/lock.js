@@ -1,3 +1,4 @@
+// @ts-check
 import { xf } from './functions.js';
 
 class WakeLock {

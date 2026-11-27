@@ -1,3 +1,4 @@
+// @ts-check
 //
 // <rider-menu>: rider switcher, account sign-in, saved sensors, ride history
 // and user management, in one dialog opened from a pill in the header.
@@ -112,17 +113,20 @@ class RiderMenu extends HTMLElement {
                 <div class="rm--body"></div>
             </dialog>`;
 
+        /** @type {HTMLElement} */
         this.$pill   = this.querySelector('.rm--pill');
         this.$dialog = this.querySelector('dialog');
         this.$tabs   = this.querySelector('.rm--tabs');
         this.$body   = this.querySelector('.rm--body');
+        /** @type {HTMLElement} */
         this.$flash  = this.querySelector('.rm--flash');
 
         this.$pill.addEventListener('click', () => this.open());
         this.querySelector('.rm--close').addEventListener('click', () => this.$dialog.close());
         this.$dialog.addEventListener('click', e => { if(e.target === this.$dialog) this.$dialog.close(); });
         this.$tabs.addEventListener('click', e => {
-            const b = e.target.closest('[data-tab]');
+            /** @type {HTMLElement|null} */
+            const b = /** @type {Element} */ (e.target).closest('[data-tab]');
             if(b) { this.tab = b.dataset.tab; this.flash = ''; this.render(); }
         });
         this.$body.addEventListener('click', e => this.onClick(e));
@@ -581,7 +585,8 @@ class RiderMenu extends HTMLElement {
     }
 
     async onClick(e) {
-        const b = e.target.closest('[data-act]');
+        /** @type {HTMLElement|null} */
+        const b = /** @type {Element} */ (e.target).closest('[data-act]');
         if(!b) return;
         const id = b.dataset.id;
         try {
@@ -663,6 +668,7 @@ class RiderMenu extends HTMLElement {
                 this.renderConnections();
                 break;
             case 'copy-ai-key': {
+                /** @type {HTMLInputElement} */
                 const $k = this.$body.querySelector('[data-k="ai-key"]');
                 try { await navigator.clipboard.writeText($k.value); this.say('Key copied.'); }
                 catch(e) { $k.select(); this.say('Select the key and copy it.'); }
@@ -722,10 +728,12 @@ class RiderMenu extends HTMLElement {
     }
 
     async onSubmit(e) {
-        const form = e.target.closest('form[data-form]');
+        /** @type {HTMLFormElement|null} */
+        const form = /** @type {Element} */ (e.target).closest('form[data-form]');
         if(!form) return;
         e.preventDefault();
         const data = Object.fromEntries(new FormData(form).entries());
+        /** @type {HTMLButtonElement|null} */
         const button = form.querySelector('[type="submit"]');
         if(button) button.disabled = true;
         try {
@@ -762,7 +770,7 @@ class RiderMenu extends HTMLElement {
                 break;
             case 'add-user':
                 await api.post('/users', {...data, displayName: data.displayName || undefined});
-                this.say(`Account @${data.username.toLowerCase()} created.`);
+                this.say(`Account @${String(data.username).toLowerCase()} created.`);
                 this.render();
                 break;
             case 'garmin-key':

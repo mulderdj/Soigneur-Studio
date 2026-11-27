@@ -1,3 +1,4 @@
+// @ts-check
 //
 // Bottom bar: clock / workout name, ride controls and page tabs.
 //

@@ -1,3 +1,4 @@
+// @ts-check
 //
 // A collection of common functions that makes JS more functional
 //
@@ -164,11 +165,18 @@ function set(coll, k, v) {
     return coll;
 }
 
+/**
+ * @param {any} coll
+ * @param {any[]} path
+ * @param {any} v
+ * @returns {any}
+ */
 function setIn(coll={}, [k, ...keys], v) {
     return keys.length ? set(coll, k, setIn(coll[k], keys, v)) : set(coll, k, v);
 }
 
 
+/** @param {any[]} xs @param {string|number|false} [prop] */
 function avg(xs, prop = false) {
     if(prop !== false) {
         return xs.reduce( (acc,v,i) => acc+(v[prop]-acc)/(i+1), 0);
@@ -181,6 +189,7 @@ function mavg(value_c, value_p, count_c, count_p = count_c-1) {
     return (value_c + ((count_p) * value_p)) / count_c;
 }
 
+/** @param {any[]} xs @param {string|number|false} [prop] */
 function max(xs, prop = false) {
     if(prop !== false) {
         return xs.reduce( (acc,v,i) => v[prop] > acc ? v[prop] : acc, 0);
@@ -189,6 +198,7 @@ function max(xs, prop = false) {
     }
 };
 
+/** @param {any[]} xs @param {string|number|false} [path] */
 function sum(xs, path = false) {
     if(path !== false) {
         return xs.reduce( (acc,v,i) => acc + v[path], 0);
@@ -266,7 +276,7 @@ function curry2(fn) {
 
 function once(fn, context) {
     let result;
-    return function() {
+    return /** @this {any} */ function() {
         if(fn) {
             result = fn.apply(context || this, arguments);
             fn = null;
@@ -401,6 +411,7 @@ function debounce(func, wait, options = {}) {
         return !isUndefined(timerId);
     }
 
+    /** @this {any} */
     function debounced(...args) {
         const time = Date.now();
         const isInvoking = shouldInvoke(time);
@@ -673,7 +684,9 @@ function Print() {
         var process = {env: {NODE_ENV: "development"}};
     }
 
-    let printLog = (process?.env?.NODE_ENV ?? "development" == "development") ?? false;
+    // NB: equivalent to the former `(NODE_ENV ?? "development" == "development") ?? false`,
+    // which (by operator precedence) is truthy whenever NODE_ENV is set to a non-empty string
+    let printLog = process?.env?.NODE_ENV ?? true;
     let printWarn = true;
 
     console.log(`:env ${process?.env?.NODE_ENV} :print ${printLog}`);

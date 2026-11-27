@@ -1,3 +1,4 @@
+// @ts-check
 import { extensionOf, EXTENSIONS, TEXT_EXTENSIONS, BINARY_EXTENSIONS } from './workouts/formats.js';
 //
 // File Handler

@@ -1,7 +1,9 @@
+// @ts-check
 import { xf, equals, exists, first, } from './functions.js';
 import { models } from './models/models.js';
 import { Status, ControlMode, } from './ble/enums.js';
 
+/** @this {any} */
 function Course() {
 
     const abortController = new AbortController();

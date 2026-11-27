@@ -1,3 +1,4 @@
+// @ts-check
 //
 // The sensors: their names and icons (24 × 24, drawn in the header buttons'
 // line style; .fill / .hole / .gap parts are styled in ride.css: a .gap is a

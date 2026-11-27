@@ -1,3 +1,4 @@
+// @ts-check
 //
 // Riders on this device
 //

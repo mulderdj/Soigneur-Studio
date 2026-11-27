@@ -1,3 +1,4 @@
+// @ts-check
 import { xf } from '../functions.js';
 import './connection-switch.js';
 import './data-views.js';
@@ -39,7 +40,7 @@ let trainingLoaded = null;
 function loadTraining() {
     if(!trainingLoaded) {
         trainingLoaded = import('./training/training-page.js').then(() => {
-            document.querySelector('training-page')?.onShow?.();
+            /** @type {any} */ (document.querySelector('training-page'))?.onShow?.();
         });
     }
     return trainingLoaded;
@@ -54,6 +55,7 @@ function loadAnalysis() {
             import('./analysis/ride-source.js'),
         ]).then(([{RidePage}, {rideSource}]) => {
             RidePage.source = rideSource;
+            /** @type {any} */
             const el = document.querySelector('ride-page');
             if(pendingRide) {
                 const {id, from} = pendingRide;
@@ -75,7 +77,7 @@ xf.sub('db:page', page => {
 if(typeof window !== 'undefined') {
     window.addEventListener('ride:open', e => {
         if(!customElements.get('ride-page')) {
-            pendingRide = e.detail;
+            pendingRide = /** @type {CustomEvent} */ (e).detail;
             loadAnalysis();
         }
     });

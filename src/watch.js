@@ -1,3 +1,4 @@
+// @ts-check
 import { equals, exists, empty, first, last, xf, avg, max, toFixed, print, } from './functions.js';
 import { kphToMps, mpsToKph, timeDiff, pad } from './utils.js';
 import { models } from './models/models.js';
@@ -34,6 +35,10 @@ class Watch {
         this.hasBeenAutoPaused = false;
         this.autoPause         = true;
         this.autoStart         = true;
+        /** @type {number|undefined} */
+        this.lapDuration = undefined;
+        /** @type {any} */
+        this.points = undefined;
         this.init();
     }
     init() {

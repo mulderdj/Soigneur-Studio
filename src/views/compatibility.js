@@ -1,3 +1,4 @@
+// @ts-check
 //
 // Why the trainer and sensors can't connect in this browser, and what to do.
 // Bluetooth is missing for three different reasons, which need different

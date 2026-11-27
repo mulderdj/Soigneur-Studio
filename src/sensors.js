@@ -1,3 +1,4 @@
+// @ts-check
 //
 // Saved sensors
 //
@@ -40,7 +41,7 @@ function write(state) {
 }
 
 function canReconnect() {
-    return typeof navigator !== 'undefined' && typeof navigator.bluetooth?.getDevices === 'function';
+    return typeof navigator !== 'undefined' && typeof /** @type {any} */ (navigator).bluetooth?.getDevices === 'function';
 }
 
 function list() {

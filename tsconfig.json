@@ -27,6 +27,12 @@
     "src/views/charts/live-chart-data.js",
     "src/views/toast.js",
     "src/views/confirm.js",
+    "src/views/*.js",
+    "src/models/**/*.js",
+    "src/storage/**/*.js",
+    "src/workouts/**/*.js",
+    "src/account/**/*.js",
+    "src/*.js",
     "server/**/*.js"
   ],
   "exclude": [

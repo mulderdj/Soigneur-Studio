@@ -1,3 +1,4 @@
+// @ts-check
 //
 // <sensor-tray>: in the Ride header after the trainer and heart rate, the
 // other sensors, each only while it is connected or connecting: an icon with
@@ -28,7 +29,8 @@ class SensorTray extends HTMLElement {
             xf.sub(`${id}:disconnected`, () => this.set(id, 'off'));
         }
         this.addEventListener('click', e => {
-            const b = e.target.closest('[data-sensor], [data-more]');
+            /** @type {HTMLElement|null} */
+            const b = /** @type {Element} */ (e.target).closest('[data-sensor], [data-more]');
             if(!b) return;
             if(b.dataset.more !== undefined) xf.dispatch('ui:sensor-panel', {for: 'more', ids: this.more, anchor: b});
             else xf.dispatch('ui:sensor-panel', {for: b.dataset.sensor, anchor: b});

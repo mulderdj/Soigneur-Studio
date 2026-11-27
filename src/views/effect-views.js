@@ -1,9 +1,11 @@
+// @ts-check
 import { xf, exists, equals } from '../functions.js';
 import { models } from '../models/models.js';
 
 class IntInput extends HTMLInputElement {
     constructor() {
         super();
+        /** @type {any} */
         this.state = 0;
         this.prop = this.getAttribute('prop');
         this.effect = this.getAttribute('effect');
@@ -108,6 +110,7 @@ class SetButton extends HTMLButtonElement {
         super();
         this.effect = this.getAttribute('effect');
         this.prop = this.getAttribute('prop');
+        /** @type {any} */
         this.state = 0;
     }
     connectedCallback() {

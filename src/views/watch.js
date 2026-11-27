@@ -1,3 +1,4 @@
+// @ts-check
 import { xf } from '../functions.js';
 
 class Watch extends HTMLElement {
@@ -14,7 +15,7 @@ class Watch extends HTMLElement {
             pause:   document.querySelector('#watch-pause'),
             back:    document.querySelector('#watch-back'),
             lap:     document.querySelector('#watch-lap'),
-            stop:    document.querySelector('#watch-stop'),
+            stop:    /** @type {HTMLElement} */ (document.querySelector('#watch-stop')),
             save:    document.querySelector('#activity-save'),
             // workout: document.querySelector('#start-workout'),
         };

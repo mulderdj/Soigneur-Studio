@@ -1,3 +1,4 @@
+// @ts-check
 import { xf, exists, empty, equals, debounce, escapeHtml } from '../functions.js';
 import { models } from '../models/models.js';
 import { intervalsToGraph, courseToGraph, renderInfo } from './workout-graph.js';
@@ -147,6 +148,7 @@ class WorkoutListItem extends HTMLElement {
         const self = this;
         this.infoCont = this.querySelector('.workout--info');
         this.summary = this.querySelector('.workout--summary');
+        /** @type {HTMLElement} */
         this.description = this.querySelector('.workout--full-info');
         this.selectBtn = this.querySelector('.workout--select');
         this.optionsBtn = this.querySelector('.workout--options');

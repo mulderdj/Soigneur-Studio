@@ -1,3 +1,4 @@
+// @ts-check
 import { xf, equals, exists, existance, } from '../functions.js';
 import { models } from '../models/models.js';
 import { confirmAction } from './confirm.js';
