@@ -75,85 +75,130 @@
     margin-bottom: 0;
 }
 
-.device-card {
-    padding: var(--space-2) var(--space-3);
+.card.device-card {
+    padding: 0;
 }
 
-.device-card--header {
+.device-card--head {
     display: flex;
     align-items: center;
-    justify-content: space-between;
-    gap: var(--space-2);
-    margin-bottom: var(--space-2);
+    gap: var(--space-3);
+    min-height: 54px;
+    padding: var(--space-1) var(--space-3) var(--space-1) var(--space-1);
+    list-style: none;
+    cursor: pointer;
 }
 
-.device-card--header > div:empty {
+.device-card--head::-webkit-details-marker {
     display: none;
 }
 
-.device-card--header .card__title {
-    margin: 0;
+.device-card--static .device-card--head {
+    cursor: default;
+}
+
+.device-card--info {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-half);
+}
+
+.device-card--title {
+    color: var(--ink);
     font-size: var(--text-m);
-}
-
-.device-card--body {
-    display: grid;
-    gap: var(--space-1);
-}
-
-.device-card--body--row {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(84px, 1fr));
-    align-items: stretch;
-    gap: var(--space-1);
-}
-
-.device-card .tile {
-    min-height: 64px;
-    padding: var(--space-2);
-    background-color: var(--surface-2);
-}
-
-/* upstream spacer tiles */
-.device-card .tile:empty {
-    display: none;
-}
-
-.device-card .tile.name {
-    grid-column: span 2;
-}
-
-.device-card .tile__value {
-    font-size: var(--text-l);
+    font-weight: var(--weight-bold);
+    line-height: 1.2;
+    white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
 }
 
-.device-card .tile.name .tile__value {
-    font-family: var(--font-text);
-    font-size: var(--text-m);
+.device-card--name {
+    display: block;
+    color: var(--muted);
+    font-size: var(--text-xs);
+    line-height: 1.2;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
-/* connect button with its status dot */
-.connection-icon-switch {
+.device-card--meta {
+    flex: none;
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-2);
+}
+
+.device-card--chevron {
+    flex: none;
+    width: 20px;
+    height: 20px;
+    fill: var(--muted);
+    transition: transform var(--ease);
+}
+
+details.device-card[open] .device-card--chevron {
+    transform: rotate(180deg);
+}
+
+.device-card--body {
+    display: grid;
+    gap: var(--space-2);
+    padding: var(--space-2) var(--space-3) var(--space-3);
+    border-top: var(--line-w) solid var(--line);
+}
+
+.device-card--sources {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--space-2);
+}
+
+@media (min-width: 520px) {
+    .device-card--sources {
+        grid-template-columns: repeat(auto-fill, minmax(136px, 1fr));
+    }
+}
+
+.device-card--ant {
+    display: grid;
+    gap: var(--space-2);
+    padding-top: var(--space-2);
+    border-top: var(--line-w) solid var(--line);
+}
+
+.device-card--ant-head {
     display: flex;
-    flex-direction: column;
+    align-items: center;
+    gap: var(--space-3);
+}
+
+/* connect button with its live status dot */
+.connection-icon-switch {
+    position: relative;
+    flex: none;
+    display: inline-flex;
     align-items: center;
     justify-content: center;
-    gap: var(--space-2);
-    min-height: var(--tap);
-    border-radius: var(--radius-m);
+    width: var(--tap);
+    height: var(--tap);
+    border: var(--line-w) solid var(--line);
+    border-radius: var(--radius-s);
     background-color: var(--surface-2);
     cursor: pointer;
+    transition: background-color var(--ease), border-color var(--ease);
 }
 
 .connection-icon-switch:hover {
-    background-color: var(--line);
+    border-color: var(--muted);
 }
 
 .connection-icon-switch--icon {
-    width: 24px;
-    height: 24px;
+    width: 22px;
+    height: 22px;
     fill: var(--ink);
 }
 
@@ -162,10 +207,14 @@
 }
 
 .connection-icon-switch--indicator {
-    width: 10px;
-    height: 10px;
+    position: absolute;
+    right: 5px;
+    bottom: 5px;
+    width: 9px;
+    height: 9px;
     border-radius: var(--radius-pill);
     background-color: var(--muted);
+    box-shadow: 0 0 0 2px var(--surface-2);
 }
 
 .connection-icon-switch--indicator.on,
@@ -174,24 +223,67 @@
 .connection-icon-switch--indicator.off,
 .connection-icon-switch--indicator.fail    { background-color: var(--danger); }
 
-/* the data sources each tile can feed into the ride */
+/* compact data-source toggle pills */
 .source-switch {
     display: flex;
-    flex-direction: column;
+    align-items: center;
     justify-content: space-between;
-    gap: var(--space-1);
-    min-height: 100%;
+    gap: var(--space-2);
+    min-width: 0;
+    min-height: 50px;
+    padding: var(--space-1) var(--space-2);
+    border: var(--line-w) solid transparent;
+    border-radius: var(--radius-s);
+    background-color: var(--surface-2);
     color: var(--muted);
     cursor: pointer;
+    transition: border-color var(--ease), color var(--ease);
+}
+
+.source-switch:hover {
+    border-color: var(--line);
 }
 
 .source-switch.active {
+    border-color: var(--line);
     color: var(--ink);
 }
 
+.source-switch--info {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-half);
+}
+
+.source-switch--label {
+    color: var(--muted);
+    font-size: var(--text-xs);
+    font-weight: var(--weight-medium);
+    line-height: 1.2;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.source-switch--value {
+    display: block;
+    min-width: 0;
+    font-family: var(--font-num);
+    font-size: var(--text-l);
+    font-weight: var(--weight-bold);
+    font-variant-numeric: tabular-nums;
+    line-height: 1.1;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
 .toggle--button {
-    width: 34px;
-    height: 20px;
+    flex: none;
+    width: 30px;
+    height: 18px;
     color: var(--muted);
 }
 
@@ -205,10 +297,14 @@
 battery-level {
     position: relative;
     flex: none;
-    width: 28px;
-    height: 14px;
+    width: 26px;
+    height: 13px;
     border: var(--focus-w) solid transparent;
     border-radius: 3px;
+}
+
+battery-level:not(.ok):not(.low):not(.critical) {
+    display: none;
 }
 
 battery-level .battery--level {
@@ -220,9 +316,9 @@ battery-level::before {
     content: "";
     position: absolute;
     left: -5px;
-    top: 3px;
+    top: 2px;
     width: 3px;
-    height: 4px;
+    height: 5px;
 }
 
 battery-level.ok        { border-color: var(--ink); }
