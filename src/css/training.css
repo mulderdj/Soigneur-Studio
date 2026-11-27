@@ -16,7 +16,7 @@
     display: grid;
     grid-template-columns: repeat(12, minmax(0, 1fr));
     grid-auto-flow: row dense;
-    align-items: start;
+    align-items: stretch;
     gap: var(--space-2);
     text-align: left;
 }
@@ -27,13 +27,17 @@
     flex-direction: column;
 }
 
+.training > [data-tile] .uc-plot,
+.training > [data-tile] .tc-plot {
+    flex: 1 1 auto;
+}
+
 .training > [data-tile][data-h]:not([data-h="1"]) {
     min-height: calc(var(--row-span, 1) * var(--tr-row-h));
 }
 
 .training > [data-tile][data-h]:not([data-h="1"]) .uc-plot,
 .training > [data-tile][data-h]:not([data-h="1"]) .tc-plot {
-    flex: 1 1 auto;
     min-height: calc(var(--row-span, 1) * 140px);
 }
 
@@ -103,6 +107,7 @@
 .rd-reasons li:first-child::before { background-color: var(--rd-color); }
 
 .rd-plan {
+    margin-top: auto;
     padding-top: var(--space-2);
     border-top: var(--line-w) solid var(--line);
     font-size: var(--text-s);
