@@ -1,7 +1,7 @@
 //
 // Desktop training dashboard
 //
-// <live-chart>      canvas chart of power (zone coloured), target, heart rate, cadence
+// <live-chart>      uPlot chart of power (zone coloured), target, heart rate, cadence, W′bal
 // <training-stats>  live session statistics: interval, load, power, heart, zones, best efforts
 //
 // Both read from a single SessionStats instance that is fed one sample per
@@ -14,6 +14,9 @@ import { riders } from '../riders.js';
 import { SessionStats, zoneIndex, ZONES, DEFAULT_WPRIME } from '../analytics.js';
 import { currentLayout, chartRangeFor } from './layout.js';
 import { ChartTooltip } from './charts/tooltip.js';
+import {
+    RANGES, SERIES, fmtTime, powerMax, powerSplits, hrBounds, hrTicks, buildLiveData,
+} from './charts/live-chart-data.js';
 
 // --- session feed ---------------------------------------------------------
 
@@ -124,16 +127,6 @@ xf.sub('workout:restore', () => {
 
 // --- helpers --------------------------------------------------------------
 
-function fmtTime(seconds) {
-    seconds = Math.max(0, Math.round(seconds));
-    const h = Math.floor(seconds / 3600);
-    const m = Math.floor((seconds % 3600) / 60);
-    const s = seconds % 60;
-    const mm = String(m).padStart(h > 0 ? 2 : 1, '0');
-    const ss = String(s).padStart(2, '0');
-    return h > 0 ? `${h}:${mm}:${ss}` : `${mm}:${ss}`;
-}
-
 function n0(x) { return x > 0 ? Math.round(x).toString() : '--'; }
 function n1(x) { return x > 0 ? x.toFixed(1) : '--'; }
 function n2(x) { return x > 0 ? x.toFixed(2) : '--'; }
@@ -175,19 +168,15 @@ xf.sub('app:start', () => {
 
 // --- <live-chart> ---------------------------------------------------------
 
-const RANGES = [
-    {key: '5',   label: '5 min',  seconds: 300},
-    {key: '20',  label: '20 min', seconds: 1200},
-    {key: 'all', label: 'Whole ride', seconds: Infinity},
-];
+// Series order inside uPlot's AlignedData: [x, power, wbal, target, cadence, hr]
+// Power is first so the lines draw on top of the zone-coloured columns.
+const SERIES_INDEX = {power: 1, wbal: 2, target: 3, cadence: 4, hr: 5};
 
-const SERIES = [
-    {key: 'power',   label: 'Power'},
-    {key: 'target',  label: 'Target'},
-    {key: 'hr',      label: 'Heart rate'},
-    {key: 'cadence', label: 'Cadence'},
-    {key: 'wbal',    label: 'W′bal'},
-];
+let uplotPromise = null;
+function loadUPlot() {
+    if(!uplotPromise) uplotPromise = import('uplot').then(m => m.default ?? m);
+    return uplotPromise;
+}
 
 function loadPrefs() {
     try {
@@ -199,11 +188,19 @@ function savePrefs(prefs) {
 }
 
 class LiveChart extends HTMLElement {
+    // Tests may inject a uPlot constructor directly; in the browser uPlot is
+    // dynamically imported so it stays in its own code-split chunk.
+    static uPlot = null;
+
     connectedCallback() {
         const prefs = loadPrefs();
         this.range = prefs.range ?? '20';
         this.visible = Object.assign({power: true, target: true, hr: true, cadence: false, wbal: true}, prefs.visible ?? {});
-        this.hoverX = null;
+        this._xMin = 0;
+        this._xMax = 1200;
+        this._step = 1;
+        this._hasHr = false;
+        this._colors = null;
 
         this.innerHTML = `
             <div class="lc--bar">
@@ -222,56 +219,47 @@ class LiveChart extends HTMLElement {
                 </div>
             </div>
             <div class="lc--plot">
-                <canvas class="lc--canvas"></canvas>
+                <div class="lc--stage"></div>
                 <div class="lc--empty">Start the clock and your ride is drawn here, second by second.</div>
                 <div class="lc--tip" hidden></div>
             </div>`;
 
-        this.$canvas = this.querySelector('canvas');
         this.$plot   = this.querySelector('.lc--plot');
+        this.$stage  = this.querySelector('.lc--stage');
         this.$empty  = this.querySelector('.lc--empty');
         this.$tip    = this.querySelector('.lc--tip');
         this.tooltip = new ChartTooltip(this.$tip, {owner: this});
-        this.ctx     = this.$canvas.getContext('2d');
 
         this.querySelector('.lc--legend').addEventListener('click', e => {
             const b = e.target.closest('[data-series]');
             if(!b) return;
             const k = b.dataset.series;
             this.visible[k] = !this.visible[k];
-            b.setAttribute('aria-pressed', this.visible[k]);
+            b.setAttribute('aria-pressed', String(this.visible[k]));
             this.persist();
-            this.draw();
+            const idx = SERIES_INDEX[k];
+            if(this.plot && idx) this.plot.setSeries(idx, {show: this.visible[k]});
         });
         this.querySelector('.lc--range').addEventListener('click', e => {
             const b = e.target.closest('[data-range]');
             if(!b) return;
             this.range = b.dataset.range;
             this.querySelectorAll('[data-range]').forEach(x =>
-                x.setAttribute('aria-pressed', x.dataset.range === this.range));
+                x.setAttribute('aria-pressed', String(x.dataset.range === this.range)));
             this.persist();
-            this.draw();
+            this.update();
         });
 
-        this.$canvas.addEventListener('pointermove', e => {
-            const r = this.$canvas.getBoundingClientRect();
-            this.hoverX = e.clientX - r.left;
-            this.draw();
-        });
-        this.$canvas.addEventListener('pointerleave', () => {
-            this.hoverX = null;
-            this.tooltip?.hide();
-            this.draw();
-        });
-
-        this.ro = new ResizeObserver(() => this.resize());
+        this.ro = new ResizeObserver(() => this.onResize());
         this.ro.observe(this.$plot);
 
-        this.onUpdate = () => this.draw();
+        this.onUpdate = () => this.update();
         this.handler = xf.sub('analytics:update', this.onUpdate);
-        this.themeObserver = new MutationObserver(() => this.draw());
+        this.themeObserver = new MutationObserver(() => this.rebuild());
         this.themeObserver.observe(document.body, {attributes: true, attributeFilter: ['class']});
-        this.resize();
+
+        this.syncEmpty();
+        this.ensurePlot();
     }
 
     disconnectedCallback() {
@@ -279,216 +267,326 @@ class LiveChart extends HTMLElement {
         this.ro?.disconnect();
         this.themeObserver?.disconnect();
         xf.unsub('analytics:update', this.handler);
+        this.plot?.destroy();
+        this.plot = null;
     }
 
     persist() {
         savePrefs({range: this.range, visible: this.visible});
     }
 
-    resize() {
-        const r = this.$plot.getBoundingClientRect();
-        if(r.width === 0 || r.height === 0) return;
-        const dpr = window.devicePixelRatio || 1;
-        this.w = r.width;
-        this.h = r.height;
-        this.$canvas.width = Math.round(r.width * dpr);
-        this.$canvas.height = Math.round(r.height * dpr);
-        this.$canvas.style.width = `${r.width}px`;
-        this.$canvas.style.height = `${r.height}px`;
-        this.ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-        this.draw();
-    }
-
-    // reduce [start, end) samples to one bucket per pixel column
-    buckets(start, end, cols) {
-        const span = end - start;
-        const per = Math.max(1, span / cols);
-        const out = [];
-        for(let c = 0; c * per < span; c++) {
-            const a = start + Math.floor(c * per);
-            const b = Math.min(end, start + Math.floor((c + 1) * per));
-            if(b <= a) continue;
-            let p = 0, t = 0, h = 0, hc = 0, cd = 0, cc = 0, wb = 0;
-            for(let i = a; i < b; i++) {
-                p += session.power[i];
-                wb += session.wbalSeries[i] ?? 0;
-                t += session.target[i];
-                if(session.hr[i] > 0) { h += session.hr[i]; hc++; }
-                if(session.cadence[i] > 0) { cd += session.cadence[i]; cc++; }
-            }
-            const len = b - a;
-            out.push({i: a, power: p / len, target: t / len, hr: hc ? h / hc : 0, cadence: cc ? cd / cc : 0, wbal: wb / len});
-        }
-        return out;
-    }
-
-    draw() {
-        if(!this.ctx || !this.w) return;
-        const ctx = this.ctx, W = this.w, H = this.h;
-        ctx.clearRect(0, 0, W, H);
-
+    syncEmpty() {
         const n = session.count;
-        this.$empty.hidden = n > 0;
+        if(this.$empty) this.$empty.hidden = n > 0;
         this.dataset.samples = String(n);
+    }
 
-        const ink   = cssVar(this, '--ink', '#E8EDF3');
-        const muted = cssVar(this, '--muted', '#8A96A6');
-        const line  = cssVar(this, '--line', '#2A3442');
-        const hrCol = cssVar(this, '--hr', '#FF5C7A');
-        const cdCol = cssVar(this, '--cadence', '#B38CFF');
-        const wbCol = cssVar(this, '--wbal', '#39D0E8');
-        const zoneCols = ['--zone-1', '--zone-2', '--zone-3', '--zone-4',
-                          '--zone-5', '--zone-6', '--zone-7']
-              .map(v => cssVar(document.body, v, '#888'));
+    size() {
+        const r = this.$plot?.getBoundingClientRect();
+        const width = Math.floor(r?.width || this.$plot?.clientWidth || 0);
+        const height = Math.floor(r?.height || this.$plot?.clientHeight || 0);
+        return {width, height};
+    }
 
-        const padL = 44, padR = 40, padT = 10, padB = 24;
-        const pw = W - padL - padR, ph = H - padT - padB;
+    colors() {
+        return {
+            ink:   cssVar(this, '--ink', '#E8EDF3'),
+            muted: cssVar(this, '--muted', '#8A96A6'),
+            line:  cssVar(this, '--line', '#2A3442'),
+            hr:    cssVar(this, '--hr', '#FF5C7A'),
+            cadence: cssVar(this, '--cadence', '#B38CFF'),
+            wbal:  cssVar(this, '--wbal', '#39D0E8'),
+            font:  `12px ${cssVar(this, '--font-text', '"Barlow", system-ui, sans-serif')}`,
+            zones: ['--zone-1', '--zone-2', '--zone-3', '--zone-4',
+                    '--zone-5', '--zone-6', '--zone-7']
+                .map(v => cssVar(document.body, v, '#888')),
+        };
+    }
 
+    prepareData() {
         const rangeKey = chartRangeFor(currentLayout(), this.range);
-        const range = RANGES.find(r => r.key === rangeKey) ?? RANGES[1];
-        const windowSec = Number.isFinite(range.seconds) ? range.seconds : Math.max(n, 300);
-        const start = Math.max(0, n - windowSec);
-        const data = this.buckets(start, n, Math.max(1, Math.floor(pw)));
-        const xOf = i => padL + ((i - start) / windowSec) * pw;
-        const colW = Math.max(1, pw / windowSec * Math.max(1, (n - start) / Math.max(1, data.length)));
+        const prepared = buildLiveData(session, rangeKey);
+        this._xMin = prepared.xMin;
+        this._xMax = prepared.xMax;
+        this._step = prepared.step;
+        this._hasHr = prepared.hasHr;
+        return prepared.data;
+    }
 
-        // scales
-        const ftp = session.ftp;
-        let pMax = ftp * 1.3;
-        data.forEach(d => { pMax = Math.max(pMax, d.power, d.target); });
-        pMax = Math.ceil(pMax / 50) * 50;
-        const yP = v => padT + ph - (v / pMax) * ph;
-
-        let hMin = 80, hMax = 190;
-        const hrs = data.map(d => d.hr).filter(x => x > 0);
-        if(hrs.length) {
-            hMin = Math.max(40, Math.floor((Math.min(...hrs) - 10) / 10) * 10);
-            hMax = Math.max(hMin + 40, Math.ceil((Math.max(...hrs) + 10) / 10) * 10);
+    ensurePlot() {
+        if(!this.isConnected || this.plot) return;
+        const {width, height} = this.size();
+        if(!(width > 0 && height > 0)) return;
+        if(LiveChart.uPlot) {
+            this.build(LiveChart.uPlot, width, height);
+            return;
         }
-        const yH = v => padT + ph - ((v - hMin) / (hMax - hMin)) * ph;
-        const yC = v => padT + ph - (v / 140) * ph;
-        const W0 = session.wprime;
-        const yW = v => padT + ph - (Math.max(0, Math.min(W0, v)) / W0) * ph;
+        if(this._loading) return;
+        this._loading = true;
+        loadUPlot().then(U => {
+            this._loading = false;
+            if(!this.isConnected || this.plot) return;
+            const sz = this.size();
+            if(sz.width > 0 && sz.height > 0) this.build(U, sz.width, sz.height);
+        }).catch(() => { this._loading = false; });
+    }
 
-        ctx.font = '13px "Barlow", system-ui, sans-serif';
-        ctx.textBaseline = 'middle';
-
-        // gridlines at FTP fractions
-        let lastLabelY = Infinity;
-        [1.0, 0.75, 0.5, 1.25].sort((a, b) => a - b).forEach(f => {
-            const v = ftp * f;
-            if(v > pMax) return;
-            const yy = yP(v);
-            const showLabel = Math.abs(lastLabelY - yy) >= 16;
-            if(showLabel) lastLabelY = yy;
-            const y = Math.round(yP(v)) + 0.5;
-            ctx.strokeStyle = line;
-            ctx.lineWidth = 1;
-            ctx.setLineDash(f === 1 ? [6, 4] : []);
-            ctx.beginPath(); ctx.moveTo(padL, y); ctx.lineTo(W - padR, y); ctx.stroke();
-            ctx.setLineDash([]);
-            if(!showLabel) return;
-            ctx.fillStyle = f === 1 ? ink : muted;
-            ctx.textAlign = 'right';
-            ctx.fillText(f === 1 ? `FTP` : `${Math.round(v)}`, padL - 6, y);
-        });
-
-        // time axis
-        ctx.fillStyle = muted;
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'top';
-        const step = windowSec <= 300 ? 60 : windowSec <= 1200 ? 300 : windowSec <= 3600 ? 600 : 1800;
-        for(let t = Math.ceil(start / step) * step; t <= start + windowSec; t += step) {
-            const x = xOf(t);
-            if(x < padL + 10 || x > W - padR - 10) continue;
-            ctx.fillText(fmtTime(t), x, padT + ph + 6);
+    onResize() {
+        const {width, height} = this.size();
+        if(!(width > 0 && height > 0)) return;
+        if(!this.plot) {
+            this.ensurePlot();
+            return;
         }
-        ctx.textBaseline = 'middle';
+        this.plot.setSize({width, height});
+    }
 
-        if(n === 0) return;
+    rebuild() {
+        if(!this.isConnected) return;
+        const U = LiveChart.uPlot ?? this._U;
+        if(!U) { this.ensurePlot(); return; }
+        const {width, height} = this.size();
+        if(!(width > 0 && height > 0)) return;
+        this.build(U, width, height);
+    }
 
-        // power columns coloured by zone
-        if(this.visible.power) {
-            ctx.globalAlpha = 0.9;
-            data.forEach(d => {
-                if(d.power <= 0) return;
-                ctx.fillStyle = zoneCols[zoneIndex(d.power, ftp)];
-                const x = xOf(d.i);
-                const y = yP(d.power);
-                ctx.fillRect(x, y, Math.max(1, colW - (colW > 3 ? 1 : 0)), padT + ph - y);
-            });
-            ctx.globalAlpha = 1;
-        }
+    build(U, width, height) {
+        this._U = U;
+        this.tooltip?.hide();
+        this.plot?.destroy();
+        this.plot = null;
+        this.$stage.innerHTML = '';
 
-        const path = (key, yFn, color, width, dash = []) => {
-            ctx.strokeStyle = color;
-            ctx.lineWidth = width;
-            ctx.setLineDash(dash);
-            ctx.lineJoin = 'round';
-            ctx.beginPath();
-            let pen = false;
-            data.forEach(d => {
-                const v = d[key];
-                if(!(v > 0)) { pen = false; return; }
-                const x = xOf(d.i) + colW / 2, y = yFn(v);
-                pen ? ctx.lineTo(x, y) : ctx.moveTo(x, y);
-                pen = true;
-            });
-            ctx.stroke();
-            ctx.setLineDash([]);
+        const c = this._colors = this.colors();
+        const data = this.prepareData();
+        const axisBase = {stroke: c.muted, font: c.font, ticks: {show: false}};
+
+        const opts = {
+            width,
+            height,
+            legend: {show: false},
+            padding: [10, 8, 0, 0],
+            scales: {
+                x:    {time: false, auto: false, range: () => [this._xMin, this._xMax]},
+                w:    {auto: true,  range: (u, min, max) => [0, powerMax(session.ftp, max)]},
+                wbal: {auto: false, range: () => [0, Math.max(1, session.wprime)]},
+                rpm:  {auto: false, range: (u, min, max) => [0, Math.max(140, Number.isFinite(max) ? max : 0)]},
+                bpm:  {auto: true,  range: (u, min, max) => hrBounds(min, max)},
+            },
+            series: [
+                {},
+                {
+                    label: 'Power', scale: 'w', show: this.visible.power,
+                    stroke: 'transparent', width: 0, paths: () => null,
+                    points: {show: false},
+                },
+                {
+                    label: 'W′bal', scale: 'wbal', show: this.visible.wbal,
+                    stroke: c.wbal, width: 2, spanGaps: false,
+                    points: {show: false},
+                },
+                {
+                    label: 'Target', scale: 'w', show: this.visible.target,
+                    stroke: c.ink, width: 2, dash: [5, 3], spanGaps: false,
+                    points: {show: false},
+                },
+                {
+                    label: 'Cadence', scale: 'rpm', show: this.visible.cadence,
+                    stroke: c.cadence, width: 1.5, spanGaps: false,
+                    points: {show: false},
+                },
+                {
+                    label: 'Heart rate', scale: 'bpm', show: this.visible.hr,
+                    stroke: c.hr, width: 2, spanGaps: false,
+                    points: {show: false},
+                },
+            ],
+            axes: [
+                {
+                    ...axisBase,
+                    size: 26,
+                    grid: {show: false},
+                    incrs: [30, 60, 120, 300, 600, 900, 1800, 3600],
+                    values: (u, vals) => vals.map(fmtTime),
+                },
+                {
+                    ...axisBase,
+                    scale: 'w',
+                    size: 44,
+                    grid: {stroke: c.line, width: 1},
+                    splits: (u, axisIdx, scaleMin, scaleMax) => powerSplits(session.ftp, scaleMax),
+                    values: (u, vals) => vals.map(v =>
+                        session.ftp > 0 && Math.abs(v - session.ftp) < 1 ? 'FTP' : String(Math.round(v))),
+                },
+                {
+                    ...axisBase,
+                    scale: 'bpm',
+                    side: 1,
+                    size: 38,
+                    stroke: c.hr,
+                    grid: {show: false},
+                    splits: (u, axisIdx, scaleMin, scaleMax) => {
+                        if(!this.visible.hr || !this._hasHr) return [];
+                        const dpr = window.devicePixelRatio || 1;
+                        return hrTicks(scaleMin, scaleMax, (u.bbox?.height ?? 0) / dpr);
+                    },
+                    values: (u, vals) => vals.map(v => String(Math.round(v))),
+                },
+            ],
+            cursor: {
+                drag: {x: false, y: false},
+                y: false,
+                points: {
+                    size: 6,
+                    fill: (u, sidx) => {
+                        if(sidx === 1) {
+                            const i = u.cursor?.idx;
+                            const p = i != null ? u.data[1]?.[i] : null;
+                            return p > 0 ? c.zones[zoneIndex(p, session.ftp)] : c.muted;
+                        }
+                        return u.series[sidx]?.stroke ?? c.ink;
+                    },
+                },
+            },
+            hooks: {
+                drawAxes: [u => this.drawFtpLine(u)],
+                drawSeries: [(u, sidx) => { if(sidx === 1) this.drawZoneBars(u); }],
+                setCursor: [u => this.showTip(u)],
+            },
         };
 
-        // W'bal: full height = W' full, bottom = empty
-        if(this.visible.wbal) {
-            ctx.strokeStyle = wbCol;
-            ctx.lineWidth = 2;
+        this.plot = new U(opts, data, this.$stage);
+        this.plot.setScale?.('x', {min: this._xMin, max: this._xMax});
+        this.bindPlotEvents();
+        this.syncEmpty();
+    }
+
+    bindPlotEvents() {
+        const over = this.plot?.over;
+        if(!over) return;
+        const touchDevice = typeof matchMedia === 'function' && matchMedia('(hover: none)').matches;
+        over.addEventListener('mouseleave', () => { if(!touchDevice) this.tooltip?.hide(); });
+
+        const scrub = e => {
+            const t = e.touches?.[0];
+            if(!t || !this.plot) return;
+            const r = over.getBoundingClientRect();
+            this.plot.setCursor({left: t.clientX - r.left, top: t.clientY - r.top});
+        };
+        let start = null;
+        over.addEventListener('touchstart', e => {
+            const t = e.touches?.[0];
+            start = t ? {x: t.clientX, y: t.clientY} : null;
+            scrub(e);
+        }, {passive: true});
+        over.addEventListener('touchmove', e => {
+            const t = e.touches?.[0];
+            if(!t || !start || Math.abs(t.clientY - start.y) > Math.abs(t.clientX - start.x)) return;
+            scrub(e);
+            e.preventDefault();
+        }, {passive: false});
+        over.style.touchAction = 'pan-y';
+    }
+
+    update() {
+        this.syncEmpty();
+        if(!this.plot) {
+            this.ensurePlot();
+            return;
+        }
+        const data = this.prepareData();
+        const apply = () => {
+            this.plot.setData(data, true);
+            this.plot.setScale?.('x', {min: this._xMin, max: this._xMax});
+        };
+        if(typeof this.plot.batch === 'function') this.plot.batch(apply);
+        else apply();
+    }
+
+    drawFtpLine(u) {
+        const ftp = session.ftp;
+        if(!(ftp > 0) || !u.ctx || !u.bbox) return;
+        const y = Math.round(u.valToPos(ftp, 'w', true)) + 0.5;
+        if(y < u.bbox.top || y > u.bbox.top + u.bbox.height) return;
+        const dpr = window.devicePixelRatio || 1;
+        const ctx = u.ctx;
+        ctx.save();
+        ctx.strokeStyle = this._colors?.muted ?? '#8A96A6';
+        ctx.lineWidth = Math.max(1, Math.round(dpr));
+        ctx.setLineDash([6 * dpr, 4 * dpr]);
+        ctx.beginPath();
+        ctx.moveTo(u.bbox.left, y);
+        ctx.lineTo(u.bbox.left + u.bbox.width, y);
+        ctx.stroke();
+        ctx.restore();
+    }
+
+    drawZoneBars(u) {
+        const xs = u.data?.[0];
+        const ps = u.data?.[1];
+        if(!xs?.length || !ps || !u.ctx || !u.bbox) return;
+        const span = Math.max(1, (u.scales.x.max ?? 1) - (u.scales.x.min ?? 0));
+        const dpr = window.devicePixelRatio || 1;
+        const rawW = (this._step || 1) * (u.bbox.width / span);
+        const barW = Math.max(1, rawW - (rawW > 3 * dpr ? dpr : 0));
+        const baseY = u.bbox.top + u.bbox.height;
+        const ftp = session.ftp;
+        const zones = this._colors?.zones ?? [];
+        const byZone = [[], [], [], [], [], [], []];
+
+        for(let i = 0; i < xs.length; i++) {
+            const p = ps[i];
+            if(!(p > 0)) continue;
+            const x = u.valToPos(xs[i], 'x', true);
+            const y = u.valToPos(p, 'w', true);
+            const h = baseY - y;
+            if(!(h > 0)) continue;
+            byZone[zoneIndex(p, ftp)].push(x, y, h);
+        }
+
+        const ctx = u.ctx;
+        ctx.save();
+        ctx.globalAlpha = 0.9;
+        for(let z = 0; z < byZone.length; z++) {
+            const rects = byZone[z];
+            if(!rects.length) continue;
+            ctx.fillStyle = zones[z] ?? '#888';
             ctx.beginPath();
-            data.forEach((d, k) => {
-                const x = xOf(d.i) + colW / 2, y = yW(d.wbal);
-                k ? ctx.lineTo(x, y) : ctx.moveTo(x, y);
-            });
-            ctx.stroke();
-        }
-
-        if(this.visible.target)  path('target', yP, ink, 2, [5, 3]);
-        if(this.visible.cadence) path('cadence', yC, cdCol, 1.5);
-        if(this.visible.hr)      path('hr', yH, hrCol, 2);
-
-        // right axis for heart rate
-        if(this.visible.hr && hrs.length) {
-            ctx.fillStyle = hrCol;
-            ctx.textAlign = 'left';
-            const ticks = ph > 120 ? [hMin, Math.round((hMin + hMax) / 2), hMax] : [hMin, hMax];
-            ticks.forEach(v => ctx.fillText(`${v}`, W - padR + 6, yH(v)));
-        }
-
-        // hover crosshair
-        if(this.hoverX !== null && this.hoverX >= padL && this.hoverX <= W - padR) {
-            const i = Math.min(n - 1, Math.max(start, Math.round(start + (this.hoverX - padL) / pw * windowSec)));
-            if(i < n) {
-                const x = Math.round(xOf(i)) + 0.5;
-                ctx.strokeStyle = ink;
-                ctx.globalAlpha = 0.5;
-                ctx.beginPath(); ctx.moveTo(x, padT); ctx.lineTo(x, padT + ph); ctx.stroke();
-                ctx.globalAlpha = 1;
-                const rows = [
-                    `<b>${fmtTime(i + 1)}</b>`,
-                    `Power ${Math.round(session.power[i])} W`,
-                    session.target[i] > 0 ? `Target ${Math.round(session.target[i])} W` : '',
-                    session.hr[i] > 0 ? `Heart rate ${Math.round(session.hr[i])} bpm` : '',
-                    session.cadence[i] > 0 ? `Cadence ${Math.round(session.cadence[i])} rpm` : '',
-                    `W′bal ${(session.wbalSeries[i] / 1000).toFixed(1)} kJ`,
-                ].filter(Boolean);
-                const plotRect = this.$plot.getBoundingClientRect();
-                this.tooltip?.show({
-                    html: rows.join('<br>'),
-                    x: plotRect.left + x,
-                    plotTop: plotRect.top + padT,
-                });
+            for(let j = 0; j < rects.length; j += 3) {
+                ctx.rect(rects[j], rects[j + 1], barW, rects[j + 2]);
             }
-        } else if(this.hoverX !== null) {
-            this.tooltip?.hide();
+            ctx.fill();
         }
+        ctx.restore();
+    }
+
+    showTip(u) {
+        const i = u.cursor?.idx;
+        const xs = u.data?.[0];
+        if(i == null || !xs?.length || !(u.cursor.left >= 0) || u.cursor.left > (u.over?.clientWidth ?? Infinity)) {
+            this.tooltip?.hide();
+            return;
+        }
+        const t = xs[i];
+        const p = u.data[1]?.[i] ?? 0;
+        const wb = u.data[2]?.[i] ?? 0;
+        const tg = u.data[3]?.[i] ?? 0;
+        const cd = u.data[4]?.[i] ?? 0;
+        const hr = u.data[5]?.[i] ?? 0;
+        const rows = [
+            `<b>${fmtTime(Math.round(t) + 1)}</b>`,
+            `Power ${Math.round(p)} W`,
+            tg > 0 ? `Target ${Math.round(tg)} W` : '',
+            hr > 0 ? `Heart rate ${Math.round(hr)} bpm` : '',
+            cd > 0 ? `Cadence ${Math.round(cd)} rpm` : '',
+            `W′bal ${(wb / 1000).toFixed(1)} kJ`,
+        ].filter(Boolean);
+        const over = u.over?.getBoundingClientRect() ?? this.$plot.getBoundingClientRect();
+        this.tooltip?.show({
+            html: rows.join('<br>'),
+            x: over.left + u.cursor.left,
+            plotTop: over.top,
+        });
     }
 }
 
@@ -724,4 +822,4 @@ class TrainingStats extends HTMLElement {
 
 customElements.define('training-stats', TrainingStats);
 
-export { session, setWprime, applyModel, loadWprime };
+export { session, setWprime, applyModel, loadWprime, LiveChart };
