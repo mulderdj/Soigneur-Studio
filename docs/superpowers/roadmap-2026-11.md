@@ -3,19 +3,23 @@
 Date: 2026-11-23
 Status: proposal. Each subproject gets its own spec (brainstorm, written spec, plan) when it starts.
 
-## Where we are
+## Where we are (updated 2026-11-27)
 
-- **Done:**
-  - 1+2: responsive UI and style system
-  - 3a: Training page with form, calendar, plan and progress
-- **Built, live-checked except the two-way plan write:** 3b, intervals.icu history and the two-way plan, on branch `intervals-3b`.
-- **Built, waiting for review:** 12a, the identity (Soigneur Studio: name, icon, About, privacy, README, NOTICE, Docker names) and a fully passing test suite (upstream's 50 failing tests fixed, updated or removed), on branch `soigneur-12a` (on top of `garmin-4`).
-- **Built and live-checked:** 4, Garmin health data and activities, plus a load for every workout (power, HR, RPE, estimate), on branch `garmin-4` (on top of `intervals-3b`).
-- **Built, waiting for review:** interactive charts on the Training page (uPlot: read-outs, zoom, a shared cursor, click to open a day), on branch `charts-uplot` (on top of `soigneur-12a`). The other pages' charts (the ride chart, workout graphs) can move to uPlot later.
-- **Built, waiting for review:** 5, readiness (a daily verdict with reasons on Training; before a hard planned workout on a take-care or rest morning, ride it easier / recovery spin / move, with Undo), on branch `readiness`. Later: after-ride check-in, readiness beside rides in ride analysis, morning HRV with the chest strap.
-- **Merged:** 7, ride analysis (any ride on its own page: chart, intervals and planned against actual, decoupling, W′bal and matches, durability, best efforts, zones; files from Soigneur, Garmin and intervals.icu fetched and kept by the account server), in `main`. Later: readiness beside the ride (5), fitted CP and W′ (6), maps, comparing rides.
-- **Merged:** adjustable tiles and Ride screens (Edit layout on Ride and Training, several swipeable Ride screens, layouts per rider and screen class, synced), in `main`. Later: switching Ride screens automatically (e.g. Big numbers during intervals), new metric tiles (NP, TSS, W′bal).
-- **Docs:** walkthrough with screenshots and screencast (`docs/walkthrough/`).
+- **Merged in `main`:**
+  - **1+2:** responsive UI and style system (CSS layers, z-index tokens, strict CSP, styled in-app confirmation dialog, top-layer toasts, `?` shortcuts modal).
+  - **3a & 3b:** Training page (form with CTL ramp-rate guardrail, calendar, plan, progress) and intervals.icu history + two-way plan sync.
+  - **4:** Garmin Personal API health data and activities, plus unified load for every workout (power, HR, RPE, estimate).
+  - **5:** Readiness (daily verdict with reasons on Training; one-tap workout adjustment on take-care/rest mornings with Undo). Later: after-ride check-in, readiness beside rides in ride analysis, morning HRV with chest strap.
+  - **6 (first parts):** Rider model (best power at 21 durations, fitted CP & W′ feeding W′bal, power profile, fitted curve, and weekly durability tracking after 1,000 / 2,000 / 3,000 kJ via summary v4). Later: CP & W′ trend, comparing with own best.
+  - **7:** Ride analysis (chart, intervals and planned vs actual, decoupling, W′bal and matches, durability, best efforts, zones; files fetched and kept by the account server). Later: readiness beside the ride, maps, comparing rides.
+  - **9 (partial):** Built-in ride tests (ramp, 3 + 12 min, 20 min, 2 × 8 min, sprint) with result screen.
+  - **10 (partial):** Efficiency factor, aerobic decoupling trend (long steady rides), and durability trend cards on Training.
+  - **12a:** Soigneur Studio identity (name, SS bicycle logo, icons, About, privacy, README, NOTICE, Docker names) and passing test suite.
+  - **Charts & layout:** All charts unified on uPlot (Training, Ride Analysis, and lazy-loaded `LiveChart` on Ride); adjustable tiles and swipeable Ride screens.
+  - **AI coach (MCP):** Access tokens, 8 read tools, 5 plan-write tools with guardrails, 3 prompts, and setup guide (`docs/mcp-coach.md`).
+  - **Engineering:** GitHub Actions CI, code-split chunks, and incremental TypeScript `@ts-check`.
+  - **Docs:** Walkthrough with screenshots and screencast (`docs/walkthrough/`).
+- **Waiting for decision:** `abricot-siena-rebased` (Abricot Siena colour palette and line navigation icons, rebased onto `main`).
 
 ## What a serious athlete misses today
 
@@ -92,7 +96,7 @@ Sources:
 - **Later:** a 2-minute morning HRV measurement with the chest strap. Auuki already records beat-to-beat intervals.
 
 ### 6. The model of the rider
-Status (2026-11-24): first part built on branch `rider-model`: best power at 21 durations (1 s to 2 h), fitted CP and W′ (Ask me / Automatically for W′bal), the power profile, and the fitted curve on the power curve. Still to come: durability, the CP and W′ trend, the rider comparing with their own best.
+Status (2026-11-27): merged in `main`: best power at 21 durations (1 s to 2 h), fitted CP and W′ (Ask me / Automatically for W′bal), the power profile, the fitted curve on the power curve, and durability over time (best 5 and 20 min after 1,000 / 2,000 / 3,000 kJ in summary v4, tracked weekly on Training). Still to come: the CP and W′ trend, the rider comparing with their own best.
 
 - **Summary v2:** best power at about 20 durations from 1 s to 2 h, plus best 5 and 20 min after 1,000, 2,000 and 3,000 kJ (durability). Auuki rides are read back from their `.fit`; intervals.icu rides use their power curve; Garmin rides use their file.
 - **Fitted CP and W′** (critical-power model over 2–20 min efforts, recent 90 days). They feed the W′bal panel, which asks first before replacing the typed-in value.
@@ -111,7 +115,7 @@ Status (2026-11-24): first part built on branch `rider-model`: best power at 21 
 ### 8. Season planning
 - **Goal events** with a priority (A, B or C) and a date.
 - **Phases** (base, build, peak, taper) shown on the calendar.
-- **A ramp-rate warning** when fitness climbs more than about 5–8 points a week.
+- ~~**A ramp-rate warning** when fitness climbs more than about 5–8 points a week.~~ Done (on the Form card).
 - **The form forecast aimed at race day**, with the taper's effect.
 
 ### 9. Ride page tools
