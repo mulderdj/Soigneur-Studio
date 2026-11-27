@@ -286,25 +286,43 @@ class RideChart extends HTMLElement {
         const sizes = this.paneSizes(paneSpecs.length);
         this.plots = [];
 
-        paneSpecs.forEach((spec, paneIdx) => {
-            const wrap = document.createElement('div');
-            wrap.className = 'rc-pane';
-            wrap.dataset.pane = spec.id;
-            this.$plot.append(wrap);
+        const unitFor = (scale) => ({w: 'W', bpm: 'bpm', kj: 'kJ', rpm: 'rpm', kmh: 'km/h', m: 'm'}[scale] ?? '');
 
-            const scales = {x: {time: false}};
-            for(const s of spec.series) scales[s.scale] = {auto: true};
-            if(scales.w) scales.w = {auto: true, range: (u, min, max) => [0, Math.max(max, ftp * 1.2)]};
+        // Pre-compute left/right scales per pane so both stacked panes share
+        // identical left and right gutters and align to the exact pixel on X.
+        const paneConfigs = paneSpecs.map(spec => {
             const left = spec.series.find(s => s.scale === 'w')
                 ?? spec.series.find(s => s.scale === 'bpm')
                 ?? spec.series[0];
             const right = !isSplit
                 ? spec.series.find(s => s.scale === 'bpm' && left.scale !== 'bpm')
-                : spec.series.find(s => s.scale === 'kj' && left.scale !== 'kj');
+                : spec.series.find(s => s.scale === 'kj' && left.scale !== 'kj' && s.show);
+            return {spec, left, right};
+        });
+        const leftSize = narrow ? 36 : 46;
+        const anyRight = paneConfigs.some(cfg => !!cfg.right);
+        const rightSize = anyRight ? (narrow ? 32 : 40) : 8;
+
+        paneConfigs.forEach(({spec, left, right}, paneIdx) => {
+            const wrap = document.createElement('div');
+            wrap.className = 'rc-pane';
+            wrap.dataset.pane = spec.id;
+            const leftUnit = unitFor(left.scale);
+            const rightUnit = right ? unitFor(right.scale) : '';
+            const lbl = document.createElement('div');
+            lbl.className = 'rc-ax-labels';
+            lbl.innerHTML = `<span class="rc-ax-l">${esc(left.label)}${leftUnit ? ` (${esc(leftUnit)})` : ''}</span>`
+                + (right ? `<span class="rc-ax-r">${esc(right.label)}${rightUnit ? ` (${esc(rightUnit)})` : ''}</span>` : '');
+            wrap.append(lbl);
+            this.$plot.append(wrap);
+
+            const scales = {x: {time: false}};
+            for(const s of spec.series) scales[s.scale] = {auto: true};
+            if(scales.w) scales.w = {auto: true, range: (u, min, max) => [0, Math.max(max, ftp * 1.2)]};
 
             const opts = {
                 ...sizes[paneIdx],
-                padding: [6, 4, spec.showX ? 0 : 4, 0],
+                padding: [6, right ? 4 : (anyRight ? rightSize + 4 : 8), spec.showX ? 0 : 4, 0],
                 legend: {show: false},
                 scales,
                 series: [{}, ...spec.series.map(s => ({
@@ -317,8 +335,8 @@ class RideChart extends HTMLElement {
                     spec.showX
                         ? {...axis, size: 24, values: (u, ts) => ts.map(clock)}
                         : {...axis, show: false, size: 0, grid: {show: true, stroke: c.line, width: 1}},
-                    {...axis, scale: left.scale, size: narrow ? 32 : 44, label: '', values: (u, ts) => ts.map(t => `${Math.round(t)}`)},
-                    ...(right ? [{...axis, scale: right.scale, side: 1, size: narrow ? 28 : 38, grid: {show: false}, values: (u, ts) => ts.map(t => `${Math.round(t)}`)}] : []),
+                    {...axis, scale: left.scale, size: leftSize, label: '', values: (u, ts) => ts.map(t => `${Math.round(t)}`)},
+                    ...(right ? [{...axis, scale: right.scale, side: 1, size: rightSize, grid: {show: false}, values: (u, ts) => ts.map(t => `${Math.round(t)}`)}] : []),
                 ],
                 cursor: {
                     drag: {x: !touchDevice, y: false},
@@ -447,6 +465,11 @@ class RideChart extends HTMLElement {
         const show = b.getAttribute('aria-pressed') !== 'true';
         b.setAttribute('aria-pressed', String(show));
         s.show = show;
+        // Toggling W′bal changes whether the right-hand kJ axis is needed, so rebuild cleanly
+        if(s.key === 'wbal' && this.plots.length > 1) {
+            this.build();
+            return;
+        }
         for(const p of this.plots) {
             const idx = p.series.indexOf(s);
             if(idx >= 0) p.plot?.setSeries(idx + 1, {show});
