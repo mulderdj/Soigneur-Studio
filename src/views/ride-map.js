@@ -70,6 +70,8 @@ class RideMap extends HTMLElement {
         this._accuracyM = null;
         /** @type {boolean} */
         this._resetOnNextFix = false;
+        /** @type {{power: number | null, heartRate: number | null, speed: number | null, altitude: number | null, cadence: number | null}} */
+        this._live = {power: null, heartRate: null, speed: null, altitude: null, cadence: null};
         /** @type {any} */
         this.$map = null;
         /** @type {HTMLElement | null} */
@@ -99,6 +101,11 @@ class RideMap extends HTMLElement {
         const signal = {signal: this._abort.signal};
 
         xf.sub('gps:fix', fix => this.onFix(fix), signal);
+        xf.sub('db:power', v => { this._live.power = Number.isFinite(v) && v > 0 ? v : null; }, signal);
+        xf.sub('db:heartRate', v => { this._live.heartRate = Number.isFinite(v) && v > 0 ? v : null; }, signal);
+        xf.sub('db:speed', v => { this._live.speed = Number.isFinite(v) && v >= 0 ? v : null; }, signal);
+        xf.sub('db:altitude', v => { this._live.altitude = Number.isFinite(v) ? v : null; }, signal);
+        xf.sub('db:cadence', v => { this._live.cadence = Number.isFinite(v) && v > 0 ? v : null; }, signal);
         xf.sub('watch:stopped', () => { this._resetOnNextFix = true; }, signal);
         xf.sub('watch:started', () => {
             if(this._resetOnNextFix) this.resetTrail();
@@ -151,7 +158,12 @@ class RideMap extends HTMLElement {
         const point = {
             lat: pt.lat,
             lon: pt.lon,
-            power: Number.isFinite(fix?.power) ? fix.power : null,
+            power: Number.isFinite(fix?.power) ? fix.power : this._live.power,
+            heartRate: Number.isFinite(fix?.heartRate) ? fix.heartRate : this._live.heartRate,
+            speed: Number.isFinite(fix?.speed) ? fix.speed : this._live.speed,
+            altitude: Number.isFinite(fix?.altitude) ? fix.altitude : this._live.altitude,
+            distance: Number.isFinite(this._distanceM) ? this._distanceM : null,
+            cadence: Number.isFinite(fix?.cadence) ? fix.cadence : this._live.cadence,
         };
         this._trail.push(point);
         this.$map?.appendPoint(point);

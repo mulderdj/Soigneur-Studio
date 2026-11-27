@@ -678,11 +678,21 @@ div.graph--bar-group {
         margin-top: var(--space-1);
     }
 
-    .rm-style-btn {
+    .rm-controls {
         position: absolute;
         top: var(--space-2);
         right: var(--space-2);
         z-index: 2;
+        display: flex;
+        align-items: center;
+        gap: var(--space-1);
+    }
+    .rm-controls[hidden] { display: none; }
+
+    .rm-ctrl {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
         min-height: 32px;
         padding: 0 var(--space-2-5, 10px);
         border: var(--line-w) solid var(--line);
@@ -696,9 +706,77 @@ div.graph--bar-group {
         backdrop-filter: blur(6px);
         -webkit-backdrop-filter: blur(6px);
     }
+    .rm-ctrl[hidden] { display: none; }
     .rm-style-btn[aria-pressed="true"] {
         border-color: var(--accent);
         color: var(--accent);
     }
-    .rm-style-btn[hidden] { display: none; }
+
+    .rm-metric-select {
+        max-width: 112px;
+        padding-right: var(--space-2);
+    }
+
+    .rm-full-btn {
+        min-width: 32px;
+        padding: 0 7px;
+    }
+    .rm-full-btn svg {
+        width: 16px;
+        height: 16px;
+        fill: none;
+        stroke: currentColor;
+        stroke-width: 2;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+    }
+
+    .rm-zoom-controls {
+        position: absolute;
+        right: max(var(--space-3), env(safe-area-inset-right));
+        bottom: calc(28px + env(safe-area-inset-bottom));
+        z-index: 2;
+        display: flex;
+        flex-direction: column;
+        gap: var(--space-1);
+    }
+    .rm-zoom-controls[hidden] { display: none; }
+    .rm-zoom-btn {
+        min-width: 40px;
+        min-height: 40px;
+        padding: 0 var(--space-2);
+        font-size: var(--text-s);
+        font-weight: var(--weight-bold);
+    }
+
+    route-map.is-full {
+        position: fixed !important;
+        inset: 0;
+        width: 100vw !important;
+        height: 100dvh !important;
+        z-index: var(--z-fullscreen);
+        border-radius: 0 !important;
+        background-color: var(--bg);
+    }
+    route-map.is-full canvas {
+        touch-action: none;
+        cursor: grab;
+    }
+    route-map.is-full canvas:active {
+        cursor: grabbing;
+    }
+    route-map.is-full .rm-controls {
+        top: max(var(--space-3), env(safe-area-inset-top));
+        right: max(var(--space-3), env(safe-area-inset-right));
+        gap: var(--space-2);
+    }
+    route-map.is-full .rm-ctrl {
+        min-height: var(--tap);
+    }
+    route-map.is-full .rm-full-btn {
+        min-width: var(--tap);
+    }
+    route-map:fullscreen {
+        background-color: var(--bg);
+    }
 }

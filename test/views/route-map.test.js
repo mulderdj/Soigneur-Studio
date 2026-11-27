@@ -3,7 +3,7 @@
  */
 import '../training/browser-stubs.js';
 import { xf } from '../../src/functions.js';
-import { RouteMap, projectPoint, fitBounds, tileRange, tileUrl } from '../../src/views/charts/route-map.js';
+import { RouteMap, projectPoint, fitBounds, tileRange, tileUrl, computeGrades, colorForMetric } from '../../src/views/charts/route-map.js';
 import { RideMap } from '../../src/views/ride-map.js';
 import { RidePage } from '../../src/views/analysis/ride-page.js';
 import { RideChart } from '../../src/views/analysis/ride-chart.js';
@@ -163,6 +163,73 @@ describe('<route-map> component', () => {
 
         map.setCursor(null);
         expect(map._cursor).toBeNull();
+    });
+
+    test('computes grades and supports switching colormap overlays across all ride metrics', () => {
+        const pts = [
+            {lat: 52.3600, lon: 4.8800, power: 140, heartRate: 128, speed: 7.5, altitude: 10, distance: 0, cadence: 82},
+            {lat: 52.3605, lon: 4.8800, power: 240, heartRate: 152, speed: 6.2, altitude: 14, distance: 55, cadence: 86},
+            {lat: 52.3610, lon: 4.8800, power: 340, heartRate: 174, speed: 5.0, altitude: 20, distance: 110, cadence: 90},
+            {lat: 52.3615, lon: 4.8800, power: 180, heartRate: 145, speed: 11.0, altitude: 16, distance: 165, cadence: 78},
+        ];
+        const grades = computeGrades(pts);
+        expect(grades[1]).toBeGreaterThan(5);
+        expect(grades[3]).toBeLessThan(-2);
+
+        const colors = {accent: '#4C9AFF', zones: ['#1', '#2', '#3', '#4', '#5', '#6', '#7']};
+        expect(colors.zones).toContain(colorForMetric('power', 250, {min: 100, max: 350}, colors, 250));
+        expect(colorForMetric('grade', 10, {min: -12, max: 12}, colors)).toMatch(/^rgb\(/);
+        expect(colorForMetric('speed', 30, {min: 15, max: 45}, colors)).toMatch(/^rgb\(/);
+        expect(colorForMetric('elevation', 15, {min: 10, max: 20}, colors)).toMatch(/^rgb\(/);
+
+        const map = new RouteMap();
+        document.body.append(map);
+        map.setTrack({points: pts, ftp: 250});
+
+        const availIds = map.availableMetrics().map(m => m.id);
+        expect(availIds).toEqual(['power', 'heartRate', 'speed', 'grade', 'elevation', 'cadence', 'none']);
+        expect(map.getMetric()).toBe('power');
+
+        for(const id of ['heartRate', 'speed', 'grade', 'elevation', 'cadence', 'none']) {
+            map.setMetric(id);
+            expect(map.getMetric()).toBe(id);
+            expect(map.$metricSelect.value).toBe(id);
+        }
+    });
+
+    test('supports fullscreen mode with pan, zoom, and resetView', async () => {
+        const map = new RouteMap();
+        document.body.append(map);
+        map.setTrack({
+            points: [
+                {lat: 52.360, lon: 4.880, speed: 8},
+                {lat: 52.370, lon: 4.900, speed: 10},
+            ],
+        });
+
+        expect(map.full).toBe(false);
+        expect(map.$zoomControls.hidden).toBe(true);
+
+        await map.enterFull();
+        expect(map.full).toBe(true);
+        expect(map.classList.contains('is-full')).toBe(true);
+        expect(map.$zoomControls.hidden).toBe(false);
+
+        const baseZoom = map._lastView.zoom;
+        const baseCx = map._lastView.cx;
+        map.zoomBy(1.5);
+        expect(map._panZoom.zoom).toBeCloseTo(baseZoom + 1.5, 4);
+
+        map.panBy(60, -40);
+        expect(map._panZoom.cx).not.toBeCloseTo(baseCx, 6);
+
+        map.resetView();
+        expect(map._panZoom).toBeNull();
+
+        map.exitFull({fromBack: true});
+        expect(map.full).toBe(false);
+        expect(map.classList.contains('is-full')).toBe(false);
+        expect(map.$zoomControls.hidden).toBe(true);
     });
 });
 

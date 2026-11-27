@@ -165,7 +165,16 @@ class RidePage extends HTMLElement {
         const workout = this.context.workout?.name ? `<p class="card__note rp-workout">Planned: ${esc(this.context.workout.name)}</p>` : '';
         const gpsPoints = (this.ride.samples ?? [])
             .filter(s => Number.isFinite(s.lat) && Number.isFinite(s.lon))
-            .map(s => ({lat: s.lat, lon: s.lon, power: s.power}));
+            .map(s => ({
+                lat: s.lat,
+                lon: s.lon,
+                power: s.power,
+                heartRate: s.heartRate,
+                speed: s.speed,
+                altitude: s.altitude,
+                distance: s.distance,
+                cadence: s.cadence,
+            }));
         const hasRoute = gpsPoints.length >= 2;
         this.querySelector('.rp-body').innerHTML = `
             ${workout}

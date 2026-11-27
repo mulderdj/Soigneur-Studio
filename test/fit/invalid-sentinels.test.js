@@ -295,4 +295,38 @@ describe('FIT invalid sentinels vs real sensor/course values', () => {
         expect(view.getUint32(0, true)).toBe(0xFFFFFFFF);
         expect(type.timestamp.decode({base_type: 'uint32'}, view, 0, true)).toBeUndefined();
     });
+
+    test('lap messages encode per-lap summary stats (power, HR, cadence, speed, distance, calories) and sport', () => {
+        const records = [
+            {timestamp: T0,        power: 150, heart_rate: 130, cadence: 80, speed: 8.0,  distance: 0},
+            {timestamp: T0 + 1000, power: 170, heart_rate: 134, cadence: 84, speed: 8.5,  distance: 8.5},
+            {timestamp: T0 + 2000, power: 300, heart_rate: 162, cadence: 92, speed: 10.5, distance: 19.0},
+            {timestamp: T0 + 3000, power: 320, heart_rate: 168, cadence: 96, speed: 11.0, distance: 30.0},
+        ];
+        const laps = [
+            {start_time: T0,        timestamp: T0 + 1000},
+            {start_time: T0 + 2000, timestamp: T0 + 3000},
+        ];
+
+        const view = fit.localActivity.encode({records, laps, ftp: 250});
+        const decoded = fit.FITjs.decode(view);
+        const lapMsgs = findMessages(decoded, 'lap').map(m => m.fields);
+
+        expect(lapMsgs).toHaveLength(2);
+        expect(lapMsgs[0].avg_power).toBe(160);
+        expect(lapMsgs[0].max_power).toBe(170);
+        expect(lapMsgs[0].avg_heart_rate).toBe(132);
+        expect(lapMsgs[0].max_heart_rate).toBe(134);
+        expect(lapMsgs[0].avg_cadence).toBe(82);
+        expect(lapMsgs[0].max_cadence).toBe(84);
+        expect(lapMsgs[0].total_distance).toBeCloseTo(8.5, 1);
+        expect(lapMsgs[0].sport).toBe(profiles.types.sport.values.cycling);
+
+        expect(lapMsgs[1].avg_power).toBe(310);
+        expect(lapMsgs[1].max_power).toBe(320);
+        expect(lapMsgs[1].avg_heart_rate).toBe(165);
+        expect(lapMsgs[1].max_heart_rate).toBe(168);
+        expect(lapMsgs[1].total_distance).toBeCloseTo(11.0, 1);
+        expect(lapMsgs[1].lap_trigger).toBe(profiles.types.lap_trigger.values.session_end);
+    });
 });

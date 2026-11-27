@@ -310,6 +310,40 @@ function LocalActivity(args = {}) {
         };
     }
 
+    function calcLapStats(records, lap, total_timer_time) {
+        const lapRecords = records.filter(r =>
+            r && r.time === undefined && r.timestamp !== undefined &&
+            r.timestamp >= lap.start_time && r.timestamp <= lap.timestamp
+        );
+        const stats = calcStats({records: lapRecords, total_timer_time});
+
+        // Lap distance is the delta covered within the lap, not cumulative ride distance
+        let firstDist;
+        let lastDist;
+        for(const r of lapRecords) {
+            if(Number.isFinite(r.distance) && r.distance >= 0) {
+                if(firstDist === undefined) firstDist = r.distance;
+                lastDist = r.distance;
+            }
+        }
+        if(firstDist !== undefined && lastDist !== undefined) {
+            stats.total_distance = Math.max(0, lastDist - firstDist);
+        } else {
+            stats.total_distance = undefined;
+        }
+
+        // Fall back to app-recorded lap aggregates if no records fell in the window
+        if(stats.avg_power === undefined && Number.isFinite(lap.avgPower)) stats.avg_power = Math.floor(lap.avgPower);
+        if(stats.max_power === undefined && Number.isFinite(lap.maxPower)) stats.max_power = Math.floor(lap.maxPower);
+        if(stats.avg_cadence === undefined && Number.isFinite(lap.avgCadence) && lap.avgCadence > 0) stats.avg_cadence = Math.floor(lap.avgCadence);
+        if(stats.avg_heart_rate === undefined && Number.isFinite(lap.avgHeartRate) && lap.avgHeartRate > 0) stats.avg_heart_rate = Math.floor(lap.avgHeartRate);
+        if(stats.total_calories === undefined && stats.avg_power !== undefined) {
+            stats.total_calories = Math.floor(stats.avg_power * total_timer_time * 0.001);
+        }
+
+        return stats;
+    }
+
     function timestampToDate(x) {
         const timeKeys = ['time_created', 'start_time', 'timestamp'];
         for(let timeKey of timeKeys) {
@@ -374,6 +408,14 @@ function LocalActivity(args = {}) {
         const total_elapsed_time = calcTotalElapsedTime({records, laps, events});
         const total_timer_time = calcTotalTimerTime({records, events});
         const stats = calcStats({records, total_timer_time});
+        const rideHasGps = records.some(r =>
+            r && r.time === undefined &&
+            Number.isFinite(r.position_lat) &&
+            Number.isFinite(r.position_long)
+        );
+        const sub_sport = rideHasGps
+            ? profiles.types.sub_sport.values.generic
+            : profiles.types.sub_sport.values.virtual_activity;
 
         // structure: FITjs
         const structure = [
@@ -428,16 +470,27 @@ function LocalActivity(args = {}) {
             // definition lap
             definitions.lap,
             // data lap messages
-            ...laps.map((lap, message_index) =>
-                dataRecord.toFITjs(
+            ...laps.map((lap, message_index) => {
+                const lapElapsed = calcLapTotalElapsedTime(lap);
+                const lapTimer = calcLapTotalTimerTime(lap, events);
+                const lapStats = calcLapStats(records, lap, lapTimer);
+                const isLastLap = message_index === laps.length - 1;
+                const lap_trigger = isLastLap
+                    ? profiles.types?.lap_trigger?.values?.session_end ?? 7
+                    : profiles.types?.lap_trigger?.values?.manual ?? 0;
+                return dataRecord.toFITjs(
                     definitions.lap,
                     Lap({
-                        total_elapsed_time: calcLapTotalElapsedTime(lap),
-                        total_timer_time: calcLapTotalTimerTime(lap, events),
+                        total_elapsed_time: lapElapsed,
+                        total_timer_time: lapTimer,
                         message_index,
+                        sub_sport,
+                        lap_trigger,
+                        stats: lapStats,
                         ...lap,
-                    })),
-            ),
+                    })
+                );
+            }),
 
             // definition session
             definitions.session,
@@ -453,6 +506,7 @@ function LocalActivity(args = {}) {
                     timestamp,
                     total_elapsed_time,
                     total_timer_time,
+                    sub_sport,
                     stats,
                     threshold_power: ftp,
                 })
@@ -535,6 +589,11 @@ function Lap(args = {}) {
         message_index: args.message_index ?? 0,
         event: profiles.types?.event?.values?.lap ?? 9,
         event_type: profiles.types?.event_type?.values?.stop ?? 1,
+        sport: profiles.types?.sport?.values?.cycling ?? 2,
+        sub_sport: args.sub_sport ?? profiles.types?.sub_sport?.values?.virtual_activity ?? 58,
+        lap_trigger: args.lap_trigger ?? profiles.types?.lap_trigger?.values?.manual ?? 0,
+        intensity: args.intensity ?? profiles.types?.intensity?.values?.active ?? 0,
+        ...(args.stats ?? {}),
     };
 }
 
@@ -564,7 +623,7 @@ function Session(args = {}) {
         ),
         message_index:      args.message_index ?? 0,
         sport:              profiles.types.sport.values.cycling,
-        sub_sport:          profiles.types.sub_sport.values.virtual_activity,
+        sub_sport:          args.sub_sport ?? profiles.types.sub_sport.values.virtual_activity,
         ...args.stats,
         first_lap_index:    0,
         num_laps:           args.laps?.length ?? 1,
