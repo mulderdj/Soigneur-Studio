@@ -82,6 +82,8 @@ No trainer at hand? Open the dev server with `?simulate` (e.g. `http://localhost
   * Uploads retry after 30 s, 5 min and 30 min; tokens and keys stay on the server.
 * *Users* (admins): create accounts, reset passwords, change roles, disable or delete accounts.
 
+**AI coach (MCP).** Connect Claude Code, Gemini CLI, LM Studio or another local MCP app to your own Soigneur server (`server/mcp/index.mjs`) using a scoped access key from *Account → AI access* (`read`, or `read + plan`). The AI reads the same rides, analyses, fitness/form, health and plan numbers as the app, can run built-in *Ride debrief*, *Weekly review* and *Training plan* prompts, and every planned workout is checked by Soigneur's guardrails before it is stored. See [docs/mcp-coach.md](docs/mcp-coach.md) for setup, tools, prompts and privacy notes.
+
 ## Run with Docker
 
 The container only serves the web page. Bluetooth and ANT+ still run in Chrome or Edge on the computer you ride with, so Docker does not affect them. Your trainer, heart-rate strap and ANT+ USB stick connect to that computer, not to the Docker host. The browser only allows Bluetooth and USB on a secure page: `https://…` or `http://localhost`.

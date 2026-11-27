@@ -1,8 +1,7 @@
 # AI coach through MCP
 
 Date: 2026-11-26
-Status: draft for review ("MCP server, test with Claude Code on the Pro
-subscription, ready for other providers").
+Status: implemented (steps 1–4: access tokens, read/write MCP tools and plan check, prompts, and setup docs in `docs/mcp-coach.md`; stdio transport).
 Roadmap: 11 (coach), and the first part of 8 (season planning).
 
 ## Intent
