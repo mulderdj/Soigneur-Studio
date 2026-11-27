@@ -14,6 +14,7 @@ import { goalEventsFromPlan, EVENT_TYPES, eventTypeLabel } from '../../training/
 import { esc, fmtDuration, fmtDay, fmtTss, sportLabelFor, loadTag, loadTitle } from './format.js';
 import { intervalsToGraph } from '../workout-graph.js';
 import { openRide } from '../analysis/open-ride.js';
+import { confirmAction } from '../confirm.js';
 
 const GRAPH_HEIGHT = 80;
 const minutes = (s) => `${Math.round(s / 60)} min`;
@@ -160,6 +161,21 @@ class DayDialog extends HTMLElement {
         if(hide) { this.actions.hideRide(hide.dataset.hide); this.close(); return; }
         const show = e.target.closest('[data-show]');
         if(show) { this.actions.showRide(show.dataset.show); this.close(); return; }
+        const delRide = e.target.closest('[data-delete-ride]');
+        if(delRide) {
+            const id = delRide.dataset.deleteRide;
+            const ok = await confirmAction({
+                title: 'Delete ride?',
+                message: 'Permanently delete this ride from this device and your account?',
+                confirmLabel: 'Delete',
+                danger: true,
+            });
+            if(ok) {
+                await (this.actions.deleteRide ? this.actions.deleteRide(id) : history.deleteRide(id));
+                this.close();
+            }
+            return;
+        }
         const addGoal = e.target.closest('[data-add-goal]');
         if(addGoal) {
             this.goalForm = {mode: 'add'};
@@ -268,6 +284,7 @@ class DayDialog extends HTMLElement {
                     ${r.hidden ?
                       `<button type="button" class="btn" data-show="${esc(r.id)}">Show</button>` :
                       `<button type="button" class="btn" data-hide="${esc(r.id)}">Hide this ride</button>`}
+                    <button type="button" class="btn btn--danger" data-delete-ride="${esc(r.id)}">Delete</button>
                     ${r.loadSource === 'rpe' || r.loadSource === 'estimate' ? rating(r) : ''}</li>`; }).join('')}</ul>` : ''}
             ${entries.length ? `<h3 class="dd-sub">Planned</h3><ul class="dd-list">${entries.map(e => `
                 <li class="list-row"><div class="list-row__main"><div class="list-row__title">${esc(e.workout?.meta?.name ?? e.name ?? 'Workout')}</div>

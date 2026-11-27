@@ -210,13 +210,25 @@ class SessionWatch {
         xf.sub('ui:watchStop', async () => {
             const confirmed = await confirmAction({
                 title: 'End ride?',
-                message: 'Stop the clock and finish this ride?',
-                confirmLabel: 'End ride',
+                message: 'Stop the clock and save this ride?',
+                confirmLabel: 'End & save',
                 danger: true,
             });
             if (confirmed) {
                 this.stop();
-                xf.dispatch('ui:toast', 'Ride ended — tap Save to keep it');
+                xf.dispatch('ui:toast', 'Ride saved — tap Discard to delete it');
+            }
+        });
+        xf.sub('ui:watchDiscard', async () => {
+            const confirmed = await confirmAction({
+                title: 'Discard ride?',
+                message: 'Throw away this ride? This cannot be undone.',
+                confirmLabel: 'Discard',
+                danger: true,
+            });
+            if (confirmed) {
+                this.discard();
+                xf.dispatch('ui:toast', 'Ride discarded');
             }
         });
     }
@@ -374,6 +386,23 @@ class SessionWatch {
         }
         xf.dispatch('watch:elapsed', 0);
         xf.dispatch('watch:lapTime', 0);
+    }
+
+    discard() {
+        const wasRunning = this.isStarted() || this.isPaused();
+        if (wasRunning) {
+            clockWorker.postMessage('stop');
+            if (this.isWorkoutStarted()) {
+                xf.dispatch('workout:stopped');
+            }
+            if (exists(this.intervals)) {
+                xf.dispatch('watch:intervalIndex', 0);
+                xf.dispatch('watch:stepIndex', 0);
+            }
+            xf.dispatch('watch:elapsed', 0);
+            xf.dispatch('watch:lapTime', 0);
+        }
+        xf.dispatch('watch:discarded', { wasRunning });
     }
 
     onTick() {

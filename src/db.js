@@ -383,6 +383,12 @@ xf.reg('ui:workout:upload', async (files, state) => {
 });
 
 // Activity & session persistence
+let lastSavedActivityId = null;
+
+xf.sub('activity:add', summary => {
+    if (summary?.id) lastSavedActivityId = summary.id;
+});
+
 xf.reg('watch:stopped', (_, state) => {
     try {
         models.activity.createFromCurrent(state);
@@ -391,6 +397,19 @@ xf.reg('watch:stopped', (_, state) => {
         console.error('Failed to save activity:', err);
         xf.dispatch('activity:save:fail');
     }
+});
+
+xf.reg('watch:discarded', (payload, state) => {
+    const wasRunning = Boolean(payload?.wasRunning);
+    state.watchStatus = 'stopped';
+    models.session.reset(state);
+    if (!wasRunning && lastSavedActivityId) {
+        const id = lastSavedActivityId;
+        lastSavedActivityId = null;
+        models.activity.remove(id);
+        import('./training/history.js').then(({ history }) => history.deleteRide(id)).catch(() => {});
+    }
+    xf.dispatch('activity:discarded');
 });
 
 xf.reg('activity:save:success', (_, state) => {

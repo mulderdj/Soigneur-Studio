@@ -17,6 +17,7 @@ class Watch extends HTMLElement {
             lap:     document.querySelector('#watch-lap'),
             stop:    /** @type {HTMLElement} */ (document.querySelector('#watch-stop')),
             save:    document.querySelector('#activity-save'),
+            discard: document.querySelector('#activity-discard'),
             // workout: document.querySelector('#start-workout'),
         };
 
@@ -27,17 +28,22 @@ class Watch extends HTMLElement {
                 if(e.key === 'Enter' || e.key === ' ') { e.preventDefault(); fn(e); }
             }, this.signal);
         };
-        bind(this.dom.start, this.onStart.bind(this));
-        bind(this.dom.pause, this.onPause.bind(this));
-        bind(this.dom.back,  this.onBack.bind(this));
-        bind(this.dom.lap,   this.onLap.bind(this));
-        bind(this.dom.stop,  this.onStop.bind(this));
-        bind(this.dom.save,  this.onSave.bind(this));
+        bind(this.dom.start,   this.onStart.bind(this));
+        bind(this.dom.pause,   this.onPause.bind(this));
+        bind(this.dom.back,    this.onBack.bind(this));
+        bind(this.dom.lap,     this.onLap.bind(this));
+        bind(this.dom.stop,    this.onStop.bind(this));
+        bind(this.dom.save,    this.onSave.bind(this));
+        bind(this.dom.discard, this.onDiscard.bind(this));
 
         this.renderInit(this.dom);
 
         xf.sub(`db:watchStatus`, this.onWatchStatus.bind(this), this.signal);
         xf.sub(`db:workoutStatus`, this.onWorkoutStatus.bind(this), this.signal);
+        xf.sub('activity:discarded', () => {
+            if(this.dom.save instanceof HTMLElement) this.dom.save.style.display = 'none';
+            if(this.dom.discard instanceof HTMLElement) this.dom.discard.style.display = 'none';
+        }, this.signal);
     }
     disconnectedCallback() {
         clearTimeout(this.stopArmTimer);
@@ -73,7 +79,8 @@ class Watch extends HTMLElement {
         this.disarmStop();
         xf.dispatch('ui:watchStop');
     }
-    onSave(e)  { xf.dispatch('ui:activity:save'); }
+    onSave(e)    { xf.dispatch('ui:activity:save'); }
+    onDiscard(e) { this.disarmStop(); xf.dispatch('ui:watchDiscard'); }
     onWorkoutStart(e) { xf.dispatch('ui:workoutStart'); }
     onWatchStatus(status) {
         if(status === 'started') { this.renderStarted(this.dom); }
@@ -88,12 +95,14 @@ class Watch extends HTMLElement {
         dom.pause.style.display = 'none';
         dom.stop.style.display  = 'none';
         dom.save.style.display  = 'none';
+        if(dom.discard) dom.discard.style.display = 'none';
         dom.lap.style.display   = 'none';
         dom.back.style.display  = 'none';
     };
     renderStarted(dom) {
         dom.start.style.display  = 'none';
         dom.save.style.display   = 'none';
+        if(dom.discard) dom.discard.style.display = 'none';
         dom.pause.style.display  = 'inline-block';
         dom.lap.style.display    = 'inline-block';
         dom.back.style.display   = 'inline-block';
@@ -106,6 +115,7 @@ class Watch extends HTMLElement {
         dom.lap.style.display      = 'none';
         dom.start.style.display    = 'inline-block';
         dom.stop.style.display     = 'inline-block';
+        if(dom.discard) dom.discard.style.display = 'inline-block';
     };
     renderStopped(dom) {
         dom.pause.style.display  = 'none';
@@ -113,6 +123,7 @@ class Watch extends HTMLElement {
         dom.back.style.display   = 'none';
         dom.stop.style.display   = 'none';
         dom.save.style.display   = 'inline-block';
+        if(dom.discard) dom.discard.style.display = 'inline-block';
         // dom.workout.style.display = 'inline-block';
         dom.start.style.display  = 'inline-block';
     };

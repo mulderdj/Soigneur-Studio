@@ -107,6 +107,7 @@ class RideMap extends HTMLElement {
         xf.sub('db:altitude', v => { this._live.altitude = Number.isFinite(v) ? v : null; }, signal);
         xf.sub('db:cadence', v => { this._live.cadence = Number.isFinite(v) && v > 0 ? v : null; }, signal);
         xf.sub('watch:stopped', () => { this._resetOnNextFix = true; }, signal);
+        xf.sub('watch:discarded', () => { this.resetTrail(); }, signal);
         xf.sub('watch:started', () => {
             if(this._resetOnNextFix) this.resetTrail();
         }, signal);

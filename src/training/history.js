@@ -169,6 +169,21 @@ async function setHidden(id, hidden) {
 const hideRide = (id) => setHidden(id, true);
 const showRide = (id) => setHidden(id, false);
 
+async function deleteRide(id) {
+    if(!id) return;
+    await Promise.all([
+        idb.remove('activity', id).catch(() => {}),
+        idb.remove(SUMMARIES, id).catch(() => {}),
+        idb.remove(EXTERNAL, id).catch(() => {}),
+        idb.remove(HIDDEN, id).catch(() => {}),
+        idb.remove(RATINGS, id).catch(() => {}),
+    ]);
+    if(remote.linked() && remote.api) {
+        try { await remote.api.delete(`/me/activities/${encodeURIComponent(id)}`); } catch(_) {}
+    }
+    changed();
+}
+
 // push this device's changes, then take the server's list
 async function syncHidden() {
     for(const r of await hiddenRecords()) {
@@ -626,6 +641,7 @@ const history = Object.freeze({
     summaries,
     hideRide,
     showRide,
+    deleteRide,
     hiddenIds,
     rateRide,
     ratings,

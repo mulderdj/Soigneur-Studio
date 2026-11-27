@@ -205,6 +205,10 @@ svg {
     color: var(--on-danger);
 }
 
+.app-bar #activity-discard:hover {
+    color: var(--danger);
+}
+
 .app-bar #watch-start {
     width: 52px;
     height: 52px;

@@ -11,6 +11,8 @@ import { xf } from '../../functions.js';
 import { analyseRide } from '../../analysis/ride.js';
 import { esc, fmtDuration, fmtDay, sportLabelFor } from '../training/format.js';
 import { openRide, rideFromHash } from './open-ride.js';
+import { confirmAction } from '../confirm.js';
+import { history } from '../../training/history.js';
 import './ride-chart.js';
 import '../charts/route-map.js';
 import './ride-insights.js';
@@ -42,7 +44,22 @@ class RidePage extends HTMLElement {
         if(this.abort) return;
         this.abort = new AbortController();
         const signal = {signal: this.abort.signal};
-        this.addEventListener('click', e => { if(e.target.closest('[data-rp-back]')) this.back(); }, signal);
+        this.addEventListener('click', async e => {
+            if(e.target.closest('[data-rp-back]')) { this.back(); return; }
+            if(e.target.closest('[data-rp-delete]') && this.rideId) {
+                const ok = await confirmAction({
+                    title: 'Delete ride?',
+                    message: 'Permanently delete this ride from this device and your account?',
+                    confirmLabel: 'Delete',
+                    danger: true,
+                });
+                if(ok) {
+                    await history.deleteRide(this.rideId);
+                    xf.dispatch('ui:toast', 'Ride deleted');
+                    this.back();
+                }
+            }
+        }, signal);
         window.addEventListener('ride:open', e => { this.from = e.detail.from; this.open(e.detail.id); }, signal);
         window.addEventListener('hashchange', () => this.fromHash(), signal);
         window.addEventListener('popstate', () => this.fromHash(), signal);
@@ -131,6 +148,9 @@ class RidePage extends HTMLElement {
                     <p class="rp-sub">${esc(fmtDay(s.day, {weekday: 'long', day: 'numeric', month: 'long', year: 'numeric'}))}${when ? ` · ${esc(when)}` : ''}
                         · ${esc(sportLabelFor(s) || 'Ride')} <span class="badge rp-source">${esc(sourceOf(s))}</span></p>
                 </div>
+                <button type="button" class="btn btn--icon btn--danger rp-delete" data-rp-delete aria-label="Delete ride" title="Delete ride">
+                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z" fill="currentColor" stroke="none"/></svg>
+                </button>
             </div>
             <dl class="rp-facts">
                 ${fact('Time', esc(fmtDuration(s.duration ?? 0)))}

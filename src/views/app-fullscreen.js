@@ -26,9 +26,16 @@ function initAppFullscreen(root = document) {
         btn.innerHTML = active ? ICON_EXIT : ICON_ENTER;
     }
 
+    const isPhone = () => typeof window !== 'undefined' &&
+        typeof window.matchMedia === 'function' &&
+        window.matchMedia('(pointer: coarse), (max-width: 599px)').matches;
+
     async function enter() {
         active = true;
         sync();
+        // On phones, keep the Android notification/status bar visible by only
+        // hiding the in-app navigation bar; on desktop, also enter OS fullscreen.
+        if(isPhone()) return;
         try {
             const el = document.documentElement;
             if(el?.requestFullscreen) {

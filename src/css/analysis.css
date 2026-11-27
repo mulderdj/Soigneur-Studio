@@ -29,6 +29,15 @@
 .rp-back { flex: none; min-width: var(--tap); }
 .rp-back svg { width: 24px; height: 24px; fill: currentColor; }
 
+.rp-delete {
+    margin-left: auto;
+    flex: none;
+    min-width: var(--tap);
+    color: var(--muted);
+}
+.rp-delete:hover { color: var(--danger); }
+.rp-delete svg { width: 20px; height: 20px; fill: currentColor; }
+
 .rp-titles { min-width: 0; }
 
 .rp-title {
