@@ -374,12 +374,16 @@ svg {
     }
 }
 
-body.is-app-full {
-    --app-bar-h: 0px;
-}
+/* On phones, full screen hides the bottom bar; on desktop, OS fullscreen
+   hides browser chrome while keeping the ride controls bar visible. */
+@media (pointer: coarse), (max-width: 599px) {
+    body.is-app-full {
+        --app-bar-h: 0px;
+    }
 
-body.is-app-full .app-bar {
-    display: none;
+    body.is-app-full .app-bar {
+        display: none;
+    }
 }
 
 @media (prefers-reduced-motion: reduce) {

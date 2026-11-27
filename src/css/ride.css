@@ -73,12 +73,14 @@
     color: var(--accent);
 }
 
-body.is-app-full .ride {
-    height: 100dvh;
-    padding: calc(var(--ride-pad) + env(safe-area-inset-top, 0px))
-             calc(var(--ride-pad) + env(safe-area-inset-right, 0px))
-             calc(var(--ride-pad) + env(safe-area-inset-bottom, 0px))
-             calc(var(--ride-pad) + env(safe-area-inset-left, 0px));
+@media (pointer: coarse), (max-width: 599px) {
+    body.is-app-full .ride {
+        height: 100dvh;
+        padding: calc(var(--ride-pad) + env(safe-area-inset-top, 0px))
+                 calc(var(--ride-pad) + env(safe-area-inset-right, 0px))
+                 calc(var(--ride-pad) + env(safe-area-inset-bottom, 0px))
+                 calc(var(--ride-pad) + env(safe-area-inset-left, 0px));
+    }
 }
 
 /* trainer and heart rate: an icon with the connection state as a badge */
