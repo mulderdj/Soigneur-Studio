@@ -1,6 +1,7 @@
 // @ts-check
 import { xf } from '../functions.js';
 import './connection-switch.js';
+import './device-list.js';
 import './data-views.js';
 import './effect-views.js';
 import './editor.js';
