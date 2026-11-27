@@ -1,9 +1,12 @@
 import { xf, equals, exists, empty, first, second, last, toFixed } from '../functions.js';
+import { db } from '../db.js';
 import { models, } from '../models/models.js';
 import { formatTime } from '../utils.js';
 import { zwo } from '../workouts/zwo.js';
 import { fileHandler } from '../file.js';
 import { uuid } from '../storage/uuid.js';
+import { intervalsToGraph } from './workout-graph.js';
+import { plannedTss } from '../training/plan.js';
 
 function stringToSeconds(str) {
     const values = str.split(':').map(Number);
@@ -213,26 +216,21 @@ function Row(args = {}) {
     }
 
     function toRamp(row) {
-        const timeStep = 10;
-        const duration = row.duration;
-        const stepsCount = parseInt(duration / timeStep);
-        const powerStep  = (row.ramp - row.power) / (stepsCount - 1);
+        const duration = Number.isFinite(row.duration) && row.duration > 0 ? row.duration : 10;
+        const stepsCount = Math.max(2, Math.floor(duration / 10));
+        const timeStep = duration / stepsCount;
+        const powerStep = (row.ramp - row.power) / (stepsCount - 1);
 
         let steps = [];
         let power = row.power;
 
         for(let i = 0; i < stepsCount; i++) {
-            const step = {duration: timeStep, power};
+            const step = {duration: timeStep, power: toFixed(power, 2)};
             if(exists(row.slope)) step.slope = row.slope;
             if(exists(row.cadence)) step.cadence = row.cadence;
             steps.push(step);
             power = (power + powerStep);
         }
-
-        const fixedSteps = steps.map((step) => {
-            step.power = toFixed(step.power, 2);
-            return step;
-        });
 
         return steps;
     }
@@ -366,20 +364,25 @@ function Editor() {
         rows.pop();
         return rows;
     }
+    function buildWorkout() {
+        let duration = 0;
+        const intervals = [];
+        for(const row of rows) {
+            const d = row.get().duration;
+            if(!Number.isFinite(d) || d <= 0) continue;
+            duration += d;
+            intervals.push(row.toInterval());
+        }
+        return {
+            ...workout,
+            meta: {...workout.meta, duration},
+            intervals,
+        };
+    }
     function save() {
-        const meta = rows.reduce((acc, row) => {
-            acc.duration += row.get().duration;
-            return acc;
-        }, {duration: 0});
-
-        const intervals = rows.reduce((acc, row) => {
-            acc.push(row.toInterval());
-            return acc;
-        }, []);
-
-        workout.meta = Object.assign(workout.meta, meta);
-        workout.intervals = Object.assign(workout.intervals, intervals);
-
+        const built = buildWorkout();
+        workout.meta = built.meta;
+        workout.intervals = built.intervals;
         console.log(workout);
     }
     function format(args = {}) {
@@ -400,6 +403,7 @@ function Editor() {
         getDescription,
         add,
         remove,
+        buildWorkout,
         save,
         format,
         toZwo,
@@ -555,6 +559,8 @@ class WorkoutEditor extends HTMLElement {
             author: '.editor--author',
             category: '.editor--category',
             description: '.editor--description',
+            previewMeta: '.editor--preview-meta',
+            graph: '.editor--graph',
             body: '.editor--body',
             add: '.editor--add',
             remove: '.editor--remove',
@@ -574,6 +580,8 @@ class WorkoutEditor extends HTMLElement {
         this.$author = this.$root.querySelector(this.selectors.author);
         this.$category = this.$root.querySelector(this.selectors.category);
         this.$description = this.$root.querySelector(this.selectors.description);
+        this.$previewMeta = this.$root.querySelector(this.selectors.previewMeta);
+        this.$graph = this.$root.querySelector(this.selectors.graph);
         this.$body = this.$root.querySelector(this.selectors.body);
         this.$add = this.$root.querySelector(this.selectors.add);
         this.$remove = this.$root.querySelector(this.selectors.remove);
@@ -596,9 +604,16 @@ class WorkoutEditor extends HTMLElement {
         this.$category.value = this.editor.getCategory();
         this.$description.value = this.editor.getDescription();
 
+        xf.sub('db:ftp', () => this.renderPreview(), this.signal);
+        if(this.$graph && typeof ResizeObserver === 'function') {
+            this.resizeObserver = new ResizeObserver(() => this.renderPreview());
+            this.resizeObserver.observe(this.$graph);
+        }
+
         this.onAdd();
     }
     disconnectedCallback() {
+        this.resizeObserver?.disconnect();
         this.abortController.abort();
     }
     setTimeRefs() {
@@ -610,8 +625,28 @@ class WorkoutEditor extends HTMLElement {
         let acc = 0;
         self.$durationInputs.forEach((input, i) => {
             self.$timeOutputs.item(i).textContent = fields.time.encode(acc);
-            acc += fields.duration.decode(input.value);
+            const d = fields.duration.decode(input.value);
+            if(Number.isFinite(d) && d > 0) acc += d;
         });
+        this.renderPreview();
+    }
+    renderPreview() {
+        if(!this.$graph) return;
+        const w = this.editor.buildWorkout();
+        const ftp = db.ftp || 200;
+        const dur = w.meta.duration;
+        if(this.$previewMeta) {
+            const tss = dur > 0 ? plannedTss(w) : 0;
+            const durText = formatTime({value: dur, format: dur >= 3600 ? 'hh:mm:ss' : 'mm:ss'});
+            this.$previewMeta.textContent = dur > 0 ? `${durText}${tss > 0 ? ` · ~${Math.round(tss)} TSS` : ''}` : 'Add intervals below';
+        }
+        if(!w.intervals.length || dur <= 0) {
+            this.$graph.innerHTML = '';
+            return;
+        }
+        const width = this.$graph.clientWidth || 320;
+        const height = this.$graph.clientHeight || 96;
+        this.$graph.innerHTML = intervalsToGraph(w, ftp, {width, height});
     }
     onName(e) {
         this.editor.setName(e.target.value);
