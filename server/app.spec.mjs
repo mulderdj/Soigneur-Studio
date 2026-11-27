@@ -273,3 +273,24 @@ test('ride summaries can be added to rides already on the server', async () => {
         stop();
     }
 });
+
+test('profile merges updates and validates palette', async () => {
+    const {call, stop} = await start();
+    try {
+        const token = (await call('POST', '/api/auth/register', {body: {username: 'dj', password: 'password123'}})).json.token;
+
+        assert.equal((await call('PUT', '/api/me/profile', {token, body: {data: {ftp: 260, palette: 'abricot'}}})).status, 200);
+        assert.deepEqual((await call('GET', '/api/me/profile', {token})).json.data, {ftp: 260, palette: 'abricot'});
+
+        // An older client updating FTP without sending palette must not erase the saved palette
+        assert.equal((await call('PUT', '/api/me/profile', {token, body: {data: {ftp: 270}}})).status, 200);
+        assert.deepEqual((await call('GET', '/api/me/profile', {token})).json.data, {ftp: 270, palette: 'abricot'});
+
+        // Invalid palette values are rejected
+        for(const palette of ['../evil', 'UPPER', '', 'a'.repeat(33), 123, {}]) {
+            assert.equal((await call('PUT', '/api/me/profile', {token, body: {data: {palette}}})).status, 400, String(palette));
+        }
+    } finally {
+        stop();
+    }
+});

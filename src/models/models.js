@@ -466,6 +466,36 @@ class Theme extends Model {
     }
 }
 
+class Palette extends Model {
+    postInit(args = {}) {
+        const self = this;
+        self.values = ['default', 'abricot'];
+        self.labels = {
+            default: 'Default',
+            abricot: 'Abricot Siena',
+        };
+        const storageModel = {
+            key: self.prop,
+            fallback: self.defaultValue(),
+            isValid: (v) => self.defaultIsValid(v),
+        };
+        self.state = self.default;
+        self.storage = new args.storage(storageModel);
+    }
+    defaultValue() { return 'default'; }
+    defaultIsValid(value) { return this.values.includes(value); }
+    label(value) { return this.labels[value] ?? this.labels.default; }
+    switch(palette) {
+        const self = this;
+        const idx = self.values.indexOf(palette);
+        if(idx === -1) {
+            self.onInvalid(palette);
+            return self.set(self.default);
+        }
+        return self.set(self.values[(idx + 1) % self.values.length]);
+    }
+}
+
 class Measurement extends Model {
     postInit(args = {}) {
         const self = this;
@@ -899,21 +929,31 @@ function Session(args = {}) {
                     db.speed :
                     db.speedVirtual;
 
+        const hasGps = Number.isFinite(db.position_lat) &&
+                       Number.isFinite(db.position_long) &&
+                       !(db.position_lat === 0 && db.position_long === 0);
+        const hasElevation = hasGps ||
+                             exists(db.workout?.points) ||
+                             equals(db.mode, ControlMode.sim) ||
+                             db.altitude !== 0 ||
+                             db.slopeTarget !== 0;
+        const hasMoxy = db.smo2 > 0 || db.thb > 0;
+
         const record = {
             timestamp:  Date.now(),
             power:      db.power1s,
             cadence:    db.cadence,
             speed:      speed,
-            heart_rate: db.heartRate,
+            heart_rate: db.heartRate > 0 ? db.heartRate : undefined,
             distance:   db.distance,
-            grade:      db.slopeTarget,
-            altitude:   db.altitude,
-            position_lat:                 db.position_lat,
-            position_long:                db.position_long,
-            saturated_hemoglobin_percent: db.smo2,
-            total_hemoglobin_conc:        db.thb,
-            core_temperature:             db.coreBodyTemperature,
-            skin_temperature:             db.skinTemperature,
+            grade:      hasElevation ? db.slopeTarget : undefined,
+            altitude:   hasElevation ? db.altitude : undefined,
+            position_lat:                 hasGps ? db.position_lat : undefined,
+            position_long:                hasGps ? db.position_long : undefined,
+            saturated_hemoglobin_percent: hasMoxy ? db.smo2 : undefined,
+            total_hemoglobin_conc:        db.thb > 0 ? db.thb : undefined,
+            core_temperature:             db.coreBodyTemperature > 0 ? db.coreBodyTemperature : undefined,
+            skin_temperature:             db.skinTemperature > 0 ? db.skinTemperature : undefined,
             device_index:                 0,
         };
 
@@ -931,24 +971,40 @@ function Session(args = {}) {
         }
     }
 
+    function avgField(rows, key) {
+        const vals = rows.map(r => r?.[key]).filter(Number.isFinite);
+        return vals.length > 0 ? avg(vals) : undefined;
+    }
+
+    function maxField(rows, key) {
+        const vals = rows.map(r => r?.[key]).filter(Number.isFinite);
+        return vals.length > 0 ? vals.reduce((m, v) => (v > m ? v : m), vals[0]) : undefined;
+    }
+
     function lap(x, db) {
         let timeEnd   = Date.now();
         let timeStart = db.lapStartTime;
         let elapsed   = timeDiff(timeStart, timeEnd);
 
         if(elapsed > 0) {
+            const avgCad = avgField(db.lap, 'cadence');
+            const avgHr  = avgField(db.lap, 'heart_rate');
+            const avgSmo2 = avgField(db.lap, 'saturated_hemoglobin_percent');
+            const avgThb  = avgField(db.lap, 'total_hemoglobin_conc');
+            const avgCore = avgField(db.lap, 'core_temperature');
+            const avgSkin = avgField(db.lap, 'skin_temperature');
             const lap = {
                 timestamp:        timeEnd,
                 start_time:       timeStart,
                 totalElapsedTime: elapsed,
                 avgPower:         db.powerLap,
-                maxPower:         max(db.lap, 'power'),
-                avgCadence:       Math.round(avg(db.lap, 'cadence')),
-                avgHeartRate:     Math.round(avg(db.lap, 'heart_rate')),
-                saturated_hemoglobin_percent: toFixed(avg(db.lap, 'saturated_hemoglobin_percent'), 2),
-                total_hemoglobin_conc: toFixed(avg(db.lap, 'total_hemoglobin_conc'), 2),
-                core_temperature: toFixed(avg(db.lap, 'core_temperature'), 2),
-                skin_temperature: toFixed(avg(db.lap, 'skin_temperature'), 2)
+                maxPower:         maxField(db.lap, 'power') ?? 0,
+                avgCadence:       avgCad !== undefined ? Math.round(avgCad) : undefined,
+                avgHeartRate:     avgHr !== undefined ? Math.round(avgHr) : undefined,
+                saturated_hemoglobin_percent: avgSmo2 !== undefined ? toFixed(avgSmo2, 2) : undefined,
+                total_hemoglobin_conc: avgThb !== undefined ? toFixed(avgThb, 2) : undefined,
+                core_temperature: avgCore !== undefined ? toFixed(avgCore, 2) : undefined,
+                skin_temperature: avgSkin !== undefined ? toFixed(avgSkin, 2) : undefined,
             };
 
             db.laps.push(lap);
@@ -1479,6 +1535,7 @@ const page = new Page({prop: 'page'});
 const ftp = new FTP({prop: 'ftp', storage: LocalStorageItem});
 const weight = new Weight({prop: 'weight', storage: LocalStorageItem});
 const theme = new Theme({prop: 'theme', storage: LocalStorageItem});
+const palette = new Palette({prop: 'palette', storage: LocalStorageItem});
 const volume = new Volume({prop: 'volume', storage: LocalStorageItem});
 const measurement = new Measurement({prop: 'measurement', storage: LocalStorageItem});
 const dataTileSwitch = new DataTileSwitch({prop: 'dataTileSwitch', storage: LocalStorageItem});
@@ -1531,6 +1588,7 @@ let models = {
     weight,
     volume,
     theme,
+    palette,
     measurement,
     dataTileSwitch,
 

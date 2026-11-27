@@ -103,6 +103,87 @@ body.white-theme {
     }
 }
 
+/* Optional palette: Abricot Siena (espresso/apricot dark, cream/siena light) */
+body[data-palette="abricot"],
+body[data-palette="abricot"].dark-theme {
+    --bg:        #17120F;
+    --surface:   #211A16;
+    --surface-2: #2B221D;
+    --line:      #3A2F28;
+    --ink:       #FAF1E6;
+    --muted:     #B7A595;
+    --accent:    #FFD7B3;   /* apricot 100 */
+    --on-accent: #17120F;
+    --link:      #7FB2EE;   /* cool blue: links */
+    --band:      rgba(255, 215, 179, 0.14);
+    --good:      #6FBF86;
+    --warn:      #E8D44A;
+    --danger:    #F06A5A;
+    --on-danger: #17120F;
+    --overlay:   rgba(8, 5, 3, 0.72);
+
+    --hr:      #FF5C7A;
+    --cadence: #B38CFF;
+    --wbal:    #39D0E8;
+    --ref:     #6B8F8F;     /* dusty teal: reference and trend lines */
+
+    color-scheme: dark;
+}
+
+body[data-palette="abricot"].white-theme {
+    --bg:        #FAF7F2;
+    --surface:   #FFFDF9;
+    --surface-2: #F3E8DC;
+    --line:      #E6D9C9;
+    --ink:       #1F2A44;
+    --muted:     #6F604F;
+    --accent:    #A5522A;   /* siena 700 */
+    --on-accent: #FFFFFF;
+    --link:      #2F6DB5;
+    --band:      rgba(165, 82, 42, 0.10);
+    --good:      #3E8A56;
+    --warn:      #B07D12;
+    --danger:    #B4234F;
+    --on-danger: #FFFFFF;
+    --overlay:   rgba(31, 42, 68, 0.40);
+
+    --hr:      #C81E42;
+    --cadence: #6C3FD6;
+    --wbal:    #0B7D92;
+    --ref:     #6F8C9E;     /* slate: reference and trend lines */
+    --zone-1:  #525861;
+
+    color-scheme: light;
+}
+
+@media (prefers-color-scheme: light) {
+    body[data-palette="abricot"].auto-theme {
+        --bg:        #FAF7F2;
+        --surface:   #FFFDF9;
+        --surface-2: #F3E8DC;
+        --line:      #E6D9C9;
+        --ink:       #1F2A44;
+        --muted:     #6F604F;
+        --accent:    #A5522A;   /* siena 700 */
+        --on-accent: #FFFFFF;
+        --link:      #2F6DB5;
+        --band:      rgba(165, 82, 42, 0.10);
+        --good:      #3E8A56;
+        --warn:      #B07D12;
+        --danger:    #B4234F;
+        --on-danger: #FFFFFF;
+        --overlay:   rgba(31, 42, 68, 0.40);
+
+        --hr:      #C81E42;
+        --cadence: #6C3FD6;
+        --wbal:    #0B7D92;
+        --ref:     #6F8C9E;     /* slate: reference and trend lines */
+        --zone-1:  #525861;
+
+        color-scheme: light;
+    }
+}
+
 :root,
 body {
     /* spacing scale */

@@ -69,7 +69,7 @@ function handleError(err, what) {
 // --- profile ---------------------------------------------------------------
 
 function localProfile() {
-    return {ftp: db.ftp, weight: db.weight, wprime: loadWprime(), hrThresholds: thresholds.own(), layouts: layouts.forProfile()};
+    return {ftp: db.ftp, weight: db.weight, wprime: loadWprime(), hrThresholds: thresholds.own(), layouts: layouts.forProfile(), palette: db.palette};
 }
 
 // The profile syncs per device by what that device changed: a device that
@@ -79,6 +79,19 @@ function localProfile() {
 // values over newer ones from another device).
 const profileKey = p => JSON.stringify(p);
 let restored = false;          // the app has loaded the rider's stored values
+
+function sameProfile(current, syncedJson) {
+    if(profileKey(current) === syncedJson) return true;
+    // Profiles synced before `palette` was added did not include the key;
+    // loading the default palette at startup is not a user edit.
+    try {
+        const prev = JSON.parse(syncedJson);
+        if(prev && typeof prev === 'object' && !('palette' in prev) && (current.palette ?? 'default') === 'default') {
+            return profileKey({...prev, palette: 'default'}) === profileKey(current);
+        }
+    } catch(e) {}
+    return false;
+}
 
 function markProfileSynced() {
     setLocal('profileSynced', profileKey(localProfile()));
@@ -94,6 +107,9 @@ async function pullProfile() {
             if(remote.data.ftp > 0 && remote.data.ftp !== db.ftp) xf.dispatch('ui:ftp-set', remote.data.ftp);
             if(remote.data.weight > 0 && remote.data.weight !== db.weight) xf.dispatch('ui:weight-set', remote.data.weight);
             if(remote.data.wprime > 0 && remote.data.wprime !== loadWprime()) setWprime(remote.data.wprime);   // the typed W′, not the model's
+            if(remote.data.palette && models.palette.isValid(remote.data.palette) && remote.data.palette !== db.palette) {
+                xf.dispatch('ui:palette-set', remote.data.palette);
+            }
             if(remote.data.hrThresholds) {
                 thresholds.setOwn(remote.data.hrThresholds, {silent: true}); // not pushed back
                 xf.dispatch('training:changed', Date.now());                  // loads change
@@ -121,7 +137,7 @@ function profileChanged() {
     if(applyingRemote || !linked()) return;
     const synced = local('profileSynced', null);
     // before this device has synced its profile once, only a change after the app has loaded counts
-    if(synced === null ? !restored : profileKey(localProfile()) === synced) return;
+    if(synced === null ? !restored : sameProfile(localProfile(), synced)) return;
     if(!local('profileDirty', false)) setLocal('profileChangedAt', Date.now());
     setLocal('profileDirty', true);
     clearTimeout(pushTimer);
@@ -340,6 +356,7 @@ function start() {
 
     xf.sub('db:ftp', profileChanged);
     xf.sub('db:weight', profileChanged);
+    xf.sub('db:palette', profileChanged);
     xf.sub('dashboard:wprime', profileChanged);
     xf.sub('training:thresholds', profileChanged);
     xf.sub('layouts:saved', profileChanged);

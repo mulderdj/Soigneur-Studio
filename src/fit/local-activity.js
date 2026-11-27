@@ -188,6 +188,47 @@ function LocalActivity(args = {}) {
         return type.timestamp.elapsed(lap.start_time, lap.timestamp);
     }
 
+    function hasValidGps(record) {
+        return Number.isFinite(record?.position_lat) &&
+               Number.isFinite(record?.position_long) &&
+               !(record.position_lat === 0 && record.position_long === 0);
+    }
+
+    // Normalize records before encoding so absent sensors and indoor (0, 0)
+    // placeholders write FIT base-type invalid sentinels instead of 0.
+    function sanitizeRecords(records = []) {
+        const dataRecords = records.filter(r => r && r.time === undefined);
+        const rideHasGps = dataRecords.some(hasValidGps);
+        const rideHasElevation = rideHasGps || dataRecords.some(r =>
+            (Number.isFinite(r.altitude) && r.altitude !== 0) ||
+            (Number.isFinite(r.grade) && r.grade !== 0)
+        );
+        const rideHasCadence = dataRecords.some(r => Number.isFinite(r.cadence) && r.cadence > 0);
+
+        return records.map(r => {
+            if(!r || r.time !== undefined) return r;
+            const gps = hasValidGps(r);
+            const moxy = (Number.isFinite(r.total_hemoglobin_conc) && r.total_hemoglobin_conc > 0) ||
+                         (Number.isFinite(r.saturated_hemoglobin_percent) && r.saturated_hemoglobin_percent > 0);
+            return {
+                ...r,
+                position_lat:  gps ? r.position_lat : undefined,
+                position_long: gps ? r.position_long : undefined,
+                altitude:      rideHasElevation && Number.isFinite(r.altitude) ? r.altitude : undefined,
+                grade:         rideHasElevation && Number.isFinite(r.grade) ? r.grade : undefined,
+                heart_rate:    Number.isFinite(r.heart_rate) && r.heart_rate > 0 ? r.heart_rate : undefined,
+                cadence:       rideHasCadence && Number.isFinite(r.cadence) && r.cadence >= 0 ? r.cadence : undefined,
+                power:         Number.isFinite(r.power) && r.power >= 0 ? r.power : undefined,
+                speed:         Number.isFinite(r.speed) && r.speed >= 0 ? r.speed : undefined,
+                distance:      Number.isFinite(r.distance) && r.distance >= 0 ? r.distance : undefined,
+                total_hemoglobin_conc:        Number.isFinite(r.total_hemoglobin_conc) && r.total_hemoglobin_conc > 0 ? r.total_hemoglobin_conc : undefined,
+                saturated_hemoglobin_percent: moxy && Number.isFinite(r.saturated_hemoglobin_percent) && r.saturated_hemoglobin_percent >= 0 ? r.saturated_hemoglobin_percent : undefined,
+                core_temperature:             Number.isFinite(r.core_temperature) && r.core_temperature > 0 ? r.core_temperature : undefined,
+                device_index:                 r.device_index ?? 0,
+            };
+        });
+    }
+
     // {records: [Record], total_timer_time: Int}
     // ->
     // Stats
@@ -201,39 +242,57 @@ function LocalActivity(args = {}) {
             `fit: calcStats: needs total_timer_tim: Int`
         );
 
-        const defaultStats = {
-            avg_power: 0,
-            avg_cadence: 0,
-            avg_speed: 0,
-            avg_heart_rate: 0,
-            max_power: 0,
-            max_cadence: 0,
-            max_speed: 0,
-            max_heart_rate: 0,
-            total_distance: findLastRecord(records)?.distance ?? 0,
-            total_calories: 0,
+        const validRecords = records.filter(record => record && record.timestamp !== undefined);
+
+        let sumPower = 0, countPower = 0, maxPower = 0;
+        let sumCadence = 0, countCadence = 0, maxCadence = 0;
+        let sumSpeed = 0, countSpeed = 0, maxSpeed = 0;
+        let sumHr = 0, countHr = 0, maxHr = 0;
+        let lastDistance;
+
+        for(const record of validRecords) {
+            if(Number.isFinite(record.power) && record.power >= 0) {
+                sumPower += record.power;
+                countPower += 1;
+                if(record.power > maxPower) maxPower = record.power;
+            }
+            if(Number.isFinite(record.cadence) && record.cadence >= 0) {
+                sumCadence += record.cadence;
+                countCadence += 1;
+                if(record.cadence > maxCadence) maxCadence = record.cadence;
+            }
+            if(Number.isFinite(record.speed) && record.speed >= 0) {
+                sumSpeed += record.speed;
+                countSpeed += 1;
+                if(record.speed > maxSpeed) maxSpeed = record.speed;
+            }
+            if(Number.isFinite(record.heart_rate) && record.heart_rate > 0) {
+                sumHr += record.heart_rate;
+                countHr += 1;
+                if(record.heart_rate > maxHr) maxHr = record.heart_rate;
+            }
+            if(Number.isFinite(record.distance) && record.distance >= 0) {
+                lastDistance = record.distance;
+            }
+        }
+
+        const avg_power = countPower > 0 ? Math.floor(sumPower / countPower) : undefined;
+        const avg_cadence = countCadence > 0 ? Math.floor(sumCadence / countCadence) : undefined;
+        const avg_speed = countSpeed > 0 ? sumSpeed / countSpeed : undefined;
+        const avg_heart_rate = countHr > 0 ? Math.floor(sumHr / countHr) : undefined;
+
+        return {
+            avg_power,
+            avg_cadence,
+            avg_speed,
+            avg_heart_rate,
+            max_power: countPower > 0 ? maxPower : undefined,
+            max_cadence: countCadence > 0 ? maxCadence : undefined,
+            max_speed: countSpeed > 0 ? maxSpeed : undefined,
+            max_heart_rate: countHr > 0 ? maxHr : undefined,
+            total_distance: lastDistance,
+            total_calories: avg_power !== undefined ? Math.floor(avg_power * total_timer_time * 0.001) : undefined,
         };
-
-        const stats = records
-              .filter(record => record.timestamp !== undefined)
-              .reduce(function(acc, record, _, { length }) {
-            acc.avg_power      += record.power / length;
-            acc.avg_cadence    += record.cadence / length;
-            acc.avg_speed      += record.speed / length;
-            acc.avg_heart_rate += record.heart_rate / length;
-            if(record.power      > acc.max_power)      acc.max_power      = record.power;
-            if(record.cadence    > acc.max_cadence)    acc.max_cadence    = record.cadence;
-            if(record.speed      > acc.max_speed)      acc.max_speed      = record.speed;
-            if(record.heart_rate > acc.max_heart_rate) acc.max_heart_rate = record.heart_rate;
-            return acc;
-        }, defaultStats);
-
-        stats.total_calories = Math.floor(stats.avg_power * total_timer_time * 0.001);
-        stats.avg_power = Math.floor(stats.avg_power);
-        stats.avg_cadence = Math.floor(stats.avg_cadence);
-        stats.avg_heart_rate = Math.floor(stats.avg_heart_rate);
-
-        return stats;
     }
 
     function timestampToDate(x) {
@@ -287,7 +346,7 @@ function LocalActivity(args = {}) {
     // ->
     // [FITjs]
     function toFITjs(args = {}) {
-        const records = args.records ?? [];
+        const records = sanitizeRecords(args.records ?? []);
         const laps = args.laps ?? [];
         const events = args.events ?? [];
         const ftp = args.ftp ?? 200;

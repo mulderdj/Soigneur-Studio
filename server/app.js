@@ -538,8 +538,15 @@ function createApp(options = {}) {
 
     route('PUT', '/api/me/profile', ({auth, body}) => {
         if(typeof body.data !== 'object' || body.data === null || Array.isArray(body.data)) fail(400, 'Expected {data: {...}}.');
+        if('palette' in body.data && body.data.palette !== null &&
+           (typeof body.data.palette !== 'string' || !/^[a-z0-9-]{1,32}$/.test(body.data.palette))) {
+            fail(400, 'Invalid palette.');
+        }
+        const prevRow = q.profile.get(auth.user.id);
+        const prev = prevRow ? JSON.parse(prevRow.data) : {};
+        const merged = {...prev, ...body.data};
         const t = now();
-        q.upsertProfile.run(auth.user.id, JSON.stringify(body.data), t);
+        q.upsertProfile.run(auth.user.id, JSON.stringify(merged), t);
         return {updatedAt: t};
     }, {auth: true});
 

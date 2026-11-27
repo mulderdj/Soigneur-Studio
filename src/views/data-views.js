@@ -1450,10 +1450,67 @@ class AutoStart extends AutoPause {
 
 customElements.define('auto-start', AutoStart);
 
+const THEME_COLORS = {
+    default: {dark: '#151B23', light: '#ECEFF3'},
+    abricot: {dark: '#17120F', light: '#FAF7F2'},
+};
+
+function effectiveColorMode(themeMode) {
+    if(equals(themeMode, 'WHITE')) return 'light';
+    if(equals(themeMode, 'AUTO')) {
+        const prefersLight = typeof window !== 'undefined' &&
+            typeof window.matchMedia === 'function' &&
+            window.matchMedia('(prefers-color-scheme: light)').matches;
+        return prefersLight ? 'light' : 'dark';
+    }
+    return 'dark';
+}
+
+function currentThemeMode() {
+    if(typeof document === 'undefined' || !document.body) return 'DARK';
+    if(document.body.classList.contains('white-theme')) return 'WHITE';
+    if(document.body.classList.contains('auto-theme')) return 'AUTO';
+    return 'DARK';
+}
+
+function updateThemeColor(themeMode = currentThemeMode(), palette = undefined) {
+    if(typeof document === 'undefined' || !document.body) return;
+    const activePalette = (palette ?? document.body.dataset.palette) === 'abricot' ? 'abricot' : 'default';
+    const mode = effectiveColorMode(themeMode);
+    const color = THEME_COLORS[activePalette][mode];
+    const meta = document.querySelector('meta[name="theme-color"]');
+    if(meta) meta.setAttribute('content', color);
+}
+
+function applyThemeMode(themeMode) {
+    if(typeof document === 'undefined' || !document.body) return;
+    document.body.className = equals(themeMode, 'DARK') ? 'dark-theme' : equals(themeMode, 'WHITE') ? 'white-theme' : 'auto-theme';
+    updateThemeColor(themeMode);
+}
+
+function applyPalette(palette) {
+    if(typeof document === 'undefined' || !document.body) return;
+    if(palette === 'abricot') {
+        document.body.dataset.palette = 'abricot';
+    } else {
+        delete document.body.dataset.palette;
+    }
+    updateThemeColor(currentThemeMode(), palette);
+}
+
+if(typeof window !== 'undefined') {
+    xf.sub('db:palette', applyPalette);
+    xf.sub('db:sources', s => { if(s?.theme) applyThemeMode(s.theme); });
+    if(typeof window.matchMedia === 'function') {
+        const mq = window.matchMedia('(prefers-color-scheme: light)');
+        mq.addEventListener?.('change', () => updateThemeColor());
+    }
+}
+
 class Theme extends DataView {
     postInit() {
         this.effect  = 'sources';
-        this.state   = { theme: 'DARK' };
+        this.state   = 'DARK';
     }
     getDefaults() {
         return {
@@ -1480,11 +1537,41 @@ class Theme extends DataView {
     }
     render() {
         this.textContent = equals(this.state, 'DARK') ? 'DARK' : equals(this.state, 'WHITE') ? 'WHITE' : 'AUTO';
-        document.body.className =  equals(this.state, 'DARK') ? 'dark-theme' : equals(this.state, 'WHITE') ? 'white-theme' : 'auto-theme';
+        applyThemeMode(this.state);
     }
 }
 
 customElements.define('theme-layout', Theme);
+
+class PaletteLayout extends DataView {
+    postInit() {
+        this.state = models.palette.default;
+    }
+    getDefaults() {
+        return {
+            prop: 'db:palette',
+        };
+    }
+    subs() {
+        this.state = models.palette.state || models.palette.default;
+        this.render();
+        xf.sub(`${this.prop}`, this.onUpdate.bind(this), this.signal);
+        this.addEventListener('pointerup', this.onEffect.bind(this), this.signal);
+    }
+    onUpdate(value) {
+        this.state = models.palette.isValid(value) ? value : models.palette.default;
+        this.render();
+    }
+    onEffect() {
+        xf.dispatch('ui:palette-switch');
+    }
+    render() {
+        this.textContent = models.palette.label(this.state);
+        applyPalette(this.state);
+    }
+}
+
+customElements.define('palette-layout', PaletteLayout);
 
 class SoundControl extends DataView {
     postInit() {
@@ -1594,6 +1681,10 @@ export {
     MeasurementUnit,
     ThemeValue,
     MeasurementValue,
+    PaletteLayout,
+    applyPalette,
+    applyThemeMode,
+    updateThemeColor,
 
     SlopeTarget,
     PowerTarget,
