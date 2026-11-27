@@ -317,7 +317,7 @@ function createIntervalsSync({db, options = {}}) {
                 else q.planGone.run(now(), userId, row.id);
                 continue;
             }
-            if(row.deleted || d.origin === 'intervals' || !inWindow(d.day)) continue;
+            if(row.deleted || d.kind === 'event' || d.event || d.origin === 'intervals' || !inWindow(d.day)) continue;
             if(!d.zwo) { skipped++; continue; }
             await write(async () => {
                 const out = await request('POST', '/api/v1/athlete/0/events?upsertOnUid=true', eventBody(row.id, d));

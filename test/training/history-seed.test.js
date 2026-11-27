@@ -1,5 +1,6 @@
 import { generateHistory } from '../../src/dev/history-seed.js';
 import { planStatus } from '../../src/training/plan.js';
+import { goalEventsFromPlan, weeklyPhases } from '../../src/training/season.js';
 import { SUMMARY_VERSION } from '../../src/training/summary.js';
 
 const today = '2026-11-23';
@@ -67,6 +68,18 @@ describe('generated training history', () => {
         expect(hrRuns.length).toBeGreaterThan(0);
         expect(hrRuns.every(r => r.tss === null && r.avgHr > 100)).toBe(true);
         expect(a.thresholds).toEqual({cycling: 165, running: 172});
+    });
+
+    test('seeds an upcoming A goal event and a B tune-up event with training phases', () => {
+        const goals = goalEventsFromPlan(a.plan);
+        expect(goals.map(g => g.priority).sort()).toEqual(['A', 'B']);
+        const aGoal = goals.find(g => g.priority === 'A');
+        const bGoal = goals.find(g => g.priority === 'B');
+        expect(aGoal.day > bGoal.day).toBe(true);
+        expect(bGoal.day > today).toBe(true);
+        const phases = weeklyPhases(goals, today, aGoal.day);
+        expect(phases.some(p => p.phase === 'taper')).toBe(true);
+        expect(phases.some(p => p.miniTaper)).toBe(true);
     });
 });
 

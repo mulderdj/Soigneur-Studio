@@ -18,4 +18,14 @@ describe('form over any period', () => {
         const m = formModel({today: '2026-11-23', summaries: [], plan: []}, {pastDays: null});
         for(const r of [...m.past, ...m.ahead]) for(const k of ['ctl', 'atl', 'tsb']) expect(Number.isFinite(r[k])).toBe(true);
     });
+    test('extends forecast horizon up to 42 days when an A/B goal falls between day 29 and 42', () => {
+        const m = formModel({
+            today: '2026-11-23',
+            summaries,
+            plan: [{id: 'ga', day: '2026-12-28', kind: 'event', event: {name: 'Festive 500 Finale', priority: 'A'}}],
+        });
+        expect(m.ahead).toHaveLength(35);
+        expect(m.ahead.at(-1).day).toBe('2026-12-28');
+        expect(m.raceForecast?.goal.name).toBe('Festive 500 Finale');
+    });
 });

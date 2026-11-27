@@ -8,7 +8,8 @@
 //
 
 import { addDays, weekStart, monthStart, dayToDate } from '../../training/dates.js';
-import { planStatus, plannedTss } from '../../training/plan.js';
+import { planStatus, plannedTss, isGoalEvent } from '../../training/plan.js';
+import { goalEventsFromPlan, eventTypeLabel, phaseForWeek } from '../../training/season.js';
 import { currentLayout, isPhone } from '../layout.js';
 import { esc, fmtDuration, fmtDay, fmtMonth, fmtTss, sportLabelFor, loadTag, loadTitle } from './format.js';
 
@@ -24,6 +25,12 @@ class TrainingCalendar extends HTMLElement {
             this.addEventListener('click', e => {
                 const nav = e.target.closest('[data-nav]');
                 if(nav) return this.navigate(nav.dataset.nav);
+                const addGoal = e.target.closest('[data-add-goal]');
+                if(addGoal && this._data) {
+                    const target = this.anchor && this.anchor >= this._data.today ? this.anchor : this._data.today;
+                    this.dispatchEvent(new CustomEvent('day-open', {bubbles: true, detail: {day: target, goal: true}}));
+                    return;
+                }
                 const open = e.target.closest('.cal-open');
                 if(open) this.dispatchEvent(new CustomEvent('day-open', {bubbles: true, detail: {day: open.closest('.cal-day').dataset.day}}));
             });
@@ -71,11 +78,24 @@ class TrainingCalendar extends HTMLElement {
         return Array.from({length: 42}, (_, i) => addDays(first, i));
     }
 
-    itemsFor(day) {
+    itemsFor(day, goalsByDay) {
         const {summaries = [], plan = [], today} = this._data;
         const rides = summaries.filter(s => s.day === day);
-        const entries = plan.filter(e => !e.deleted && e.day === day);
+        const dayGoals = goalsByDay.get(day) ?? [];
+        const entries = plan.filter(e => !e.deleted && !isGoalEvent(e) && e.day === day);
         const matched = new Set(entries.map(e => e.rideId).filter(Boolean));
+        const goalHtml = dayGoals.map(g => {
+            const parts = [
+                eventTypeLabel(g.eventType),
+                g.targetDurationS ? fmtDuration(g.targetDurationS) : '',
+                g.targetTss ? `${g.targetTss} TSS` : '',
+            ].filter(Boolean);
+            const ai = g.origin === 'ai' ? ' <span class="badge badge-ai" title="Added by an AI app, with your OK">AI</span>' : '';
+            return `<li class="cal-item cal-goal" data-priority="${esc(g.priority)}">
+                        <span class="cal-item__name"><span class="badge cal-goal__prio" data-priority="${esc(g.priority)}">${esc(g.priority)}</span> ${esc(g.name)}</span>
+                        <span class="cal-item__meta">${esc(parts.join(' · ') || 'Goal event')}${ai}</span>
+                    </li>`;
+        }).join('');
         const planHtml = entries.map(e => {
             const status = planStatus(e, today);
             const planned = Math.round(plannedTss(e.workout, this._data.ftp));
@@ -99,14 +119,40 @@ class TrainingCalendar extends HTMLElement {
                         <span class="cal-item__meta">${sport ? `<span class="badge cal-sport">${esc(sport)}</span> ` : ''}${load ? `<span class="badge cal-load" title="${esc(loadTitle(r.loadSource))}">${load}</span> ` : ''}${fmtDuration(r.duration)} · ${fmtTss(r.tss)} TSS</span>
                     </li>`;
         }).join('');
-        return planHtml + rideHtml;
+        return goalHtml + planHtml + rideHtml;
+    }
+
+    weekRowHtml(monday, goals) {
+        const wp = phaseForWeek(goals, monday);
+        if(!wp.phase && !wp.miniTaper) return '';
+        const pills = [];
+        if(wp.phase) pills.push(`<span class="cal-phase" data-phase="${esc(wp.phase)}">${esc(wp.label)}</span>`);
+        if(wp.miniTaper) pills.push('<span class="cal-phase cal-phase--mini" data-phase="mini-taper">Mini-taper</span>');
+        let meta = '';
+        if(wp.targetGoal) {
+            meta = wp.weeksToGoal === 0 ? `Race week · ${wp.targetGoal.name}` : `${wp.weeksToGoal}w to ${wp.targetGoal.name}`;
+        } else if(wp.miniTaper) {
+            const bGoal = wp.goals.find(g => g.priority === 'B');
+            if(bGoal) meta = `Tune-up · ${bGoal.name}`;
+        }
+        return `<li class="cal-week" data-week="${monday}"${wp.phase ? ` data-phase="${esc(wp.phase)}"` : ''}>
+                    <span class="cal-week__pills">${pills.join(' ')}</span>
+                    ${meta ? `<span class="cal-week__meta">${esc(meta)}</span>` : ''}
+                </li>`;
     }
 
     render() {
         if(!this._data) return;
         const week = this.week();
         this.lastWeek = week;
-        const {today} = this._data;
+        const {today, plan = []} = this._data;
+        const goals = goalEventsFromPlan(plan);
+        const goalsByDay = new Map();
+        for(const g of goals) {
+            const list = goalsByDay.get(g.day) ?? [];
+            list.push(g);
+            goalsByDay.set(g.day, list);
+        }
         const days = this.days();
         const month = monthStart(this.anchor).slice(0, 7);
         const title = week ?
@@ -117,6 +163,7 @@ class TrainingCalendar extends HTMLElement {
             <div class="cal-bar">
                 <h2 class="card__title cal-title">${esc(title)}</h2>
                 <div class="cal-nav">
+                    <button type="button" class="btn btn--quiet" data-add-goal>+ Goal</button>
                     <button type="button" class="btn btn--icon" data-nav="prev" aria-label="Previous ${week ? 'week' : 'month'}">‹</button>
                     <button type="button" class="btn btn--quiet" data-nav="today">Today</button>
                     <button type="button" class="btn btn--icon" data-nav="next" aria-label="Next ${week ? 'week' : 'month'}">›</button>
@@ -124,13 +171,18 @@ class TrainingCalendar extends HTMLElement {
             </div>
             ${week ? '' : `<div class="cal-head">${WEEKDAYS.map(d => `<span>${d}</span>`).join('')}</div>`}
             <ol class="cal-days ${week ? 'cal-days--week' : 'cal-days--month'}">
-                ${days.map(day => `
-                <li class="cal-day${day === today ? ' is-today' : ''}${!week && day.slice(0, 7) !== month ? ' is-other' : ''}" data-day="${day}">
+                ${days.map((day, idx) => {
+                    const weekHead = idx % 7 === 0 ? this.weekRowHtml(day, goals) : '';
+                    const dayGoals = goalsByDay.get(day) ?? [];
+                    const goalAttr = dayGoals.length ? ` data-goal="${esc(dayGoals[0].priority)}"` : '';
+                    return `${weekHead}
+                <li class="cal-day${day === today ? ' is-today' : ''}${!week && day.slice(0, 7) !== month ? ' is-other' : ''}${dayGoals.length ? ' has-goal' : ''}" data-day="${day}"${goalAttr}>
                     <button type="button" class="cal-open" aria-label="${esc(fmtDay(day, {weekday: 'long', day: 'numeric', month: 'long'}))}">
                         <span class="cal-date">${week ? esc(fmtDay(day)) : Number(day.slice(8))}</span>
                     </button>
-                    <ul class="cal-items">${this.itemsFor(day)}</ul>
-                </li>`).join('')}
+                    <ul class="cal-items">${this.itemsFor(day, goalsByDay)}</ul>
+                </li>`;
+                }).join('')}
             </ol>`;
     }
 }

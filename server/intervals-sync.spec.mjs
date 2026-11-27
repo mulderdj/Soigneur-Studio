@@ -266,6 +266,7 @@ test('plan: an Auuki entry is created on intervals.icu once, with its uid', asyn
         await connect(call, token);
         await putEntry(call, token, 'p1', auukiEntry(dayFrom(1)));
         await putEntry(call, token, 'p2', auukiEntry(dayFrom(1), {zwo: null})); // no .zwo: skipped
+        await putEntry(call, token, 'g1', {day: dayFrom(10), kind: 'event', event: {name: 'Goal Race', priority: 'A'}}); // goal event: ignored by workout sync
         await app.intervalsSync.run(userId);
         const posts = fake.log.filter(l => l.method === 'POST' && l.path === '/api/v1/athlete/0/events');
         assert.equal(posts.length, 1);

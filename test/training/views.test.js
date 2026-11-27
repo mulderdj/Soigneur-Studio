@@ -9,6 +9,7 @@ import '../../src/views/training/health-card.js';
 import '../../src/views/training/hr-thresholds.js';
 import '../../src/views/training/calendar.js';
 import '../../src/views/training/day-dialog.js';
+import '../../src/views/training/form-card.js';
 
 const today = '2026-11-25';
 const workout = (id, name) => ({id, meta: {name}, intervals: [{duration: 3600, steps: [{duration: 3600, power: 0.79}]}]});
@@ -400,5 +401,121 @@ describe('small graphs in the day dialog', () => {
         expect(parts.map(p => p.dataset.zone)).toEqual(['1', '2', '4']);
         expect(parts.map(p => p.style.flexGrow)).toEqual(['600', '1200', '1800']);
         expect(bars[0].getAttribute('aria-label')).toBe('Time in zones: Z1 10 min, Z2 20 min, Z4 30 min');
+    });
+});
+
+describe('season planning: calendar badges, phases, day-dialog goals, and form card race callout', () => {
+    const withGoals = {
+        ...data,
+        ftp: 250,
+        summaries: [
+            {id: 'r1', day: '2026-11-20', name: 'Build ride', duration: 5400, tss: 95, start: 1},
+            {id: 'r2', day: '2026-11-22', name: 'Long ride', duration: 7200, tss: 120, start: 2},
+            {id: 'r3', day: '2026-11-24', name: 'Sweet spot', duration: 3900, tss: 70, start: 3},
+        ],
+        plan: [
+            ...data.plan,
+            {id: 'gb', day: '2026-11-29', kind: 'event', event: {name: 'Autumn Crit', priority: 'B', eventType: 'crit', targetDurationS: 3600, targetTss: 85}},
+            {id: 'ga', day: '2026-12-20', kind: 'event', event: {name: 'Solstice Fondo', priority: 'A', eventType: 'gran-fondo', targetDurationS: 14400, targetTss: 240, notes: '135 km'}},
+        ],
+    };
+
+    test('calendar renders goal badges, weekly phase pills and mini-taper without altering .cal-day counts', () => {
+        document.body.innerHTML = '<training-calendar layout="desktop"></training-calendar>';
+        const el = document.querySelector('training-calendar');
+        el.data = withGoals;
+        expect(el.querySelectorAll('.cal-day')).toHaveLength(42);
+
+        // Goal day in November view shows priority badge + event name + type
+        const critDay = el.querySelector('.cal-day[data-day="2026-11-29"]');
+        expect(critDay.classList.contains('has-goal')).toBe(true);
+        const goalBadge = critDay.querySelector('.cal-goal');
+        expect(goalBadge.dataset.priority).toBe('B');
+        expect(goalBadge.textContent).toContain('Autumn Crit');
+        expect(goalBadge.textContent).toContain('Criterium');
+
+        // Week rows show Build / Peak phases and Mini-taper on the B-goal week
+        const weekNov23 = el.querySelector('.cal-week[data-week="2026-11-23"]');
+        expect(weekNov23).not.toBeNull();
+        expect(weekNov23.dataset.phase).toBe('peak');
+        expect(weekNov23.querySelector('.cal-phase--mini').textContent).toBe('Mini-taper');
+        expect(weekNov23.textContent).toContain('Solstice Fondo');
+
+        // Clicking + Goal opens the day dialog in goal mode
+        const opened = [];
+        el.addEventListener('day-open', e => opened.push(e.detail));
+        el.querySelector('[data-add-goal]').click();
+        expect(opened).toEqual([{day: today, goal: true}]);
+    });
+
+    test('day dialog adds, edits and removes goal events', async () => {
+        document.body.innerHTML = '<day-dialog></day-dialog>';
+        const el = document.querySelector('day-dialog');
+        el.actions = {
+            addGoalEvent: jest.fn(async () => {}),
+            updateGoalEvent: jest.fn(async () => {}),
+            removeGoalEvent: jest.fn(async () => {}),
+        };
+
+        // Add a new goal event
+        el.open('2026-12-12', withGoals, {goal: true});
+        const form = el.querySelector('.dd-goal-form');
+        expect(form).not.toBeNull();
+        form.querySelector('[name="goalName"]').value = 'Club Hill Climb';
+        form.querySelector('[name="goalPriority"]').value = 'C';
+        form.querySelector('[name="goalType"]').value = 'tt';
+        form.querySelector('[name="goalDurationMin"]').value = '30';
+        form.querySelector('[name="goalTss"]').value = '55';
+        form.querySelector('[name="goalNotes"]').value = 'All-out 20 min climb';
+        form.dispatchEvent(new Event('submit', {bubbles: true, cancelable: true}));
+        await Promise.resolve();
+        expect(el.actions.addGoalEvent).toHaveBeenCalledWith('2026-12-12', {
+            name: 'Club Hill Climb',
+            priority: 'C',
+            eventType: 'tt',
+            targetDurationS: 1800,
+            targetTss: 55,
+            notes: 'All-out 20 min climb',
+        });
+
+        // Edit and remove an existing goal event
+        el.open('2026-12-20', withGoals);
+        expect(el.querySelector('.dd-goal').textContent).toContain('Solstice Fondo');
+        expect(el.querySelector('.dd-goal').textContent).toContain('135 km');
+        el.querySelector('[data-edit-goal="ga"]').click();
+        const editForm = el.querySelector('.dd-goal-form');
+        expect(editForm.querySelector('[name="goalName"]').value).toBe('Solstice Fondo');
+        editForm.querySelector('[name="goalName"]').value = 'Solstice Gran Fondo XL';
+        editForm.dispatchEvent(new Event('submit', {bubbles: true, cancelable: true}));
+        await Promise.resolve();
+        expect(el.actions.updateGoalEvent).toHaveBeenCalledWith('ga', expect.objectContaining({
+            day: '2026-12-20',
+            name: 'Solstice Gran Fondo XL',
+            priority: 'A',
+        }));
+
+        el.open('2026-12-20', withGoals);
+        el.querySelector('[data-remove-goal="ga"]').click();
+        await Promise.resolve();
+        expect(el.actions.removeGoalEvent).toHaveBeenCalledWith('ga');
+    });
+
+    test('form-card shows race-day readiness callout, tune-up race and opens race day on click', () => {
+        document.body.innerHTML = '<form-card></form-card>';
+        const el = document.querySelector('form-card');
+        el.data = withGoals;
+        const callout = el.querySelector('.fc-goal');
+        expect(callout).not.toBeNull();
+        expect(callout.dataset.priority).toBe('A');
+        expect(callout.textContent).toContain('Solstice Fondo');
+        expect(callout.textContent).toContain('in 25 days');
+        expect(callout.querySelector('[data-k="race-tsb"]').textContent).toMatch(/^[+-]?\d+$/);
+        expect(callout.querySelector('[data-k="race-guidance"]').textContent.length).toBeGreaterThan(10);
+        expect(callout.querySelector('.fc-goal__tuneup').textContent).toContain('Autumn Crit');
+
+        const opened = [];
+        el.addEventListener('day-open', e => opened.push(e.detail.day));
+        callout.querySelector('[data-open-day="2026-12-20"]').click();
+        expect(opened).toEqual(['2026-12-20']);
     });
 });

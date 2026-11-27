@@ -10,6 +10,8 @@
 // the library doesn't break the plan.
 //
 
+import { isGoalEvent } from './season.js';
+
 const SLOPE_ONLY_POWER = 0.65; // relative power assumed for steps without a power target
 
 const WATTS_FROM = 10; // like models.ftp.toAbsolute: 10 and up is watts, below is relative to FTP
@@ -35,7 +37,7 @@ function planStatus(entry, today) {
 }
 
 function matchRide(summary, entries) {
-    const open = entries.filter(e => !e.deleted && !e.rideId && e.day === summary.day);
+    const open = entries.filter(e => !e.deleted && !isGoalEvent(e) && !e.rideId && e.day === summary.day);
     const same = open.find(e => e.workout?.id && e.workout.id === summary.workoutId);
     return (same ?? open[0])?.id ?? null;
 }
@@ -43,8 +45,8 @@ function matchRide(summary, entries) {
 function autoSelectWorkout({entries, today, watchStatus, handPickedDay}) {
     if(watchStatus === 'started' || watchStatus === 'paused') return null;
     if(handPickedDay === today) return null;
-    const entry = entries.find(e => !e.deleted && e.day === today && e.workout && planStatus(e, today) === 'planned');
+    const entry = entries.find(e => !e.deleted && !isGoalEvent(e) && e.day === today && e.workout && planStatus(e, today) === 'planned');
     return entry?.workout ?? null;
 }
 
-export { plannedTss, planStatus, matchRide, autoSelectWorkout, SLOPE_ONLY_POWER };
+export { plannedTss, planStatus, matchRide, autoSelectWorkout, isGoalEvent, SLOPE_ONLY_POWER };

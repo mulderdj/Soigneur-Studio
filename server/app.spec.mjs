@@ -273,3 +273,40 @@ test('ride summaries can be added to rides already on the server', async () => {
         stop();
     }
 });
+
+test('goal events in /api/me/plan validate priority, name and date, and sync incrementally', async () => {
+    const {call, stop} = await start({allowSignup: true});
+    try {
+        const a = (await call('POST', '/api/auth/register', {body: {username: 'dj', password: 'password123'}})).json.token;
+
+        const goal = {
+            data: {
+                day: '2026-12-20',
+                kind: 'event',
+                event: {
+                    name: 'Solstice Gran Fondo',
+                    priority: 'A',
+                    eventType: 'gran-fondo',
+                    targetDurationS: 14400,
+                    targetTss: 240,
+                    notes: '135 km hilly',
+                },
+            },
+        };
+        assert.equal((await call('PUT', '/api/me/plan/g1', {token: a, body: goal})).status, 200);
+        const rows = (await call('GET', '/api/me/plan', {token: a})).json.entries;
+        assert.equal(rows.length, 1);
+        assert.equal(rows[0].data.kind, 'event');
+        assert.equal(rows[0].data.event.priority, 'A');
+        assert.equal(rows[0].data.event.name, 'Solstice Gran Fondo');
+        assert.equal(rows[0].data.workout, null);
+
+        // Invalid priority, missing name, invalid calendar date, or out-of-range TSS -> 400
+        assert.equal((await call('PUT', '/api/me/plan/g2', {token: a, body: {data: {day: '2026-12-20', kind: 'event', event: {name: 'X', priority: 'Z'}}}})).status, 400);
+        assert.equal((await call('PUT', '/api/me/plan/g2', {token: a, body: {data: {day: '2026-12-20', kind: 'event', event: {name: '', priority: 'B'}}}})).status, 400);
+        assert.equal((await call('PUT', '/api/me/plan/g2', {token: a, body: {data: {day: '2026-02-30', kind: 'event', event: {name: 'X', priority: 'B'}}}})).status, 400);
+        assert.equal((await call('PUT', '/api/me/plan/g2', {token: a, body: {data: {day: '2026-12-20', kind: 'event', event: {name: 'X', priority: 'B', targetTss: 9999}}}})).status, 400);
+    } finally {
+        stop();
+    }
+});

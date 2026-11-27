@@ -109,6 +109,32 @@ function generateHistory({today, days = 120, ftp = 250, weight = 75, seed = 1} =
         plan.push({id: `seed-plan-${day}`, day, workout: toWorkout('endurance'), rideId: null, deleted: false, updatedAt: 0, dirty: false});
     }
 
+    // Season goals: a B tune-up event ~1.5–2 weeks out and an A goal ~3.5–4 weeks out,
+    // with lighter taper spins in race week so phases, badges and race-day form forecast
+    // work out of the box.
+    const bGoalDay = addDays(weekStart(today), 13);
+    const aGoalDay = addDays(weekStart(today), 27);
+    const raceWeekMon = weekStart(aGoalDay);
+    for(const offset of [2, 4]) {
+        const taperDay = addDays(raceWeekMon, offset);
+        if(taperDay > addDays(today, 21) && taperDay < aGoalDay) {
+            plan.push({
+                id: `seed-plan-${taperDay}`, day: taperDay, workout: toWorkout('recovery'),
+                rideId: null, deleted: false, updatedAt: 0, dirty: false,
+            });
+        }
+    }
+    plan.push({
+        id: 'seed-goal-b', day: bGoalDay, kind: 'event',
+        event: {name: 'Winter Warm-Up Crit', priority: 'B', eventType: 'crit', targetDurationS: 3600, targetTss: 85, notes: 'Sharpener before the main fondo'},
+        name: 'Winter Warm-Up Crit', workout: null, zwo: null, rideId: null, deleted: false, origin: 'auuki', updatedAt: 0, dirty: false,
+    });
+    plan.push({
+        id: 'seed-goal-a', day: aGoalDay, kind: 'event',
+        event: {name: 'Solstice Gran Fondo', priority: 'A', eventType: 'gran-fondo', targetDurationS: 14400, targetTss: 240, notes: '135 km hilly finale'},
+        name: 'Solstice Gran Fondo', workout: null, zwo: null, rideId: null, deleted: false, origin: 'auuki', updatedAt: 0, dirty: false,
+    });
+
     // intervals.icu: Monday runs over the last weeks, and two planned
     // workouts from there (one whose .zwo can't be read)
     const external = [];
