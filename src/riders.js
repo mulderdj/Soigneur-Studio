@@ -12,6 +12,8 @@
 // data.
 //
 
+import { isValidAvatar } from './avatar.js';
+
 const REGISTRY_KEY = 'auuki:riders';
 const DEFAULT_ID = 'default';
 
@@ -81,6 +83,20 @@ function rename(id, name) {
     writeRegistry();
 }
 
+function setAvatar(id, avatar) {
+    const r = find(id);
+    if(!r) return;
+    if(avatar === null || avatar === undefined || avatar === '') {
+        if(!('avatar' in r)) return;
+        delete r.avatar;
+    } else {
+        if(!isValidAvatar(avatar)) throw new Error('Invalid avatar.');
+        if(r.avatar === avatar) return;
+        r.avatar = avatar;
+    }
+    writeRegistry();
+}
+
 // removes the rider and everything stored for them on this device
 async function remove(id) {
     if(id === DEFAULT_ID || id === registry.current) {
@@ -147,6 +163,7 @@ const riders = {
     dbName,
     add,
     rename,
+    setAvatar,
     remove,
     switchTo,
     linkAccount,

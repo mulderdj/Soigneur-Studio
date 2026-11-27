@@ -18,6 +18,7 @@ import { db } from '../db.js';
 import { models } from '../models/models.js';
 import { idb } from '../storage/idb.js';
 import { riders } from '../riders.js';
+import { isValidAvatar } from '../avatar.js';
 import { api, ApiError } from './api.js';
 import { session, setWprime, loadWprime } from '../views/training-dashboard.js';
 import { history } from '../training/history.js';
@@ -69,7 +70,9 @@ function handleError(err, what) {
 // --- profile ---------------------------------------------------------------
 
 function localProfile() {
-    return {ftp: db.ftp, weight: db.weight, wprime: loadWprime(), hrThresholds: thresholds.own(), layouts: layouts.forProfile(), palette: db.palette};
+    const rawAvatar = riders.current()?.avatar ?? null;
+    const avatar = isValidAvatar(rawAvatar) ? rawAvatar : null;
+    return {ftp: db.ftp, weight: db.weight, wprime: loadWprime(), hrThresholds: thresholds.own(), layouts: layouts.forProfile(), palette: db.palette, avatar};
 }
 
 // The profile syncs per device by what that device changed: a device that
@@ -79,15 +82,23 @@ function localProfile() {
 // values over newer ones from another device).
 const profileKey = p => JSON.stringify(p);
 let restored = false;          // the app has loaded the rider's stored values
+let lastAvatar = riders.current()?.avatar ?? null;
 
 function sameProfile(current, syncedJson) {
     if(profileKey(current) === syncedJson) return true;
-    // Profiles synced before `palette` was added did not include the key;
-    // loading the default palette at startup is not a user edit.
+    // Profiles synced before `palette` or `avatar` were added did not include
+    // those keys; loading defaults at startup is not a user edit.
     try {
         const prev = JSON.parse(syncedJson);
-        if(prev && typeof prev === 'object' && !('palette' in prev) && (current.palette ?? 'default') === 'default') {
-            return profileKey({...prev, palette: 'default'}) === profileKey(current);
+        if(prev && typeof prev === 'object') {
+            const patched = {...prev};
+            if(!('palette' in patched) && (current.palette ?? 'default') === 'default') patched.palette = 'default';
+            if(!('avatar' in patched) && (current.avatar ?? null) === null) patched.avatar = null;
+            const keys = Object.keys(current);
+            if(keys.length === Object.keys(patched).length &&
+               keys.every(k => k in patched && JSON.stringify(patched[k]) === JSON.stringify(current[k]))) {
+                return true;
+            }
         }
     } catch(e) {}
     return false;
@@ -109,6 +120,15 @@ async function pullProfile() {
             if(remote.data.wprime > 0 && remote.data.wprime !== loadWprime()) setWprime(remote.data.wprime);   // the typed W′, not the model's
             if(remote.data.palette && models.palette.isValid(remote.data.palette) && remote.data.palette !== db.palette) {
                 xf.dispatch('ui:palette-set', remote.data.palette);
+            }
+            if('avatar' in remote.data) {
+                const nextAvatar = remote.data.avatar === null ? null : (isValidAvatar(remote.data.avatar) ? remote.data.avatar : undefined);
+                if(nextAvatar !== undefined) {
+                    const r = riders.current();
+                    const curAvatar = r?.avatar ?? null;
+                    if(r && nextAvatar !== curAvatar) riders.setAvatar?.(r.id, nextAvatar);
+                    lastAvatar = riders.current()?.avatar ?? null;
+                }
             }
             if(remote.data.hrThresholds) {
                 thresholds.setOwn(remote.data.hrThresholds, {silent: true}); // not pushed back
@@ -360,6 +380,12 @@ function start() {
     xf.sub('dashboard:wprime', profileChanged);
     xf.sub('training:thresholds', profileChanged);
     xf.sub('layouts:saved', profileChanged);
+    window.addEventListener('riders:changed', () => {
+        const next = riders.current()?.avatar ?? null;
+        if(next === lastAvatar) return;
+        lastAvatar = next;
+        profileChanged();
+    });
 
     // a workout added through upload or the editor
     xf.sub('db:workouts', () => {

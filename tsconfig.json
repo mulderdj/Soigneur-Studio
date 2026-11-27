@@ -20,6 +20,7 @@
   },
   "include": [
     "src/analytics.js",
+    "src/avatar.js",
     "src/physics.js",
     "src/power-match.js",
     "src/fuelling.js",
