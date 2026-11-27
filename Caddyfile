@@ -96,7 +96,11 @@
 # IP address the other devices use, e.g. SOIGNEUR_HOST=192.168.1.20 or
 # SOIGNEUR_HOST=soigneur.local. Trust Caddy's root certificate on those
 # devices (see README) so the browser treats the page as secure.
-{$SOIGNEUR_HOST:localhost}:8443 {
+# SOIGNEUR_EXTRA_HOSTS: more names the same app answers to, written with the
+# port and separated by commas, e.g. the Tailscale name:
+#   SOIGNEUR_EXTRA_HOSTS=fedora.example.ts.net:8443
+# (the default is a name that never resolves, so nothing is added)
+{$SOIGNEUR_HOST:localhost}:8443, {$SOIGNEUR_EXTRA_HOSTS:unused.invalid:8443} {
 	# certificates for 7 days instead of Caddy's 12 hours, renewed well
 	# before they run out: one renewal that doesn't happen no longer leaves
 	# the phones with an insecure connection (no install, no Bluetooth)

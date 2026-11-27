@@ -19,6 +19,9 @@ services:
       # the hostname or IP other devices use to reach this machine
       # (AUUKI_HOST, the name before the rename, still works)
       SOIGNEUR_HOST: ${SOIGNEUR_HOST:-${AUUKI_HOST:-localhost}}
+      # more names the app answers to over https, with the port, comma
+      # separated, e.g. a Tailscale name: fedora.example.ts.net:8443
+      SOIGNEUR_EXTRA_HOSTS: ${SOIGNEUR_EXTRA_HOSTS:-unused.invalid:8443}
     ports:
       - "8080:8080"   # http://localhost:8080 on this machine
       - "8443:8443"   # https://<SOIGNEUR_HOST>:8443 from other devices
