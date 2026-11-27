@@ -25,6 +25,24 @@ const exact = s => {
 };
 const num = x => Number.isFinite(x);
 
+// Light trailing rolling mean for 1 Hz display clarity on long rides while
+// preserving null gaps (pauses) and keeping raw values for hover read-outs.
+function smoothSeries(values, win) {
+    if(win <= 1 || values.length <= win) return values;
+    const out = new Array(values.length);
+    let sum = 0, count = 0;
+    for(let i = 0; i < values.length; i++) {
+        const v = values[i];
+        if(num(v)) { sum += v; count++; }
+        if(i >= win) {
+            const old = values[i - win];
+            if(num(old)) { sum -= old; count--; }
+        }
+        out[i] = num(v) && count > 0 ? sum / count : null;
+    }
+    return out;
+}
+
 function tipLeft(x, w, width) {
     const left = x + 14 + w > width - 8 ? x - 14 - w : x + 14;
     return Math.max(8, Math.min(left, width - w - 8));
@@ -83,7 +101,8 @@ class RideChart extends HTMLElement {
             const head = this.querySelector('.rc-head')?.offsetHeight ?? 0;
             return {width: w, height: Math.max(160, (window.innerHeight || 400) - head - 24)};
         }
-        return {width: w, height: Math.max(220, Math.min(480, Math.round(w * 0.42)))};
+        const narrow = w < 600;
+        return {width: w, height: Math.max(narrow ? 230 : 240, Math.min(480, Math.round(w * (narrow ? 0.62 : 0.42))))};
     }
 
     // --- full screen ---
@@ -127,16 +146,18 @@ class RideChart extends HTMLElement {
     }
 
     // the series this ride has, with their default visibility
-    series() {
+    series(narrow = false) {
         const {samples, analysis} = this._data;
         const has = k => samples.some(s => num(s[k]) && s[k] > 0);
         const power = analysis.hasPower, hr = has('heartRate');
+        const rawPower = power ? samples.map(s => s.power) : [];
+        const powerWin = samples.length > 600 ? 5 : samples.length > 180 ? 3 : 1;
         const list = [];
-        if(power) list.push({key: 'power', label: 'Power', scale: 'w', unit: 'W', values: samples.map(s => s.power), show: true, width: 1.5});
-        if(analysis.target?.some(num)) list.push({key: 'target', label: 'Target', scale: 'w', unit: 'W', values: analysis.target, show: true, dash: [5, 4], width: 1.5});
+        if(power) list.push({key: 'power', label: 'Power', scale: 'w', unit: 'W', values: smoothSeries(rawPower, powerWin), raw: rawPower, show: true, width: narrow ? 1.75 : 1.5});
+        if(analysis.target?.some(num)) list.push({key: 'target', label: 'Target', scale: 'w', unit: 'W', values: analysis.target, show: true, dash: [5, 4], width: 1.25});
         if(hr) list.push({key: 'hr', label: 'Heart rate', scale: 'bpm', unit: 'bpm', values: samples.map(s => s.heartRate), show: true, width: 1.5});
         if(has('cadence')) list.push({key: 'cadence', label: 'Cadence', scale: 'rpm', unit: 'rpm', values: samples.map(s => s.cadence), show: false, width: 1});
-        if(analysis.wbal) list.push({key: 'wbal', label: 'W′bal', scale: 'kj', unit: 'kJ', values: analysis.wbal.series.map(w => (num(w) ? w / 1000 : null)), show: true, width: 1.5, digits: 1});
+        if(analysis.wbal) list.push({key: 'wbal', label: 'W′bal', scale: 'kj', unit: 'kJ', values: analysis.wbal.series.map(w => (num(w) ? w / 1000 : null)), show: !narrow, width: 1.5, digits: 1});
         if(has('speed')) list.push({key: 'speed', label: 'Speed', scale: 'kmh', unit: 'km/h', values: samples.map(s => (num(s.speed) ? s.speed * 3.6 : null)), show: !power, width: 1, digits: 1});
         if(samples.some(s => num(s.altitude))) list.push({key: 'alt', label: 'Elevation', scale: 'm', unit: 'm', values: samples.map(s => s.altitude), show: !power, width: 1, fill: true});
         return list;
@@ -155,7 +176,9 @@ class RideChart extends HTMLElement {
     build() {
         if(!this._data || !this.isConnected || !this.$plot) return;
         const {samples, analysis, ftp} = this._data;
-        const list = this.series();
+        const sz = this.size();
+        const narrow = sz.width < 600;
+        const list = this.series(narrow);
         this.list = list;
         const c = this._colors = this.colors();
         this.$chips.innerHTML = list.map((s, i) => `
@@ -168,9 +191,9 @@ class RideChart extends HTMLElement {
         if(!samples.length || !list.length) return;
 
         const U = RideChart.uPlot;
-        const touchDevice = typeof matchMedia === 'function' && matchMedia('(pointer: coarse)').matches;
-        const font = `11px ${token(this, '--font-text', 'system-ui')}`;
-        const axis = {stroke: c.muted, font, grid: {stroke: c.line, width: 1}, ticks: {show: false}};
+        const touchDevice = this._touchDevice = typeof matchMedia === 'function' && matchMedia('(pointer: coarse)').matches;
+        const font = `${narrow ? 10 : 11}px ${token(this, '--font-text', 'system-ui')}`;
+        const axis = {stroke: c.muted, font, gap: narrow ? 4 : 6, grid: {stroke: c.line, width: 1}, ticks: {show: false}};
         // power stroked by zone: a hard-stop gradient over the W scale
         const zoneStroke = (u) => {
             const ctx = u.ctx, y = w => u.valToPos(w, 'w', true);
@@ -194,7 +217,8 @@ class RideChart extends HTMLElement {
         const left = list.find(s => s.scale === 'w') ?? list[0];
         const right = list.find(s => s.scale === 'bpm' && left.scale !== 'bpm');
         const opts = {
-            ...this.size(),
+            ...sz,
+            padding: [6, 4, 0, 0],
             legend: {show: false},
             scales,
             series: [{}, ...list.map(s => ({
@@ -204,9 +228,9 @@ class RideChart extends HTMLElement {
                 points: {show: false},
             }))],
             axes: [
-                {...axis, values: (u, ts) => ts.map(clock)},
-                {...axis, scale: left.scale, size: 44, label: '', values: (u, ts) => ts.map(t => `${Math.round(t)}`)},
-                ...(right ? [{...axis, scale: 'bpm', side: 1, size: 40, grid: {show: false}, values: (u, ts) => ts.map(t => `${Math.round(t)}`)}] : []),
+                {...axis, size: 24, values: (u, ts) => ts.map(clock)},
+                {...axis, scale: left.scale, size: narrow ? 32 : 44, label: '', values: (u, ts) => ts.map(t => `${Math.round(t)}`)},
+                ...(right ? [{...axis, scale: 'bpm', side: 1, size: narrow ? 28 : 38, grid: {show: false}, values: (u, ts) => ts.map(t => `${Math.round(t)}`)}] : []),
             ],
             cursor: {drag: {x: !touchDevice, y: false}, y: false, points: {size: 6}},
             hooks: {
@@ -272,12 +296,12 @@ class RideChart extends HTMLElement {
             return;
         }
         const c = this._colors ?? this.colors();
-        const rows = this.list.map((s, k) => ({s, v: u.data[k + 1][i]}))
+        const rows = this.list.map((s, k) => ({s, v: s.raw ? s.raw[i] : u.data[k + 1][i]}))
             .filter(({s, v}) => u.series[this.list.indexOf(s) + 1]?.show !== false && num(v))
             .map(({s, v}) => `<div><dt><i style="background:${esc(c[s.key])}"></i>${esc(s.label)}</dt><dd>${(s.digits ? v.toFixed(s.digits) : Math.round(v))} <small>${esc(s.unit)}</small></dd></div>`);
         const html = `<div class="rc-tip__title">${exact(u.data[0][i])}</div>${rows.length ? `<dl>${rows.join('')}</dl>` : '<p>No data here (paused)</p>'}`;
         const over = u.over?.getBoundingClientRect() ?? this.$plot.getBoundingClientRect();
-        this.tooltip?.show({html, x: over.left + u.cursor.left, plotTop: over.top});
+        this.tooltip?.show({html, x: over.left + u.cursor.left, plotTop: over.top, touch: !!this._touchDevice});
     }
 
     toggle(e) {

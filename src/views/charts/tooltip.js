@@ -44,12 +44,22 @@ function unbindGlobal() {
 }
 
 // Compute viewport-clamped (left, top) for a fixed/top-layer tooltip.
+// Prefers placing the tooltip above the plot (centered over x) so scrubbing
+// never covers the data; falls back beside the cursor inside the plot when
+// there is not enough room above the plot.
 function placeTooltip({x, plotTop}, {width, height}, {width: vw, height: vh, bottomInset = 0}) {
     const maxLeft = Math.max(PAD, vw - width - PAD);
+    const maxTop = Math.max(PAD, vh - bottomInset - PAD - height);
+
+    const aboveTop = plotTop - height - PAD;
+    if(aboveTop >= PAD) {
+        const left = Math.max(PAD, Math.min(x - width / 2, maxLeft));
+        const top = Math.min(aboveTop, maxTop);
+        return {left, top};
+    }
+
     const rawLeft = x + GAP + width > vw - PAD ? x - GAP - width : x + GAP;
     const left = Math.max(PAD, Math.min(rawLeft, maxLeft));
-
-    const maxTop = Math.max(PAD, vh - bottomInset - PAD - height);
     const top = Math.max(PAD, Math.min(plotTop + PAD, maxTop));
     return {left, top};
 }

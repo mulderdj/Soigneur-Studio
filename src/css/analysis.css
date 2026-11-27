@@ -124,8 +124,12 @@ ride-chart {
 
 .rc-full { flex: none; }
 
-/* phones: the series chips in one row that scrolls sideways */
+/* phones: 3 balanced summary tiles per row, and series chips in one row that scrolls sideways */
 @media (max-width: 599px) {
+    .rp-facts {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+
     .rc-chips {
         flex-wrap: nowrap;
         overflow-x: auto;
