@@ -350,15 +350,10 @@ class RideScreens extends HTMLElement {
         requestAnimationFrame?.(() => this.fit());
     }
 
-    // phone on the handlebars: as many tiles as fit; the rest is a swipe away
+    // clear any legacy clipped flags so screens scroll cleanly in every orientation
     fit() {
-        const landscape = this.layoutName === 'phone-landscape';
-        for(const $screen of this.$track.querySelectorAll('.rs-screen')) {
-            const box = $screen.getBoundingClientRect();
-            for(const slot of $screen.querySelectorAll('.rs-slot')) {
-                const r = slot.getBoundingClientRect();
-                slot.classList.toggle('is-clipped', landscape && !this.editing && box.height > 0 && r.bottom > box.bottom + 1);
-            }
+        for(const slot of this.$track.querySelectorAll('.rs-slot.is-clipped')) {
+            slot.classList.remove('is-clipped');
         }
     }
 
@@ -438,6 +433,7 @@ class RideScreens extends HTMLElement {
                 maxH: MAX_ROW_SPAN,
                 widthOf: t => widthFor(t, this.layoutName, 'ride'),
                 heightOf: t => heightFor(t, 'ride'),
+                sizeForWidth: w => sizeForWidth(w, 'ride'),
             },
             onChange: list => this.changeTiles(list),
             onDragEdge: (side, id) => this.moveToNeighbour(side, id),

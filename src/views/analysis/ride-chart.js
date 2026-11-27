@@ -258,7 +258,7 @@ class RideChart extends HTMLElement {
         const U = RideChart.uPlot;
         const touchDevice = this._touchDevice = typeof matchMedia === 'function' && matchMedia('(pointer: coarse)').matches;
         const font = `${narrow ? 10 : 11}px ${token(this, '--font-text', 'system-ui')}`;
-        const axis = {stroke: c.muted, font, gap: narrow ? 4 : 6, grid: {stroke: c.line, width: 1}, ticks: {show: false}};
+        const axis = {stroke: c.muted, font, gap: narrow ? 2 : 4, grid: {stroke: c.line, width: 1}, ticks: {show: false}};
         const zoneStroke = (u) => {
             const ctx = u.ctx, y = w => u.valToPos(w, 'w', true);
             if(!ctx?.createLinearGradient || !(ftp > 0)) return c.power;
@@ -299,9 +299,9 @@ class RideChart extends HTMLElement {
                 : spec.series.find(s => s.scale === 'kj' && left.scale !== 'kj' && s.show);
             return {spec, left, right};
         });
-        const leftSize = narrow ? 28 : 36;
+        const leftSize = narrow ? 24 : 30;
         const anyRight = paneConfigs.some(cfg => !!cfg.right);
-        const rightSize = anyRight ? (narrow ? 28 : 36) : 6;
+        const rightSize = anyRight ? (narrow ? 24 : 30) : 2;
 
         paneConfigs.forEach(({spec, left, right}, paneIdx) => {
             const wrap = document.createElement('div');
@@ -322,7 +322,7 @@ class RideChart extends HTMLElement {
 
             const opts = {
                 ...sizes[paneIdx],
-                padding: [6, right ? 4 : (anyRight ? rightSize + 4 : 8), spec.showX ? 0 : 4, 0],
+                padding: [2, right ? 2 : (anyRight ? rightSize + 2 : 4), 0, 0],
                 legend: {show: false},
                 scales,
                 series: [{}, ...spec.series.map(s => ({
@@ -333,7 +333,7 @@ class RideChart extends HTMLElement {
                 }))],
                 axes: [
                     spec.showX
-                        ? {...axis, size: 22, labelSize: 0, labelGap: 0, values: (u, ts) => ts.map(clock)}
+                        ? {...axis, size: 18, labelSize: 0, labelGap: 0, values: (u, ts) => ts.map(clock)}
                         : {...axis, show: false, size: 0, labelSize: 0, labelGap: 0, grid: {show: true, stroke: c.line, width: 1}},
                     {...axis, scale: left.scale, size: leftSize, label: null, labelSize: 0, labelGap: 0, values: (u, ts) => ts.map(t => `${Math.round(t)}`)},
                     ...(right ? [{...axis, scale: right.scale, side: 1, size: rightSize, label: null, labelSize: 0, labelGap: 0, grid: {show: false}, values: (u, ts) => ts.map(t => `${Math.round(t)}`)}] : []),

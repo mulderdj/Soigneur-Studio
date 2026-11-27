@@ -12,7 +12,7 @@ import { analyseRide } from '../../analysis/ride.js';
 import { esc, fmtDuration, fmtDay, sportLabelFor } from '../training/format.js';
 import { openRide, rideFromHash } from './open-ride.js';
 import { confirmAction } from '../confirm.js';
-import { history } from '../../training/history.js';
+import { history as rideHistory } from '../../training/history.js';
 import './ride-chart.js';
 import '../charts/route-map.js';
 import './ride-insights.js';
@@ -54,7 +54,7 @@ class RidePage extends HTMLElement {
                     danger: true,
                 });
                 if(ok) {
-                    await history.deleteRide(this.rideId);
+                    await rideHistory.deleteRide(this.rideId);
                     xf.dispatch('ui:toast', 'Ride deleted');
                     this.back();
                 }

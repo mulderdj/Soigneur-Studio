@@ -139,6 +139,7 @@ class TrainingLayout {
                 maxH: MAX_ROW_SPAN,
                 widthOf: c => widthFor(c, currentLayout(), 'training'),
                 heightOf: c => heightFor(c, 'training'),
+                sizeForWidth: w => sizeForWidth(w, 'training'),
             },
             onChange: list => this.setVisible(list),
             announce: text => { this.$live.textContent = text; },

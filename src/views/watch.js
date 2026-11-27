@@ -23,7 +23,7 @@ class Watch extends HTMLElement {
 
         const bind = (el, fn) => {
             if(!el) return;
-            el.addEventListener('pointerup', fn, this.signal);
+            el.addEventListener('click', fn, this.signal);
             el.addEventListener('keydown', e => {
                 if(e.key === 'Enter' || e.key === ' ') { e.preventDefault(); fn(e); }
             }, this.signal);

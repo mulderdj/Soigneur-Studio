@@ -220,15 +220,15 @@ function spanFor(size, columns) {
 function widthFor(item, layoutName = 'desktop', kind = 'ride') {
     if(Number.isInteger(item?.w) && item.w >= 1 && item.w <= GRID_COLS) return item.w;
     const size = item?.size;
+    const isPhoneClass = screenClass(layoutName) === 'phone';
     if(kind === 'training') {
-        if(screenClass(layoutName) === 'phone') return size === 'narrow' ? 6 : 12;
+        if(isPhoneClass) return size === 'narrow' ? 6 : 12;
         if(size === 'full') return 12;
         if(size === 'wide') return 8;
         return 4;
     }
     if(size === 'large') return 12;
-    if(layoutName === 'phone') return size === 'wide' ? 8 : 4;
-    if(layoutName === 'tv') return size === 'wide' ? 4 : 2;
+    if(isPhoneClass) return size === 'wide' ? 8 : 4;
     return size === 'wide' ? 6 : 3;
 }
 

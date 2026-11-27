@@ -1,9 +1,9 @@
 // @ts-check
 //
 // Full-app fullscreen toggle ([data-app-fullscreen]):
-// Enters browser Fullscreen API with navigationUI: 'hide' (hiding Android
-// system status & navigation buttons) and toggles `body.is-app-full` (hiding
-// the bottom <app-bar> for an uncluttered bike-computer view).
+// On phones/touch screens, toggles `body.is-app-full` (hiding the in-app bottom
+// bar while keeping Android's status/notification bar visible).
+// On desktop, enters browser Fullscreen API while keeping the ride controls bar.
 //
 
 const ICON_ENTER = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg>';

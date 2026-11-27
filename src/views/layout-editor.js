@@ -42,16 +42,21 @@ function editList(list, op, sizesOf, grid = null) {
         const t = out[i];
         if(t) {
             const maxW = grid?.maxW ?? 12;
-            const cur = grid?.widthOf ? grid.widthOf(t) : (t.w ?? maxW);
-            t.w = Math.max(1, Math.min(maxW, cur + delta));
+            const curW = grid?.widthOf ? grid.widthOf(t) : (t.w ?? maxW);
+            const curH = grid?.heightOf ? grid.heightOf(t) : (t.h ?? 1);
+            t.w = Math.max(1, Math.min(maxW, curW + delta));
+            if(t.h == null) t.h = curH;
+            if(grid?.sizeForWidth) t.size = grid.sizeForWidth(t.w);
         }
     } else if(op.h) {
         const [i, delta] = op.h;
         const t = out[i];
         if(t) {
             const maxH = grid?.maxH ?? 6;
-            const cur = grid?.heightOf ? grid.heightOf(t) : (t.h ?? 1);
-            t.h = Math.max(1, Math.min(maxH, cur + delta));
+            const curW = grid?.widthOf ? grid.widthOf(t) : (t.w ?? (grid?.maxW ?? 12));
+            const curH = grid?.heightOf ? grid.heightOf(t) : (t.h ?? 1);
+            t.h = Math.max(1, Math.min(maxH, curH + delta));
+            if(t.w == null) t.w = curW;
         }
     } else if(op.hide != null) {
         out.splice(op.hide, 1);

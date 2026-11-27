@@ -40,9 +40,11 @@ function confirmAction({title = 'Confirm', message = '', confirmLabel = 'Confirm
 
     return new Promise(resolve => {
         let settled = false;
+        let downOnBackdrop = false;
         const finish = (value) => {
             if(settled) return;
             settled = true;
+            dlg.removeEventListener('pointerdown', onDown);
             dlg.removeEventListener('click', onClick);
             dlg.removeEventListener('cancel', onCancel);
             dlg.removeEventListener('close', onClose);
@@ -53,15 +55,28 @@ function confirmAction({title = 'Confirm', message = '', confirmLabel = 'Confirm
             if(pending?.resolve === resolve) pending = null;
             resolve(value);
         };
+        const isBackdropPoint = (e) => {
+            if(e.target !== dlg) return false;
+            const r = dlg.getBoundingClientRect?.();
+            if(!r || (r.width === 0 && r.height === 0)) return true; // jsdom fallback
+            if(e.clientX === 0 && e.clientY === 0) return false;
+            return e.clientX < r.left || e.clientX > r.right || e.clientY < r.top || e.clientY > r.bottom;
+        };
+        const onDown = (e) => {
+            downOnBackdrop = isBackdropPoint(e);
+        };
         const onClick = (e) => {
             const target = /** @type {Element | null} */ (e.target);
-            if(target === dlg || target?.closest('[data-confirm="cancel"]')) finish(false);
+            if(target?.closest('[data-confirm="cancel"]')) finish(false);
             else if(target?.closest('[data-confirm="ok"]')) finish(true);
+            else if(target === dlg && (downOnBackdrop || !e.isTrusted)) finish(false);
+            downOnBackdrop = false;
         };
         const onCancel = (e) => { e.preventDefault(); finish(false); };
         const onClose = () => finish(false);
 
         pending = {resolve};
+        dlg.addEventListener('pointerdown', onDown);
         dlg.addEventListener('click', onClick);
         dlg.addEventListener('cancel', onCancel);
         dlg.addEventListener('close', onClose);

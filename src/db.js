@@ -406,6 +406,9 @@ xf.reg('watch:discarded', (payload, state) => {
     if (!wasRunning && lastSavedActivityId) {
         const id = lastSavedActivityId;
         lastSavedActivityId = null;
+        if (Array.isArray(state.activity)) {
+            state.activity = state.activity.filter(a => a?.id !== id);
+        }
         models.activity.remove(id);
         import('./training/history.js').then(({ history }) => history.deleteRide(id)).catch(() => {});
     }

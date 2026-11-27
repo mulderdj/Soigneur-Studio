@@ -385,12 +385,12 @@ class RideIndicator extends HTMLElement {
             this.innerHTML = `
                 <div class="ri-head">
                     <h2 class="tile__label">${d.label}</h2>
-                    <span class="ri-badge">${d.zoneLabel}</span>
+                    <span class="ri-mode">${VARIANT_LABEL[this.variant]}</span>
                 </div>
                 <div class="ri-pill__mid">
                     <span class="ri-val">${d.valueText}</span>
                     <span class="ri-unit">${d.unit}</span>
-                    <span class="ri-sub">${d.subText}</span>
+                    <span class="ri-badge">${d.zoneLabel}</span>
                 </div>
                 <div class="ri-pill__track" aria-hidden="true">
                     <span class="ri-pill__fill" style="width:${(d.ratio * 100).toFixed(1)}%"></span>

@@ -17,7 +17,7 @@ class TabBtn extends HTMLElement {
         if(!this.hasAttribute('tabindex')) this.setAttribute('tabindex', '0');
         if(!this.hasAttribute('role')) this.setAttribute('role', 'button');
 
-        this.addEventListener('pointerup', e => this.onEffect(e), signal);
+        this.addEventListener('click', e => this.onEffect(e), signal);
         this.addEventListener('keydown', e => {
             if(e.key === 'Enter' || e.key === ' ') { e.preventDefault(); this.onEffect(e); }
         }, signal);
@@ -39,6 +39,8 @@ class TabBtn extends HTMLElement {
         if(this.prop === 'page') {
             if(active) this.setAttribute('aria-current', 'page');
             else this.removeAttribute('aria-current');
+        } else {
+            this.setAttribute('aria-pressed', String(active));
         }
     }
 }

@@ -2,6 +2,8 @@ import { compatibilityProblem, esc } from './compatibility.js';
 import { xf, exists, existance, validate, equals, isNumber, last, empty, avg, toFixed, formatDate, } from '../functions.js';
 import { formatTime } from '../utils.js';
 import { models } from '../models/models.js';
+import { db } from '../db.js';
+import { ControlMode } from '../ble/enums.js';
 import { DialogMsg } from '../models/enums.js';
 import { formatReminderSetting, nextReminderSetting } from '../fuelling.js';
 import { applyMaterialTheme, clearMaterialTheme, extractSeedFromFile, normalizeSeed } from '../theme-material.js';
@@ -141,25 +143,35 @@ class ModeLockToggle extends HTMLElement {
         this.signal = { signal: self.abortController.signal };
         this.$icon = this.querySelector('.mode-lock--toggle--icon');
         this.$use = this.querySelector('use');
+        this.setAttribute('role', 'button');
+        if(!this.hasAttribute('tabindex')) this.setAttribute('tabindex', '0');
 
-        this.addEventListener('pointerup', this.onPointerup.bind(this), this.signal);
+        this.addEventListener('click', this.onToggle.bind(this), this.signal);
+        this.addEventListener('keydown', e => {
+            if(e.key === 'Enter' || e.key === ' ') { e.preventDefault(); this.onToggle(); }
+        }, this.signal);
         xf.sub('db:lock', this.onUpdate.bind(this), this.signal);
+        this.isOn = Boolean(db.lock);
+        this.render();
     }
     disconnectedCallback() {
         this.abortController.abort();
     }
     onUpdate(value) {
-        this.isOn = value;
+        this.isOn = Boolean(value);
         this.render();
     }
-    onPointerup() {
+    onToggle() {
         xf.dispatch('ui:lock-set');
     }
     render() {
-        if(this.isOn) {
-            this.$use.setAttribute('href', '#icon--lock--close');
-        } else {
-            this.$use.setAttribute('href', '#icon--lock--open');
+        this.classList.toggle('active', this.isOn);
+        this.setAttribute('aria-pressed', String(this.isOn));
+        const label = this.isOn ? 'Unlock trainer mode' : 'Lock trainer mode';
+        this.setAttribute('aria-label', label);
+        this.title = label;
+        if(this.$use) {
+            this.$use.setAttribute('href', this.isOn ? '#icon--lock--close' : '#icon--lock--open');
         }
     }
 }
@@ -629,6 +641,30 @@ class PowerTarget extends DataView {
             prop: 'db:powerTarget',
         };
     }
+    subs() {
+        this._mode = db.mode || ControlMode.erg;
+        this._power = db.powerTarget;
+        this._resistance = db.resistanceTarget;
+        this._slope = db.slopeTarget;
+        xf.sub('db:mode', m => { this._mode = m || ControlMode.erg; this.render(); }, this.signal);
+        xf.sub('db:powerTarget', v => { this._power = v; this.render(); }, this.signal);
+        xf.sub('db:resistanceTarget', v => { this._resistance = v; this.render(); }, this.signal);
+        xf.sub('db:slopeTarget', v => { this._slope = v; this.render(); }, this.signal);
+        this.render();
+    }
+    render() {
+        const mode = this._mode || ControlMode.erg;
+        if(mode === ControlMode.resistance) {
+            const v = Number(this._resistance);
+            this.textContent = Number.isFinite(v) ? `${Math.round(v)}%` : '--';
+        } else if(mode === ControlMode.sim) {
+            const v = Number(this._slope);
+            this.textContent = Number.isFinite(v) ? `${v > 0 ? '+' : ''}${v.toFixed(1)}%` : '--';
+        } else {
+            const v = Number(this._power);
+            this.textContent = Number.isFinite(v) && v > 0 ? `${Math.round(v)}` : '--';
+        }
+    }
 }
 
 customElements.define('power-target', PowerTarget);
@@ -640,17 +676,28 @@ class PowerTargetFTP extends DataView {
         };
     }
     subs() {
+        this.ftp = db.ftp || 200;
+        this._mode = db.mode || ControlMode.erg;
+        this.state = db.powerTarget;
         xf.sub(`${this.prop}`, this.onUpdate.bind(this), this.signal);
         xf.sub(`db:ftp`,       this.onFTP.bind(this), this.signal);
+        xf.sub(`db:mode`,      m => { this._mode = m || ControlMode.erg; this.render(); }, this.signal);
+        this.render();
     }
     onFTP(ftp) {
-        this.ftp = ftp;
+        this.ftp = ftp || 200;
+        this.render();
     }
     toPercentage(state, ftp) {
-        return Math.round((state * 100) / ftp);
+        const denom = ftp > 0 ? ftp : 200;
+        return Math.round((state * 100) / denom);
     }
     transform(state) {
-        return `${this.toPercentage(state, this.ftp)}%`;
+        if(this._mode === ControlMode.resistance) return 'Res';
+        if(this._mode === ControlMode.sim) return 'Slope';
+        const v = Number(state);
+        if(!Number.isFinite(v) || v <= 0) return '--';
+        return `${this.toPercentage(v, this.ftp)}%`;
     }
 }
 

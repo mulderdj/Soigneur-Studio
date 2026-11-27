@@ -22,6 +22,8 @@
 
 .training > [data-tile] {
     min-width: 0;
+    display: flex;
+    flex-direction: column;
 }
 
 .training > [data-tile][data-h]:not([data-h="1"]) {
@@ -30,6 +32,7 @@
 
 .training > [data-tile][data-h]:not([data-h="1"]) .uc-plot,
 .training > [data-tile][data-h]:not([data-h="1"]) .tc-plot {
+    flex: 1 1 auto;
     min-height: calc(var(--row-span, 1) * 140px);
 }
 
@@ -132,9 +135,9 @@
 
 .training.is-editing > [data-tile] {
     position: relative;
-    min-height: 120px;
+    min-height: 76px;
     outline: var(--line-w) dashed var(--line);
-    outline-offset: 2px;
+    outline-offset: -1px;
 }
 
 /* a card that hides itself (Health without data) can still be moved */

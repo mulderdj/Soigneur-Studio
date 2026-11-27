@@ -84,8 +84,15 @@ xf.sub('db:ftp',          x => { session.setFtp(x); notify(); });
 xf.sub('db:weight',       x => { session.setWeight(x); notify(); });
 
 // after a ride is stopped the statistics stay on screen for review;
-// they reset when the next ride starts
+// they reset when the next ride starts (or immediately if discarded)
 let rideFinished = false;
+
+xf.sub('activity:discarded', () => {
+    rideFinished = false;
+    live.lastElapsed = 0;
+    session.reset();
+    notify();
+});
 
 xf.sub('db:elapsed', elapsed => {
     if(!(elapsed > 0)) {
@@ -359,13 +366,13 @@ class LiveChart extends HTMLElement {
 
         const c = this._colors = this.colors();
         const data = this.prepareData();
-        const axisBase = {stroke: c.muted, font: c.font, ticks: {show: false}};
+        const axisBase = {stroke: c.muted, font: c.font, gap: 3, ticks: {show: false}};
 
         const opts = {
             width,
             height,
             legend: {show: false},
-            padding: [10, 8, 0, 0],
+            padding: [4, 4, 0, 0],
             scales: {
                 x:    {time: false, auto: false, range: () => [this._xMin, this._xMax]},
                 w:    {auto: true,  range: (u, min, max) => [0, powerMax(session.ftp, max)]},
@@ -404,7 +411,7 @@ class LiveChart extends HTMLElement {
             axes: [
                 {
                     ...axisBase,
-                    size: 26,
+                    size: 20,
                     grid: {show: false},
                     incrs: [30, 60, 120, 300, 600, 900, 1800, 3600],
                     values: (u, vals) => vals.map(fmtTime),
@@ -412,7 +419,7 @@ class LiveChart extends HTMLElement {
                 {
                     ...axisBase,
                     scale: 'w',
-                    size: 44,
+                    size: 32,
                     grid: {stroke: c.line, width: 1},
                     splits: (u, axisIdx, scaleMin, scaleMax) => powerSplits(session.ftp, scaleMax),
                     values: (u, vals) => vals.map(v =>
@@ -422,7 +429,7 @@ class LiveChart extends HTMLElement {
                     ...axisBase,
                     scale: 'bpm',
                     side: 1,
-                    size: 38,
+                    size: () => (this.visible.hr && this._hasHr ? 28 : 0),
                     stroke: c.hr,
                     grid: {show: false},
                     splits: (u, axisIdx, scaleMin, scaleMax) => {
