@@ -5,10 +5,12 @@
 // yesterday's fatigue, as TrainingPeaks shows it.
 //
 
-import { addDays, daysBetween } from './dates.js';
+import { addDays, daysBetween, weekStart } from './dates.js';
+import { goalEventsFromPlan, eventLoadTss } from './season.js';
 
 const CTL_DAYS = 42;
 const ATL_DAYS = 7;
+const GOAL_HORIZON_DAYS = 90;
 
 function dailyTss(summaries) {
     const byDay = new Map();
@@ -75,4 +77,182 @@ function rampStatus(rate) {
     return {level: 'ok', text: `Ramp ${rate >= 0 ? '+' : ''}${rate.toFixed(1)}/wk`};
 }
 
-export { dailyTss, pmc, forecast, formLabel, rampRate, rampStatus, CTL_DAYS, ATL_DAYS };
+// Daily load multiplier leading into an A or B goal: A goals get a 2-week
+// progressive taper; B goals get a 5-day mini-taper.
+function taperFactor(daysBeforeGoal, priority = 'A') {
+    if(daysBeforeGoal <= 0) return 0;
+    if(priority === 'B') {
+        if(daysBeforeGoal === 1) return 0.35;
+        if(daysBeforeGoal <= 5) return 0.6;
+        return 1;
+    }
+    if(daysBeforeGoal === 1) return 0.3;
+    if(daysBeforeGoal <= 7) return 0.45;
+    if(daysBeforeGoal <= 14) return 0.7;
+    return 1;
+}
+
+const fmtSigned = x => `${Math.round(x) > 0 ? '+' : ''}${Math.round(x)}`;
+
+// Plain-language race-day form assessment & taper guidance.
+function taperGuidance(tsb, {priority = 'A', withIdealTaper = null, daysToGoal = 0} = {}) {
+    if(tsb < -5) {
+        const windowText = priority === 'A' ? 'final 10–14 days' : 'final 4–5 days';
+        const lift = withIdealTaper && withIdealTaper.tsb > tsb + 2 ?
+            ` (a ~45% taper would lift form to about ${fmtSigned(withIdealTaper.tsb)})` : '';
+        return {
+            status: 'fatigued',
+            level: 'warn',
+            guidance: daysToGoal <= 1 ?
+                `Projected form ${fmtSigned(tsb)} carries residual fatigue — keep any pre-race spin very easy.` :
+                `Projected form ${fmtSigned(tsb)} is fatigued (< −5) — trim load in the ${windowText} so fatigue clears before race day${lift}.`,
+        };
+    }
+    if(tsb > 25) {
+        return {
+            status: 'flat',
+            level: 'warn',
+            guidance: `Projected form ${fmtSigned(tsb)} is very high (> +25) and risks feeling flat — keep light aerobic rides and a short race-pace opener so form stays near +5 to +20.`,
+        };
+    }
+    if(tsb >= 5) {
+        return {
+            status: 'ready',
+            level: 'good',
+            guidance: `On track for fresh legs on race day (sweet spot +5 to +20).`,
+        };
+    }
+    return {
+        status: 'ready',
+        level: 'ok',
+        guidance: daysToGoal <= 2 ?
+            `Balanced form (${fmtSigned(tsb)}) for race day — rest or spin easy beforehand.` :
+            `Close to ideal race freshness — easing the final 3–5 days slightly lifts form into +5 to +15.`,
+    };
+}
+
+/**
+ * Project CTL/ATL/TSB onto an upcoming goal event day (`goal.day >= today`).
+ *
+ * Days up through the last week with planned workouts use the rider's exact
+ * planned TSS (plus intermediate event load when a day has an earlier goal
+ * event and no workout). Unplanned weeks further out (when the rider has
+ * existing CTL >= 5) assume baseline daily load (`now.ctl`) with a progressive
+ * taper into race day so distant goals don't assume months of zero riding.
+ */
+function projectGoalForm({today, now, plannedByDay = new Map(), eventLoads = new Map(), goal}) {
+    const daysToGoal = daysBetween(today, goal.day);
+    if(daysToGoal <= 0) {
+        const cur = {day: today, tss: 0, ctl: now.ctl ?? 0, atl: now.atl ?? 0, tsb: now.tsb ?? ((now.ctl ?? 0) - (now.atl ?? 0))};
+        const g = taperGuidance(cur.tsb, {priority: goal.priority, daysToGoal: 0});
+        return {
+            goal, daysToGoal: 0, projected: cur, withoutTaper: cur, withIdealTaper: cur,
+            taperGain: 0, assumedUnplanned: false, forecastByDay: new Map(), ...g,
+        };
+    }
+
+    let lastPlannedDay = null;
+    for(const [d, v] of plannedByDay) {
+        if(d > today && v > 0 && (!lastPlannedDay || d > lastPlannedDay)) lastPlannedDay = d;
+    }
+    const coveredThroughWeek = lastPlannedDay ? weekStart(lastPlannedDay) : null;
+    const baseline = Number.isFinite(now.ctl) && now.ctl >= 5 ? now.ctl : 0;
+
+    let assumedUnplanned = false;
+    const forecastByDay = new Map();
+    for(let i = 1; i <= daysToGoal; i++) {
+        const d = addDays(today, i);
+        const daysBefore = daysBetween(d, goal.day);
+        const inCovered = coveredThroughWeek !== null && weekStart(d) <= coveredThroughWeek;
+        if(inCovered) {
+            const wTss = plannedByDay.get(d);
+            const evTss = d < goal.day ? (eventLoads.get(d) ?? 0) : 0;
+            forecastByDay.set(d, (wTss ?? 0) > 0 ? wTss : evTss);
+        } else if(baseline > 0) {
+            assumedUnplanned = true;
+            const evTss = d < goal.day ? (eventLoads.get(d) ?? 0) : 0;
+            forecastByDay.set(d, evTss > 0 ? evTss : baseline * taperFactor(daysBefore, goal.priority));
+        } else {
+            forecastByDay.set(d, d < goal.day ? (eventLoads.get(d) ?? 0) : 0);
+        }
+    }
+
+    const projRows = forecast(now, forecastByDay, today, daysToGoal);
+    const projected = projRows.at(-1);
+
+    // Pre-taper daily reference load: average daily load before the taper window, or current CTL.
+    const taperWindow = goal.priority === 'B' ? 5 : 14;
+    let preSum = 0, preCount = 0;
+    for(let i = 1; i < daysToGoal; i++) {
+        const d = addDays(today, i);
+        if(daysBetween(d, goal.day) > taperWindow) {
+            preSum += forecastByDay.get(d) ?? 0;
+            preCount++;
+        }
+    }
+    const holdLoad = Math.max(baseline, preCount > 0 ? preSum / preCount : 0);
+
+    const noTaperMap = new Map(forecastByDay);
+    const idealTaperMap = new Map(forecastByDay);
+    for(let i = 1; i < daysToGoal; i++) {
+        const d = addDays(today, i);
+        const daysBefore = daysBetween(d, goal.day);
+        if(daysBefore <= taperWindow) {
+            if(holdLoad > 0) noTaperMap.set(d, holdLoad);
+            const curLoad = forecastByDay.get(d) ?? 0;
+            const f = taperFactor(daysBefore, goal.priority);
+            idealTaperMap.set(d, holdLoad > 0 ? Math.min(curLoad > 0 ? curLoad * f : holdLoad * f, holdLoad * f) : curLoad * f);
+        }
+    }
+    const withoutTaper = forecast(now, noTaperMap, today, daysToGoal).at(-1);
+    const withIdealTaper = forecast(now, idealTaperMap, today, daysToGoal).at(-1);
+    const taperGain = Math.round(projected.tsb - withoutTaper.tsb);
+    const g = taperGuidance(projected.tsb, {priority: goal.priority, withIdealTaper, daysToGoal});
+
+    return {
+        goal,
+        daysToGoal,
+        projected,
+        withoutTaper,
+        withIdealTaper,
+        taperGain,
+        assumedUnplanned,
+        forecastByDay,
+        ...g,
+    };
+}
+
+/**
+ * Find the primary upcoming A/B goal within `horizonDays` (default 90) and
+ * compute its race-day form forecast (plus an earlier B tune-up if the primary
+ * goal is an A race).
+ */
+function raceForecast({today, now, plannedByDay = new Map(), plan = [], horizonDays = GOAL_HORIZON_DAYS}) {
+    if(!today || !now) return null;
+    const latest = addDays(today, horizonDays);
+    const goals = goalEventsFromPlan(plan).filter(g => (g.priority === 'A' || g.priority === 'B') && g.day >= today && g.day <= latest);
+    if(goals.length === 0) return null;
+
+    const eventLoads = new Map();
+    for(const g of goalEventsFromPlan(plan)) {
+        if(g.day > today) {
+            const tss = eventLoadTss(g);
+            if(tss > 0) eventLoads.set(g.day, Math.max(eventLoads.get(g.day) ?? 0, tss));
+        }
+    }
+
+    const nextA = goals.find(g => g.priority === 'A') ?? null;
+    const primaryGoal = nextA ?? goals[0];
+    const primary = projectGoalForm({today, now, plannedByDay, eventLoads, goal: primaryGoal});
+
+    const earlierB = nextA ? goals.find(g => g.priority === 'B' && g.day < nextA.day) : null;
+    const tuneUp = earlierB ? projectGoalForm({today, now, plannedByDay, eventLoads, goal: earlierB}) : null;
+
+    return {...primary, tuneUp};
+}
+
+export {
+    dailyTss, pmc, forecast, formLabel, rampRate, rampStatus,
+    taperFactor, taperGuidance, projectGoalForm, raceForecast,
+    CTL_DAYS, ATL_DAYS, GOAL_HORIZON_DAYS,
+};

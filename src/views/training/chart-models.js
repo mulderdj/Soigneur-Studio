@@ -6,8 +6,9 @@
 // the model's shape. colors = {accent, hr, warn, band, muted, line, zones: []}.
 //
 
-import { dailyTss, pmc, forecast, formLabel, rampRate } from '../../training/load.js';
-import { planStatus, plannedTss } from '../../training/plan.js';
+import { dailyTss, pmc, forecast, formLabel, rampRate, raceForecast } from '../../training/load.js';
+import { planStatus, plannedTss, isGoalEvent } from '../../training/plan.js';
+import { goalEventsFromPlan, eventTypeLabel } from '../../training/season.js';
 import { hrvRangeOn, sortedDays } from '../../training/wellness.js';
 import { weeklyVolume, zoneTotals, powerCurve, ftpEstimates, WINDOWS } from '../../training/progress.js';
 import { addDays } from '../../training/dates.js';
@@ -16,6 +17,7 @@ import { fmtDay, fmtDuration } from './format.js';
 
 const PAST_DAYS = 90;
 const AHEAD_DAYS = 28;
+const MAX_GOAL_CHART_DAYS = 42;
 
 const daySec = (day) => Date.parse(`${day}T12:00:00Z`) / 1000;
 const longDay = (day) => fmtDay(day, {weekday: 'short', day: 'numeric', month: 'short', year: 'numeric'});
@@ -31,12 +33,20 @@ function formModel({today, summaries = [], plan = [], ftp}, {pastDays = PAST_DAY
 
     const planned = new Map();
     for(const e of plan) {
-        if(e.deleted || e.day <= today || planStatus(e, today) !== 'planned') continue;
+        if(e.deleted || isGoalEvent(e) || e.day <= today || planStatus(e, today) !== 'planned') continue;
         planned.set(e.day, (planned.get(e.day) ?? 0) + plannedTss(e.workout, ftp));
     }
-    const ahead = forecast(now, planned, today, AHEAD_DAYS);
+    const rf = raceForecast({today, now, plannedByDay: planned, plan});
+    const horizon = rf && rf.daysToGoal > AHEAD_DAYS && rf.daysToGoal <= MAX_GOAL_CHART_DAYS ? rf.daysToGoal : AHEAD_DAYS;
+    const chartPlan = new Map(planned);
+    if(rf && rf.daysToGoal > 0 && rf.daysToGoal <= MAX_GOAL_CHART_DAYS) {
+        for(const [d, v] of rf.forecastByDay) {
+            if(!chartPlan.has(d)) chartPlan.set(d, v);
+        }
+    }
+    const ahead = forecast(now, chartPlan, today, horizon);
     const past = pastDays === null ? rows : rows.slice(-pastDays);
-    return {now, past, ahead, hasPlan: planned.size > 0, ramp: rampRate(rows)};
+    return {now, past, ahead, hasPlan: planned.size > 0, ramp: rampRate(rows), raceForecast: rf};
 }
 
 // all history (zoom out to it) with the forecast; opens on 3 months
@@ -47,10 +57,17 @@ function formChart(data, colors = {}) {
     const load = dailyTss(data.summaries ?? []);
     const plans = new Map();
     for(const e of data.plan ?? []) {
-        if(e.deleted || planStatus(e, data.today) !== 'planned' || e.day <= data.today) continue;
+        if(e.deleted || isGoalEvent(e) || planStatus(e, data.today) !== 'planned' || e.day <= data.today) continue;
         const list = plans.get(e.day) ?? [];
         list.push(`Planned: ${e.workout?.meta?.name ?? e.name ?? 'Workout'} · ${Math.round(plannedTss(e.workout, data.ftp))} TSS`);
         plans.set(e.day, list);
+    }
+    const goalsByDay = new Map();
+    for(const g of goalEventsFromPlan(data.plan ?? [])) {
+        const list = goalsByDay.get(g.day) ?? [];
+        const type = eventTypeLabel(g.eventType);
+        list.push(`Goal (${g.priority}): ${g.name}${type ? ` · ${type}` : ''}`);
+        goalsByDay.set(g.day, list);
     }
     const until = (k) => rows.map((r, i) => (i <= split ? r[k] : null));
     const after = (k) => rows.map((r, i) => (i >= split ? r[k] : null));
@@ -76,6 +93,8 @@ function formChart(data, colors = {}) {
         if(!r) return null;
         const future = i > split;
         const dayLoad = load.get(r.day);
+        const goalNotes = goalsByDay.get(r.day) ?? [];
+        const baseMore = future ? (plans.get(r.day) ?? []) : (dayLoad > 0 ? [`Load that day: ${Math.round(dayLoad)} TSS`] : []);
         return {
             title: `${longDay(r.day)}${future ? ' · forecast' : ''}`,
             rows: [
@@ -83,7 +102,7 @@ function formChart(data, colors = {}) {
                 {label: 'Fatigue', color: colors.hr, value: String(Math.round(r.atl))},
                 {label: 'Form', color: colors.warn, value: signed(r.tsb), note: formLabel(r.tsb).toLowerCase()},
             ],
-            more: future ? (plans.get(r.day) ?? []) : (dayLoad > 0 ? [`Load that day: ${Math.round(dayLoad)} TSS`] : []),
+            more: [...goalNotes, ...baseMore],
             day: r.day,
         };
     };

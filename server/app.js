@@ -585,12 +585,70 @@ function createApp(options = {}) {
         };
     }, {auth: true});
 
+    function validPlanDay(day) {
+        if(typeof day !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(day)) return false;
+        const dt = new Date(`${day}T00:00:00Z`);
+        return Number.isFinite(dt.getTime()) && dt.toISOString().slice(0, 10) === day;
+    }
+
+    function validGoalEvent(ev) {
+        if(!ev || typeof ev !== 'object' || Array.isArray(ev)) fail(400, 'Expected event object.');
+        const name = typeof ev.name === 'string' ? ev.name.trim() : '';
+        if(!name || name.length > 120) fail(400, 'Goal event name must be 1 to 120 characters.');
+        const priority = typeof ev.priority === 'string' ? ev.priority.trim().toUpperCase() : '';
+        if(priority !== 'A' && priority !== 'B' && priority !== 'C') {
+            fail(400, "Goal event priority must be 'A', 'B' or 'C'.");
+        }
+        let eventType = null;
+        if(ev.eventType !== undefined && ev.eventType !== null && ev.eventType !== '') {
+            if(typeof ev.eventType !== 'string' || ev.eventType.trim().length > 40) {
+                fail(400, 'Event type must be at most 40 characters.');
+            }
+            eventType = ev.eventType.trim() || null;
+        }
+        let targetDurationS = null;
+        if(ev.targetDurationS !== undefined && ev.targetDurationS !== null && ev.targetDurationS !== '') {
+            const d = Number(ev.targetDurationS);
+            if(!Number.isFinite(d) || d <= 0 || d > 7 * 86400) {
+                fail(400, 'Target duration must be between 1 and 604800 seconds.');
+            }
+            targetDurationS = Math.round(d);
+        }
+        let targetTss = null;
+        if(ev.targetTss !== undefined && ev.targetTss !== null && ev.targetTss !== '') {
+            const tss = Number(ev.targetTss);
+            if(!Number.isFinite(tss) || tss <= 0 || tss > 2000) {
+                fail(400, 'Target TSS must be between 1 and 2000.');
+            }
+            targetTss = Math.round(tss);
+        }
+        let notes = null;
+        if(ev.notes !== undefined && ev.notes !== null && ev.notes !== '') {
+            if(typeof ev.notes !== 'string' || ev.notes.trim().length > 500) {
+                fail(400, 'Notes must be at most 500 characters.');
+            }
+            notes = ev.notes.trim() || null;
+        }
+        return {name, priority, eventType, targetDurationS, targetTss, notes};
+    }
+
     function sanitizePlanData(userId, id, raw) {
         const data = {...raw};
         // server-owned intervals.icu sync metadata cannot be forged by clients
         delete data.intervalsEventId;
         delete data.intervalsUpdated;
         delete data.intervalsSyncedAt;
+        if(data.kind === 'event' || data.event !== undefined) {
+            if(!validPlanDay(data.day)) fail(400, 'Goal event requires a valid YYYY-MM-DD day.');
+            const event = validGoalEvent(data.event);
+            data.kind = 'event';
+            data.event = event;
+            data.name = event.name;
+            data.workout = null;
+            data.zwo = null;
+            data.rideId = null;
+            return data;
+        }
         const prev = q.planData.get(userId, id);
         if(prev && !prev.deleted) {
             const old = JSON.parse(prev.data);

@@ -1,4 +1,4 @@
-import { dailyTss, pmc, forecast, formLabel, rampRate, rampStatus } from '../../src/training/load.js';
+import { dailyTss, pmc, forecast, formLabel, rampRate, rampStatus, raceForecast, taperGuidance } from '../../src/training/load.js';
 import { addDays } from '../../src/training/dates.js';
 
 describe('fitness, fatigue and form', () => {
@@ -52,5 +52,62 @@ describe('fitness, fatigue and form', () => {
         expect(rampStatus(6.2).level).toBe('warn');
         expect(rampStatus(3.1).level).toBe('ok');
         expect(rampStatus(-6.0).level).toBe('muted');
+    });
+
+    test('raceForecast projects race-day form, taper benefit, and fatigued / flat guidance', () => {
+        const today = '2026-11-23';
+        const raceDay = '2026-12-06'; // 13 days out
+        const plan = [{id: 'g1', day: raceDay, kind: 'event', event: {name: 'Winter Road Race', priority: 'A'}}];
+
+        // Over-planned right up to race day -> projected TSB < -5 -> fatigued warning + taper suggestion
+        const heavyPlan = new Map();
+        for(let i = 1; i < 13; i++) heavyPlan.set(addDays(today, i), 110);
+        const fatigued = raceForecast({today, now: {ctl: 65, atl: 80, tsb: -15}, plannedByDay: heavyPlan, plan});
+        expect(fatigued.daysToGoal).toBe(13);
+        expect(fatigued.projected.tsb).toBeLessThan(-5);
+        expect(fatigued.status).toBe('fatigued');
+        expect(fatigued.guidance).toMatch(/fatigued|trim load/i);
+        expect(fatigued.withIdealTaper.tsb).toBeGreaterThan(fatigued.projected.tsb);
+
+        // Tapered plan -> fresh race-day form (+5..+25) and positive taper gain vs holding load
+        const taperedPlan = new Map();
+        for(let i = 1; i <= 6; i++) taperedPlan.set(addDays(today, i), 55);
+        taperedPlan.set(addDays(today, 8), 35);
+        taperedPlan.set(addDays(today, 10), 30);
+        taperedPlan.set(addDays(today, 12), 20);
+        const ready = raceForecast({today, now: {ctl: 65, atl: 70, tsb: -5}, plannedByDay: taperedPlan, plan});
+        expect(ready.projected.tsb).toBeGreaterThanOrEqual(5);
+        expect(ready.projected.tsb).toBeLessThanOrEqual(25);
+        expect(ready.status).toBe('ready');
+        expect(ready.taperGain).toBeGreaterThan(0);
+
+        // Excessive rest from high CTL -> projected TSB > +25 -> flat warning
+        const tinyPlan = new Map([[addDays(today, 10), 10]]);
+        const flat = raceForecast({today, now: {ctl: 85, atl: 45, tsb: 40}, plannedByDay: tinyPlan, plan});
+        expect(flat.projected.tsb).toBeGreaterThan(25);
+        expect(flat.status).toBe('flat');
+        expect(flat.guidance).toMatch(/flat/i);
+        expect(taperGuidance(28).status).toBe('flat');
+    });
+
+    test('raceForecast assumes baseline + taper on unplanned weeks and surfaces earlier B tune-ups', () => {
+        const today = '2026-11-23';
+        const plan = [
+            {id: 'gb', day: '2026-12-06', kind: 'event', event: {name: 'Warm-up Crit', priority: 'B', targetTss: 95}},
+            {id: 'ga', day: '2027-01-17', kind: 'event', event: {name: 'Main Gran Fondo', priority: 'A', targetTss: 240}},
+        ];
+        const rf = raceForecast({today, now: {ctl: 60, atl: 62, tsb: -2}, plannedByDay: new Map(), plan});
+        expect(rf.goal.id).toBe('ga');
+        expect(rf.assumedUnplanned).toBe(true);
+        // Baseline + 2-week taper keeps fitness near 55–60 instead of crashing toward 0
+        expect(rf.projected.ctl).toBeGreaterThan(50);
+        expect(rf.projected.tsb).toBeGreaterThan(5);
+        expect(rf.tuneUp?.goal.id).toBe('gb');
+
+        // Only C goals or goals > 90 days out -> null
+        expect(raceForecast({
+            today, now: {ctl: 60, atl: 60, tsb: 0}, plannedByDay: new Map(),
+            plan: [{id: 'gc', day: '2026-12-01', kind: 'event', event: {name: 'Club Spin', priority: 'C'}}],
+        })).toBeNull();
     });
 });

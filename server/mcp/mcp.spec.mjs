@@ -129,11 +129,11 @@ test('the tools and prompts, all read-only, described with units', async () => {
     const {tools} = await client.listTools();
     assert.deepEqual(tools.map(t => t.name).sort(),
         ['apply_plan', 'get_athlete', 'get_form', 'get_health', 'get_plan', 'get_progress', 'get_ride_analysis', 'list_rides',
-         'list_workouts', 'move_planned', 'plan_workout', 'propose_plan', 'remove_planned']);
-    const writes = ['apply_plan', 'move_planned', 'plan_workout', 'remove_planned'];
+         'list_workouts', 'move_planned', 'plan_workout', 'propose_plan', 'remove_goal_event', 'remove_planned', 'set_goal_event']);
+    const writes = ['apply_plan', 'move_planned', 'plan_workout', 'remove_goal_event', 'remove_planned', 'set_goal_event'];
     for(const t of tools) {
         assert.equal(t.annotations.readOnlyHint, !writes.includes(t.name), t.name);
-        if(!['remove_planned', 'apply_plan'].includes(t.name)) assert.match(t.description, /_w watts/, t.name);
+        if(!['remove_planned', 'remove_goal_event', 'apply_plan'].includes(t.name)) assert.match(t.description, /_w watts/, t.name);
     }
     const {prompts} = await client.listPrompts();
     assert.deepEqual(prompts.map(p => p.name).sort(), ['ride_debrief', 'training_plan', 'weekly_review']);
@@ -262,7 +262,7 @@ test('over stdio, as an AI app starts it: only the protocol on stdout', async ()
     const c = new Client({name: 'stdio-test', version: '1'});
     await c.connect(transport);
     const {tools} = await c.listTools();
-    assert.equal(tools.length, 13);
+    assert.equal(tools.length, 15);
     const r = await tool('get_athlete', {}, c);
     assert.equal(r.json.ftp_w, FTP);
     await c.close();
@@ -369,4 +369,50 @@ test('the training-plan prompt asks for a check and the rider\'s yes', async () 
     assert.match(text, /propose_plan/);
     assert.match(text, /Only when I say yes: apply_plan/);
     assert.match(text, /2027-03-15/);
+});
+
+test('goal events, weekly phases and race-day form forecast through MCP', async () => {
+    // Read-only key cannot add goal events
+    const denied = await tool('set_goal_event', {day: '2026-12-20', name: 'Winter Fondo', priority: 'A'});
+    assert.equal(denied.error, true);
+    assert.match(denied.text, /can only read/);
+
+    const writer = await connect(createSoigneur({api: createApi({url: base, token}), today: () => TODAY}));
+
+    // Create A goal and B tune-up goal
+    const goalA = await tool('set_goal_event', {
+        day: '2026-12-20', name: 'Solstice Fondo', priority: 'A',
+        event_type: 'gran-fondo', target_duration_s: 14400, target_tss: 240, notes: 'Hilly',
+    }, writer);
+    assert.equal(goalA.json.saved, true);
+    const goalB = await tool('set_goal_event', {
+        day: '2026-12-06', name: 'Autumn Crit', priority: 'B', event_type: 'crit', target_tss: 85,
+    }, writer);
+    assert.equal(goalB.json.saved, true);
+
+    // get_plan exposes goal_events and derived weekly phases without mixing goals into workout entries
+    const plan = (await tool('get_plan', {from: '2026-11-23', to: '2026-12-27'}, writer)).json;
+    assert.deepEqual(plan.goal_events.map(g => [g.name, g.priority]), [
+        ['Autumn Crit', 'B'],
+        ['Solstice Fondo', 'A'],
+    ]);
+    assert.ok(plan.phases.some(w => w.phase === 'taper' && w.target_goal?.name === 'Solstice Fondo'));
+    assert.ok(plan.phases.some(w => w.mini_taper === true));
+    assert.ok(plan.entries.every(e => e.id !== goalA.json.goal_id && e.id !== goalB.json.goal_id));
+
+    // get_form exposes race_forecast for the upcoming A goal
+    const form = (await tool('get_form', {}, writer)).json;
+    assert.equal(form.race_forecast.name, 'Solstice Fondo');
+    assert.equal(form.race_forecast.priority, 'A');
+    assert.ok(typeof form.race_forecast.projected_form === 'number');
+    assert.ok(form.race_forecast.guidance.length > 5);
+
+    // Updating and removing a goal event
+    const edited = await tool('set_goal_event', {
+        goal_id: goalB.json.goal_id, name: 'Autumn Circuit Race', priority: 'B',
+    }, writer);
+    assert.equal(edited.json.name, 'Autumn Circuit Race');
+    assert.equal((await tool('remove_goal_event', {goal_id: goalB.json.goal_id}, writer)).json.removed, true);
+    assert.equal((await tool('remove_goal_event', {goal_id: goalA.json.goal_id}, writer)).json.removed, true);
+    assert.deepEqual((await tool('get_plan', {}, writer)).json.goal_events, []);
 });

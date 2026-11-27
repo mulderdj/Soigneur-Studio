@@ -11,8 +11,9 @@ import { fitToSamples, readRide } from '../../src/training/fit-records.js';
 import { rideSummary, SUMMARY_VERSION } from '../../src/training/summary.js';
 import { mergeRides, countable, isCycling } from '../../src/training/merge.js';
 import { effectiveLoad, restingHrOn, mergeThresholds } from '../../src/training/load-sources.js';
-import { dailyTss, pmc, forecast, formLabel } from '../../src/training/load.js';
+import { dailyTss, pmc, forecast, formLabel, raceForecast } from '../../src/training/load.js';
 import { plannedTss, planStatus } from '../../src/training/plan.js';
+import { isGoalEvent, normalizeGoalEvent, goalEventsFromPlan, weeklyPhases, eventTypeLabel } from '../../src/training/season.js';
 import { weeklyVolume, weekCompare, powerCurve, ftpEstimates } from '../../src/training/progress.js';
 import { readiness } from '../../src/training/readiness.js';
 import { currentModel, powerProfile, meanMaximal } from '../../src/training/rider-model.js';
@@ -290,7 +291,7 @@ function createSoigneur({api, today = localToday, cacheMs = CACHE_MS, now = () =
         from ??= addDays(to, -27);
         checkRange(from, to);
         const [all, plan] = await Promise.all([summaries(), planEntries()]);
-        const plannedName = new Map(plan.filter(e => e.rideId).map(e => [e.rideId, e.workout?.meta?.name ?? e.name ?? null]));
+        const plannedName = new Map(plan.filter(e => !isGoalEvent(e) && e.rideId).map(e => [e.rideId, e.workout?.meta?.name ?? e.name ?? null]));
         let list = all.filter(s => s.day >= from && s.day <= to);
         if(sport) list = list.filter(s => (s.sport ?? 'cycling') === sport);
         const rows = list.map(s => rideRow(s, plannedName.get(s.id)));
@@ -323,8 +324,9 @@ function createSoigneur({api, today = localToday, cacheMs = CACHE_MS, now = () =
         if(!ride.samples.length) return {ride: rideRow(summary), problem: 'The ride\'s file holds no samples.'};
 
         // as the ride page: the plan entry the ride is linked to, else the workout by id or name
-        const entry = plan.find(e => e.rideId === id) ??
-                      plan.find(e => summary.workoutId && e.day === summary.day && e.workout?.id === summary.workoutId);
+        const workoutPlan = plan.filter(e => !isGoalEvent(e));
+        const entry = workoutPlan.find(e => e.rideId === id) ??
+                      workoutPlan.find(e => summary.workoutId && e.day === summary.day && e.workout?.id === summary.workoutId);
         const workout = entry?.workout ?? lib.find(w => summary.workoutId && w.id === summary.workoutId) ??
                         (summary.workoutId ? lib.find(w => w.meta?.name === summary.name) : null) ?? null;
         const ftp = summary.ftp > 0 ? summary.ftp : (p.ftp > 0 ? p.ftp : 250);
@@ -390,15 +392,28 @@ function createSoigneur({api, today = localToday, cacheMs = CACHE_MS, now = () =
         const row = r => ({day: r.day, tss: r0(r.tss), fitness: r1(r.ctl), fatigue: r1(r.atl), form: r1(r.tsb), label: formLabel(r.tsb)});
         const planned = new Map();
         for(const e of plan) {
-            if(e.day > t && planStatus(e, t) === 'planned' && e.workout) planned.set(e.day, (planned.get(e.day) ?? 0) + plannedTss(e.workout, p.ftp > 0 ? p.ftp : 250));
+            if(!isGoalEvent(e) && e.day > t && planStatus(e, t) === 'planned' && e.workout) {
+                planned.set(e.day, (planned.get(e.day) ?? 0) + plannedTss(e.workout, p.ftp > 0 ? p.ftp : 250));
+            }
         }
-        const last = rows.at(-1) ?? {ctl: 0, atl: 0};
+        const last = rows.at(-1) ?? {ctl: 0, atl: 0, tsb: 0};
+        const rf = raceForecast({today: t, now: last, plannedByDay: planned, plan});
         const days = Math.max(0, Math.min(90, forecastDays));
         return {
             today: t,
             explain: 'fitness = CTL (42-day load), fatigue = ATL (7-day load), form = TSB (yesterday\'s fitness − fatigue). Forecast: from the planned workouts.',
             days: rows.filter(r => r.day >= from && r.day <= to).map(row),
             forecast: days ? forecast(last, planned, t, days).map(row) : [],
+            ...(rf ? {
+                race_forecast: {
+                    goal_id: rf.goal.id, day: rf.goal.day, name: rf.goal.name, priority: rf.goal.priority,
+                    days_to_goal: rf.daysToGoal,
+                    projected_fitness: r1(rf.projected.ctl), projected_fatigue: r1(rf.projected.atl),
+                    projected_form: r1(rf.projected.tsb), label: formLabel(rf.projected.tsb),
+                    taper_gain_form: rf.taperGain, status: rf.status, guidance: rf.guidance,
+                    assumed_unplanned_weeks: rf.assumedUnplanned,
+                },
+            } : {}),
         };
     }
 
@@ -473,9 +488,20 @@ function createSoigneur({api, today = localToday, cacheMs = CACHE_MS, now = () =
         checkRange(from, to);
         const [entries, p] = await Promise.all([planEntries(), profile()]);
         const ftp = p.ftp > 0 ? p.ftp : 250;
+        const allGoals = goalEventsFromPlan(entries);
+        const phases = weeklyPhases(allGoals, from, to)
+            .filter(w => w.phase || w.miniTaper || w.goals.length > 0)
+            .map(w => ({
+                week_of: w.week,
+                phase: w.phase,
+                label: w.label,
+                mini_taper: w.miniTaper,
+                weeks_to_goal: w.weeksToGoal,
+                target_goal: w.targetGoal ? {id: w.targetGoal.id, day: w.targetGoal.day, name: w.targetGoal.name} : null,
+            }));
         return {
             today: t,
-            entries: entries.filter(e => e.day >= from && e.day <= to).map(e => ({
+            entries: entries.filter(e => !isGoalEvent(e) && e.day >= from && e.day <= to).map(e => ({
                 id: e.id, day: e.day, name: e.workout?.meta?.name ?? e.name ?? null,
                 status: planStatus(e, t), ride_id: e.rideId ?? null,
                 from: e.origin === 'intervals' ? 'intervals.icu' : e.origin === 'ai' ? 'AI' : 'Soigneur',
@@ -484,6 +510,15 @@ function createSoigneur({api, today = localToday, cacheMs = CACHE_MS, now = () =
                 steps: e.workout ? stepsOf(e.workout) : null,
                 ...(e.original ? {replaced_by_readiness: true} : {}),
             })),
+            goal_events: allGoals.filter(g => g.day >= from).map(g => ({
+                id: g.id, day: g.day, name: g.name, priority: g.priority,
+                event_type: g.eventType, event_type_label: eventTypeLabel(g.eventType) || null,
+                target_duration_s: g.targetDurationS, target_tss: g.targetTss, notes: g.notes,
+                days_from_today: daysBetween(t, g.day),
+                in_range: g.day <= to,
+                from: g.origin === 'ai' ? 'AI' : 'Soigneur',
+            })),
+            phases,
         };
     }
 
@@ -554,10 +589,62 @@ function createSoigneur({api, today = localToday, cacheMs = CACHE_MS, now = () =
     }
 
     function findEntry(ctx, id) {
-        const e = ctx.entries.find(x => x.id === id);
+        const e = ctx.entries.find(x => x.id === id && !isGoalEvent(x));
         if(!e) throw new SoigneurError(`No planned workout with id ${id} (get_plan gives the ids).`);
         if(planStatus(e, ctx.today) !== 'planned') throw new SoigneurError(`"${entryName(e)}" on ${e.day} is ${planStatus(e, ctx.today)}; only planned workouts (today or later, not ridden) can change.`);
         return e;
+    }
+
+    async function setGoalEvent({goal_id, day, name, priority = 'A', event_type, target_duration_s, target_tss, notes}) {
+        forget();
+        const entries = await planEntries();
+        let existing = null;
+        if(goal_id) {
+            existing = entries.find(x => x.id === goal_id && isGoalEvent(x));
+            if(!existing) throw new SoigneurError(`No goal event with id ${goal_id} (get_plan gives goal_events).`);
+        }
+        const targetDay = day ?? existing?.day;
+        if(!targetDay) throw new SoigneurError('Give a YYYY-MM-DD day for the goal event.');
+        let norm;
+        try {
+            norm = normalizeGoalEvent({
+                name: name ?? existing?.event?.name,
+                priority: priority ?? existing?.event?.priority ?? 'A',
+                eventType: event_type !== undefined ? event_type : existing?.event?.eventType,
+                targetDurationS: target_duration_s !== undefined ? target_duration_s : existing?.event?.targetDurationS,
+                targetTss: target_tss !== undefined ? target_tss : existing?.event?.targetTss,
+                notes: notes !== undefined ? notes : existing?.event?.notes,
+            });
+        } catch(e) {
+            throw new SoigneurError(e.message);
+        }
+        const id = existing ? existing.id : crypto.randomUUID();
+        const origin = existing?.origin ?? 'ai';
+        await api.put(`/me/plan/${encodeURIComponent(id)}`, {
+            data: {day: targetDay, kind: 'event', event: norm, workout: null, zwo: null, rideId: null, origin, name: norm.name},
+        });
+        forget();
+        return {
+            saved: true,
+            goal_id: id,
+            day: targetDay,
+            name: norm.name,
+            priority: norm.priority,
+            event_type: norm.eventType,
+            target_duration_s: norm.targetDurationS,
+            target_tss: norm.targetTss,
+            notes: norm.notes,
+        };
+    }
+
+    async function removeGoalEvent({goal_id}) {
+        forget();
+        const goals = goalEventsFromPlan(await planEntries());
+        const g = goals.find(x => x.id === goal_id);
+        if(!g) throw new SoigneurError(`No goal event with id ${goal_id} (get_plan gives goal_events).`);
+        await api.delete(`/me/plan/${encodeURIComponent(g.id)}`);
+        forget();
+        return {removed: true, goal_id: g.id, day: g.day, name: g.name, priority: g.priority};
     }
 
     async function movePlanned({entry_id, day, allow_back_to_back_hard_days = false}) {
@@ -609,7 +696,7 @@ function createSoigneur({api, today = localToday, cacheMs = CACHE_MS, now = () =
             proposal_id: id, passed: findings.length === 0, findings, goal: input.goal ?? null,
             weeks: check.weeks.map(w => ({...w, focus: (input.weeks ?? []).find(x => x.week_of === w.week_of)?.focus ?? null})),
             days,
-            ...(input.replace_planned ? {replaces: ctx.entries.filter(e => e.origin !== 'intervals' && planStatus(e, ctx.today) === 'planned' && add.some(a => a.day === e.day))
+            ...(input.replace_planned ? {replaces: ctx.entries.filter(e => !isGoalEvent(e) && e.origin !== 'intervals' && planStatus(e, ctx.today) === 'planned' && add.some(a => a.day === e.day))
                 .map(e => ({entry_id: e.id, day: e.day, name: entryName(e)}))} : {}),
             next: findings.length ? 'Fix the findings and propose again; nothing is stored.' :
                 'Show the rider this plan. Only when they agree, call apply_plan with this proposal_id.',
@@ -625,7 +712,7 @@ function createSoigneur({api, today = localToday, cacheMs = CACHE_MS, now = () =
         const findings = [...problems, ...check.findings];
         if(findings.length) return {applied: false, findings, note: 'The plan or the rides changed since the proposal; nothing was stored. Propose again.'};
         const toReplace = p.input.replace_planned ?
-            ctx.entries.filter(e => e.origin !== 'intervals' && planStatus(e, ctx.today) === 'planned' && add.some(a => a.day === e.day)) : [];
+            ctx.entries.filter(e => !isGoalEvent(e) && e.origin !== 'intervals' && planStatus(e, ctx.today) === 'planned' && add.some(a => a.day === e.day)) : [];
         const replaced = toReplace.map(e => ({day: e.day, name: entryName(e)}));
         const toPut = add.map(a => ({id: crypto.randomUUID(), day: a.day, name: a.workout.meta?.name ?? null, data: planEntryData(a.day, a.workout, ctx.ftp)}));
         if(typeof api.post === 'function') {
@@ -645,7 +732,7 @@ function createSoigneur({api, today = localToday, cacheMs = CACHE_MS, now = () =
     }
 
     return {athlete, listRides, rideAnalysis, latestRideId, formRows, progress, health, plan, workouts, forget,
-            planWorkout, movePlanned, removePlanned, proposePlan, applyPlan,
+            planWorkout, movePlanned, removePlanned, setGoalEvent, removeGoalEvent, proposePlan, applyPlan,
             // for the write tools
             summaries, planEntries, library, profile};
 }

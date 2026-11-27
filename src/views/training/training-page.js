@@ -77,7 +77,7 @@ class TrainingPage extends HTMLElement {
         xf.sub('training:changed', () => this.refresh(), signal);
         xf.sub('db:page', page => { if(page === 'training') this.onShow(); }, signal);
         xf.sub('activity:restore', () => this.refresh(), signal);
-        this.addEventListener('day-open', e => this.$dialog.open(e.detail.day, this.data()), signal);
+        this.addEventListener('day-open', e => this.$dialog.open(e.detail.day, this.data(), {goal: !!e.detail.goal}), signal);
     }
 
     disconnectedCallback() {

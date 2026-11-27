@@ -22,6 +22,7 @@ import { uuid } from '../storage/uuid.js';
 import { rideSummary, SUMMARY_VERSION } from './summary.js';
 import { fitToSamples } from './fit-records.js';
 import { matchRide } from './plan.js';
+import { isGoalEvent, normalizeGoalEvent, goalEventsFromPlan } from './season.js';
 import { mergeRides } from './merge.js';
 import { effectiveLoad, restingHrOn } from './load-sources.js';
 
@@ -379,7 +380,7 @@ async function recordRide(meta, samples) {
     const s = rideSummary(samples, meta);
     await idb.put(SUMMARIES, s);
     const chosen = meta.planEntryId ? await idb.get(PLAN, meta.planEntryId) : null;
-    if(chosen && !chosen.deleted && !chosen.rideId) {
+    if(chosen && !chosen.deleted && !isGoalEvent(chosen) && !chosen.rideId) {
         await putEntry({...chosen, rideId: s.id, day: s.day});
     } else {
         const entries = await planEntries();
@@ -452,6 +453,33 @@ function zwoOf(workout) {
 async function addPlanEntry(day, workout) {
     return putEntry({id: uuid(), day, workout: structuredCloneSafe(workout), rideId: null, deleted: false,
                      origin: 'auuki', zwo: zwoOf(workout), name: workout?.meta?.name ?? null});
+}
+
+async function goalEvents() {
+    return goalEventsFromPlan(await planEntries());
+}
+
+async function addGoalEvent(day, event) {
+    if(typeof day !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(day)) {
+        throw new Error('Goal event requires a YYYY-MM-DD day.');
+    }
+    const norm = normalizeGoalEvent(event);
+    return putEntry({
+        id: uuid(), day, kind: 'event', event: norm, workout: null, zwo: null,
+        rideId: null, deleted: false, origin: 'auuki', name: norm.name,
+    });
+}
+
+async function updateGoalEvent(id, patch = {}) {
+    const e = await idb.get(PLAN, id);
+    if(!e || e.deleted) return null;
+    const nextDay = typeof patch.day === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(patch.day) ? patch.day : e.day;
+    const norm = normalizeGoalEvent({...e.event, ...patch});
+    return putEntry({...e, day: nextDay, kind: 'event', event: norm, workout: null, zwo: null, name: norm.name});
+}
+
+async function removeGoalEvent(id) {
+    return removePlanEntry(id);
 }
 
 // an entry planned on intervals.icu: its workout comes from the .zwo
@@ -587,8 +615,12 @@ const history = Object.freeze({
     backfill,
     recordRide,
     planEntries,
+    goalEvents,
     rideFile,
     addPlanEntry,
+    addGoalEvent,
+    updateGoalEvent,
+    removeGoalEvent,
     movePlanEntry,
     removePlanEntry,
     linkRide,

@@ -94,10 +94,10 @@ All dates are `YYYY-MM-DD` in the rider's time zone. Units are encoded in key na
 | `get_athlete` | — | Current FTP, weight, W′, threshold HR per sport, 90-day rider model (CP/W′), power profile (W/kg), and today's readiness verdict (`ready`, `take-care`, or `rest`) with reasons. |
 | `list_rides` | `from?`, `to?`, `sport?` | Deduplicated rides/workouts (default last 28 days) across Soigneur, Garmin, intervals.icu and imported `.fit` files: id, day, name, sport, source, duration, distance, TSS and load source, IF, NP, power, kJ, HR, RPE, FTP, and matched planned workout. |
 | `get_ride_analysis` | `ride_id` (`id` or `"latest"`) | Full Ride Analysis summary: planned workout steps, intervals (planned vs actual per rep, pacing, power fade, HR drift), efforts with 60 s HR recovery, W′bal and matches, time in power/HR zones, best efforts vs prior 90 days, decoupling, efficiency factor, and durability. |
-| `get_form` | `from?`, `to?`, `forecast_days?` | Daily TSS, fitness (CTL, 42-day), fatigue (ATL, 7-day), form (TSB) with label, and forecast from planned workouts (default last 42 days + 14-day forecast). |
+| `get_form` | `from?`, `to?`, `forecast_days?` | Daily TSS, fitness (CTL, 42-day), fatigue (ATL, 7-day), form (TSB) with label, forecast from planned workouts, and `race_forecast` (projected race-day TSB, taper effect, and taper guidance) when an `A` or `B` goal event is within 90 days. |
 | `get_progress` | `weeks?` | Weekly volume (rides, hours, TSS, kJ), this week vs last week, 3-zone intensity distribution, 42-day vs all-time power curve, weekly FTP estimates, and aerobic efficiency trend (default 12 weeks). |
 | `get_health` | `from?`, `to?` | Nightly Garmin health metrics (default last 14 days): HRV vs normal range, resting HR and trend, sleep, and Body Battery. |
-| `get_plan` | `from?`, `to?` | Planned workouts (default 1 week back to 3 weeks ahead): id, day, name, status (`planned`, `done`, `missed`), origin (Soigneur, intervals.icu, AI), planned TSS, duration, and steps. |
+| `get_plan` | `from?`, `to?` | Planned workouts (`entries`: id, day, name, status, origin, planned TSS, duration, steps), season `goal_events` (`A` / `B` / `C` priority, event type, target duration/TSS, notes), and derived weekly training `phases` (`base`, `build`, `peak`, `taper`, `mini_taper`). |
 | `list_workouts` | `query?` | Built-in workouts, built-in tests, and your own library: id, name, source, category, duration, planned TSS, and description. |
 
 ### Write tools (`plan` scope only)
@@ -107,6 +107,8 @@ All dates are `YYYY-MM-DD` in the rider's time zone. Units are encoded in key na
 | `plan_workout` | `day`, `workout_id` or `workout`, `allow_back_to_back_hard_days?` | Checks and adds one workout to the plan (syncs to the app and intervals.icu). |
 | `move_planned` | `entry_id`, `day`, `allow_back_to_back_hard_days?` | Checks and moves a planned, unridden workout (today or later) to another day. |
 | `remove_planned` | `entry_id` | Removes a planned, unridden workout (today or later) from the plan (and intervals.icu if synced). |
+| `set_goal_event` | `day`, `name`, `priority?` (`A`\|`B`\|`C`), `goal_id?`, `event_type?`, `target_duration_s?`, `target_tss?`, `notes?` | Adds or updates a goal event on the calendar (`A` goals drive Base/Build/Peak/Taper phases; `B` goals get a mini-taper). |
+| `remove_goal_event` | `goal_id` | Removes a goal event from the season calendar. |
 | `propose_plan` | `goal`, `weeks`, `replace_planned?`, `allow_back_to_back_hard_days?` | Checks a multi-week block against Soigneur's guardrails and returns findings + weekly TSS/CTL; stores nothing. |
 | `apply_plan` | `proposal_id` | Stores a checked proposal after you agree. Re-checks against current rides/plan and refuses if anything changed. |
 

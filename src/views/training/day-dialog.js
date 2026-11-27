@@ -9,7 +9,8 @@
 //
 
 import { history } from '../../training/history.js';
-import { planStatus, plannedTss } from '../../training/plan.js';
+import { planStatus, plannedTss, isGoalEvent } from '../../training/plan.js';
+import { goalEventsFromPlan, EVENT_TYPES, eventTypeLabel } from '../../training/season.js';
 import { esc, fmtDuration, fmtDay, fmtTss, sportLabelFor, loadTag, loadTitle } from './format.js';
 import { intervalsToGraph } from '../workout-graph.js';
 import { openRide } from '../analysis/open-ride.js';
@@ -17,6 +18,61 @@ import { openRide } from '../analysis/open-ride.js';
 const GRAPH_HEIGHT = 80;
 const minutes = (s) => `${Math.round(s / 60)} min`;
 const workoutSeconds = (w) => (w?.intervals ?? []).reduce((a, i) => a + (Number(i.duration) || 0), 0);
+
+const PRIORITY_DESC = {
+    A: 'A — Main season peak',
+    B: 'B — Tune-up race',
+    C: 'C — Training event',
+};
+
+function goalFormHtml(goalForm, defaultDay) {
+    if(!goalForm) {
+        return `<div class="dd-goal-bar"><button type="button" class="btn" data-add-goal>+ Goal event</button></div>`;
+    }
+    const g = goalForm.goal ?? null;
+    const prio = g?.priority ?? 'A';
+    const day = g?.day ?? defaultDay;
+    const type = g?.eventType ?? '';
+    const durMin = g?.targetDurationS ? Math.round(g.targetDurationS / 60) : '';
+    const tss = g?.targetTss ?? '';
+    const notes = g?.notes ?? '';
+    return `
+        <form class="dd-goal-form" aria-label="${g ? 'Edit goal event' : 'Add goal event'}">
+            <h3 class="dd-sub">${g ? 'Edit goal event' : 'Add goal event'}</h3>
+            <div class="dd-goal-grid">
+                <label class="field dd-goal-name">Event name
+                    <input type="text" class="input" name="goalName" required maxlength="120" value="${esc(g?.name ?? '')}" placeholder="e.g. Solstice Gran Fondo">
+                </label>
+                <label class="field">Priority
+                    <select class="input" name="goalPriority">
+                        ${['A', 'B', 'C'].map(p => `<option value="${p}"${prio === p ? ' selected' : ''}>${esc(PRIORITY_DESC[p])}</option>`).join('')}
+                    </select>
+                </label>
+                <label class="field">Date
+                    <input type="date" class="input" name="goalDay" required value="${esc(day)}">
+                </label>
+                <label class="field">Event type
+                    <select class="input" name="goalType">
+                        <option value="">Optional</option>
+                        ${EVENT_TYPES.map(t => `<option value="${esc(t.key)}"${type === t.key ? ' selected' : ''}>${esc(t.label)}</option>`).join('')}
+                    </select>
+                </label>
+                <label class="field">Target duration (min)
+                    <input type="number" class="input" name="goalDurationMin" min="1" max="10080" step="1" value="${esc(durMin)}" placeholder="e.g. 180">
+                </label>
+                <label class="field">Target TSS
+                    <input type="number" class="input" name="goalTss" min="1" max="2000" step="1" value="${esc(tss)}" placeholder="e.g. 200">
+                </label>
+                <label class="field dd-goal-notes">Notes
+                    <input type="text" class="input" name="goalNotes" maxlength="500" value="${esc(notes)}" placeholder="Course notes, target power or pacing…">
+                </label>
+            </div>
+            <div class="dd-goal-actions">
+                <button type="submit" class="btn btn--primary">${g ? 'Save goal' : 'Add goal'}</button>
+                <button type="button" class="btn" data-cancel-goal>Cancel</button>
+            </div>
+        </form>`;
+}
 
 // a ride's time in each power zone as one thin bar (rides with power only)
 function zoneBar(r) {
@@ -48,14 +104,16 @@ class DayDialog extends HTMLElement {
         this.$dialog = this.querySelector('dialog');
         this.$dialog.addEventListener('click', e => this.onClick(e));
         this.$dialog.addEventListener('change', e => this.onChange(e));
+        this.$dialog.addEventListener('submit', e => this.onSubmit(e));
         this.$dialog.addEventListener('input', e => {
             if(e.target.matches('input[type=search]')) this.renderLibrary(e.target.value);
         });
     }
 
-    open(day, data) {
+    open(day, data, opts = {}) {
         this.day = day;
         this.data = data;
+        this.goalForm = opts.goal ? {mode: 'add'} : null;
         this.render();
         if(typeof this.$dialog.showModal === 'function' && !this.$dialog.open) this.$dialog.showModal();
         else this.$dialog.setAttribute('open', '');
@@ -102,9 +160,67 @@ class DayDialog extends HTMLElement {
         if(hide) { this.actions.hideRide(hide.dataset.hide); this.close(); return; }
         const show = e.target.closest('[data-show]');
         if(show) { this.actions.showRide(show.dataset.show); this.close(); return; }
+        const addGoal = e.target.closest('[data-add-goal]');
+        if(addGoal) {
+            this.goalForm = {mode: 'add'};
+            this.render();
+            this.fillGraphs();
+            this.$dialog.querySelector('input[name="goalName"]')?.focus();
+            return;
+        }
+        const editGoal = e.target.closest('[data-edit-goal]');
+        if(editGoal) {
+            const goal = goalEventsFromPlan(this.data.plan ?? []).find(g => String(g.id) === editGoal.dataset.editGoal);
+            if(goal) {
+                this.goalForm = {mode: 'edit', goal};
+                this.render();
+                this.fillGraphs();
+            }
+            return;
+        }
+        const cancelGoal = e.target.closest('[data-cancel-goal]');
+        if(cancelGoal) {
+            this.goalForm = null;
+            this.render();
+            this.fillGraphs();
+            return;
+        }
+        const removeGoal = e.target.closest('[data-remove-goal]');
+        if(removeGoal) {
+            const fn = this.actions.removeGoalEvent ?? this.actions.removePlanEntry;
+            if(fn) await fn.call(this.actions, removeGoal.dataset.removeGoal);
+            this.close();
+            return;
+        }
         const remove = e.target.closest('[data-remove]');
         if(remove) { this.actions.removePlanEntry(remove.dataset.remove); this.close(); return; }
         if(e.target.closest('[data-close]')) this.close();
+    }
+
+    async onSubmit(e) {
+        const form = e.target.closest('.dd-goal-form');
+        if(!form) return;
+        e.preventDefault();
+        const fd = new FormData(form);
+        const name = String(fd.get('goalName') ?? '').trim();
+        if(!name) return;
+        const priority = String(fd.get('goalPriority') ?? 'A').trim().toUpperCase();
+        const goalDay = String(fd.get('goalDay') ?? this.day).trim() || this.day;
+        const eventType = String(fd.get('goalType') ?? '').trim() || null;
+        const durMin = Number(fd.get('goalDurationMin'));
+        const targetDurationS = Number.isFinite(durMin) && durMin > 0 ? Math.round(durMin * 60) : null;
+        const tss = Number(fd.get('goalTss'));
+        const targetTss = Number.isFinite(tss) && tss > 0 ? Math.round(tss) : null;
+        const notes = String(fd.get('goalNotes') ?? '').trim() || null;
+        const payload = {name, priority, eventType, targetDurationS, targetTss, notes};
+
+        if(this.goalForm?.mode === 'edit' && this.goalForm.goal) {
+            await this.actions.updateGoalEvent(this.goalForm.goal.id, {day: goalDay, ...payload});
+        } else {
+            await this.actions.addGoalEvent(goalDay, payload);
+        }
+        this.goalForm = null;
+        this.close();
     }
 
     onChange(e) {
@@ -115,7 +231,8 @@ class DayDialog extends HTMLElement {
     render() {
         const {summaries = [], allSummaries, plan = [], today} = this.data;
         const allRides = (allSummaries ?? summaries).filter(s => s.day === this.day);
-        const allEntries = plan.filter(e => !e.deleted && e.day === this.day);
+        const goals = goalEventsFromPlan(plan).filter(g => g.day === this.day);
+        const allEntries = plan.filter(e => !e.deleted && !isGoalEvent(e) && e.day === this.day);
         // a planned workout that was ridden is one item: the ride, with its plan
         const planOf = r => r.hidden ? null : allEntries.find(e => e.rideId && e.rideId === r.id) ?? null;
         const rides = allRides;
@@ -123,11 +240,27 @@ class DayDialog extends HTMLElement {
         const graph = e => e.workout?.intervals?.length ? `<div class="dd-graph workout-list--graph-cont" data-graph="${esc(e.id)}" role="img"
                         aria-label="${esc(`Workout profile, ${minutes(workoutSeconds(e.workout))}`)}"></div>` : '';
         const planned = e => e?.workout ? ` (planned ${Math.round(plannedTss(e.workout, this.data.ftp))})` : '';
+        const goalMeta = g => [
+            eventTypeLabel(g.eventType),
+            g.targetDurationS ? fmtDuration(g.targetDurationS) : '',
+            g.targetTss ? `${g.targetTss} TSS` : '',
+        ].filter(Boolean).join(' · ');
         this.$dialog.innerHTML = `
             <div class="dd-head">
                 <h2 class="card__title">${esc(fmtDay(this.day, {weekday: 'long', day: 'numeric', month: 'long'}))}</h2>
                 <button type="button" class="btn btn--icon" data-close aria-label="Close">×</button>
             </div>
+            ${goals.length ? `<h3 class="dd-sub">Goal events</h3><ul class="dd-list dd-goals">${goals.map(g => `
+                <li class="list-row dd-goal" data-priority="${esc(g.priority)}">
+                    <div class="list-row__main">
+                        <div class="list-row__title"><span class="badge cal-goal__prio" data-priority="${esc(g.priority)}">${esc(g.priority)}</span> ${esc(g.name)}</div>
+                        ${goalMeta(g) || g.origin === 'ai' ? `<div class="list-row__meta">${esc(goalMeta(g))}${g.origin === 'ai' ? ' <span class="badge badge-ai">AI</span>' : ''}</div>` : ''}
+                        ${g.notes ? `<div class="dd-goal__notes">${esc(g.notes)}</div>` : ''}
+                    </div>
+                    <button type="button" class="btn" data-edit-goal="${esc(g.id)}">Edit</button>
+                    <button type="button" class="btn btn--danger" data-remove-goal="${esc(g.id)}">Remove</button>
+                </li>`).join('')}</ul>` : ''}
+            ${goalFormHtml(this.goalForm, this.day)}
             ${rides.length ? `<h3 class="dd-sub">Rides</h3><ul class="dd-list">${rides.map(r => { const e = planOf(r); return `
                 <li class="list-row dd-ride${r.hidden ? ' is-hidden' : ''}${e ? ' dd-done' : ''}"><div class="list-row__main"><div class="list-row__title">${esc(r.name)}</div>
                     <div class="list-row__meta">${e ? `<span class="badge">done</span> ` : ''}${sportLabelFor(r) ? `${esc(sportLabelFor(r))} · ` : ''}${fmtDuration(r.duration)} · ${fmtTss(r.tss)} TSS${planned(e)}${loadTag(r.loadSource) ? ` <span class="badge cal-load" title="${esc(loadTitle(r.loadSource))}">${loadTag(r.loadSource)}</span>` : ''}${Number.isFinite(r.np) ? ` · NP ${Math.round(r.np)} W` : ''}${r.hidden ? ' · hidden' : ''}${e?.origin === 'intervals' ? ' <span class="badge badge-icu">intervals.icu</span>' : ''}</div>${zoneBar(r)}${e ? graph(e) : ''}</div>

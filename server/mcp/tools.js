@@ -79,7 +79,7 @@ function registerTools(server, data) {
 
     server.registerTool('get_form', {
         title: 'Fitness, fatigue and form',
-        description: `Per day: TSS, fitness (CTL, 42-day load), fatigue (ATL, 7-day load) and form (TSB) with its label (Very fresh, Fresh, Neutral, Building, Overreaching); and a forecast from the planned workouts. Default range: the last 42 days, forecast 14 days. ${UNITS}`,
+        description: `Per day: TSS, fitness (CTL, 42-day load), fatigue (ATL, 7-day load) and form (TSB) with its label (Very fresh, Fresh, Neutral, Building, Overreaching); a forecast from the planned workouts; and race_forecast when an A or B goal event is within 90 days (projected race-day form, taper effect and taper guidance). Default range: the last 42 days, forecast 14 days. ${UNITS}`,
         inputSchema: {
             from: DAY.optional(), to: DAY.optional(),
             forecast_days: z.number().int().min(0).max(90).optional().describe('days of forecast after today (default 14)'),
@@ -103,7 +103,7 @@ function registerTools(server, data) {
 
     server.registerTool('get_plan', {
         title: 'Training plan',
-        description: `Planned workouts in a date range (default: a week back to three weeks ahead): id, day, name, status (planned, done or missed), the ride that fulfilled it, where it was planned (Soigneur, intervals.icu, AI), planned TSS at the current FTP, duration and steps (power as % FTP, ramps as from/to, free ride, slope for all-out test efforts; repeated blocks as {repeat, steps}). ${UNITS}`,
+        description: `Planned workouts, goal events (A/B/C priority, event type, target duration/TSS and notes) and derived weekly training phases (base, build, peak, taper and mini_taper) in a date range (default: a week back to three weeks ahead; upcoming season goals after 'from' are always included). Per workout entry: id, day, name, status (planned, done or missed), the ride that fulfilled it, where it was planned (Soigneur, intervals.icu, AI), planned TSS at the current FTP, duration and steps (power as % FTP, ramps as from/to, free ride, slope for all-out test efforts; repeated blocks as {repeat, steps}). ${UNITS}`,
         inputSchema: {from: DAY.optional(), to: DAY.optional()},
         annotations: READ,
     }, run(a => data.plan(a)));
@@ -145,6 +145,29 @@ function registerTools(server, data) {
         inputSchema: {entry_id: z.string().min(1)},
         annotations: {...WRITE, destructiveHint: true, idempotentHint: true},
     }, run(a => data.removePlanned(a)));
+
+    server.registerTool('set_goal_event', {
+        title: 'Add or update a goal event',
+        description: `Adds or updates a season goal event (priority A for main peaks driving Base/Build/Peak/Taper phases, B for tune-up races with a mini-taper, C for low-priority events). Pass goal_id from get_plan.goal_events to edit an existing goal. Ask the rider first. ${UNITS}`,
+        inputSchema: {
+            goal_id: z.string().min(1).optional().describe('existing goal id from get_plan.goal_events to update'),
+            day: DAY.optional().describe('event date YYYY-MM-DD (required when creating)'),
+            name: z.string().min(1).max(120).optional().describe('event name (required when creating)'),
+            priority: z.enum(['A', 'B', 'C']).optional().describe('A (main peak), B (tune-up), or C (training event)'),
+            event_type: z.string().max(40).nullable().optional().describe('e.g. road-race, gran-fondo, tt, crit, sportive, gravel, mtb, stage-race'),
+            target_duration_s: z.number().int().min(1).max(604800).nullable().optional().describe('expected event duration in seconds'),
+            target_tss: z.number().int().min(1).max(2000).nullable().optional().describe('expected event TSS'),
+            notes: z.string().max(500).nullable().optional(),
+        },
+        annotations: {...WRITE, idempotentHint: true},
+    }, run(a => data.setGoalEvent(a)));
+
+    server.registerTool('remove_goal_event', {
+        title: 'Remove a goal event',
+        description: 'Removes a goal event from the rider\'s season plan. goal_id from get_plan.goal_events. Ask the rider first.',
+        inputSchema: {goal_id: z.string().min(1)},
+        annotations: {...WRITE, destructiveHint: true, idempotentHint: true},
+    }, run(a => data.removeGoalEvent(a)));
 
     server.registerTool('propose_plan', {
         title: 'Check a training block',

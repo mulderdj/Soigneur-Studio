@@ -18,6 +18,7 @@
 
 import crypto from 'node:crypto';
 import { plannedTss, planStatus } from '../../src/training/plan.js';
+import { isGoalEvent } from '../../src/training/season.js';
 import { dailyTss, pmc, forecast } from '../../src/training/load.js';
 import { isHard } from '../../src/training/readiness.js';
 import { countable } from '../../src/training/merge.js';
@@ -127,8 +128,8 @@ function checkPlan(ctx, change, opts = {}) {
     const rides = countable(ctx.summaries ?? []);
     const ridden = new Set(rides.filter(s => s.day <= today).map(s => s.day));
 
-    // the plan as it would be
-    const kept = (ctx.entries ?? []).filter(e => !remove.has(e.id)).map(e => (move.has(e.id) ? {...e, day: move.get(e.id)} : e));
+    // the plan as it would be (workout entries only; goal events are never overwritten by workout plans)
+    const kept = (ctx.entries ?? []).filter(e => !isGoalEvent(e) && !remove.has(e.id)).map(e => (move.has(e.id) ? {...e, day: move.get(e.id)} : e));
     const open = e => planStatus(e, today) === 'planned';
     const touched = new Set([...add.map(a => a.day), ...[...move.values()]]);
 
