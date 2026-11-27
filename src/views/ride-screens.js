@@ -28,6 +28,7 @@ import { confirmAction } from './confirm.js';
 import { esc } from './training/format.js';
 import './ride-map.js';
 import './ride-indicator.js';
+import { RIDE_METRICS } from './ride-metric.js';
 
 const ELEMENT_ID = {chart: 'dash-chart', workout: 'graph-workout'};
 const elementId = id => ELEMENT_ID[id] ?? `data-tile--${id}`;
@@ -159,6 +160,11 @@ class RideScreens extends HTMLElement {
             el = document.createElement('ride-indicator');
             el.id = elementId(id);
             el.dataset.category = id.slice(4);
+            this.$pool.append(el);
+        } else if(!el && create && RIDE_METRICS[id] && this.$pool) {
+            el = document.createElement('ride-metric');
+            el.id = elementId(id);
+            el.dataset.metric = id;
             this.$pool.append(el);
         }
         return el;
@@ -618,10 +624,23 @@ class RideScreens extends HTMLElement {
     openTray() {
         const on = new Set(this.screens()[this.screen].tiles.map(t => t.id));
         const rest = RIDE_TILES.filter(t => !on.has(t.id));
-        this.$list.innerHTML = rest.length ? rest.map(t => `
-            <button type="button" class="rs-tray__item" data-add="${t.id}">
-                <strong>${esc(t.name)}</strong><span>${esc(t.description)}</span>
-            </button>`).join('') : '<p class="card__note">Every tile is on this screen.</p>';
+        if(!rest.length) {
+            this.$list.innerHTML = '<p class="card__note">Every tile is on this screen.</p>';
+        } else {
+            const groups = new Map();
+            for(const t of rest) {
+                const cat = t.category ?? 'Other';
+                if(!groups.has(cat)) groups.set(cat, []);
+                groups.get(cat).push(t);
+            }
+            this.$list.innerHTML = [...groups.entries()].map(([cat, items]) => `
+                <h3 class="rs-tray__cat">${esc(cat)}</h3>
+                ${items.map(t => `
+                    <button type="button" class="rs-tray__item" data-add="${t.id}">
+                        <strong>${esc(t.name)}</strong><span>${esc(t.description)}</span>
+                    </button>`).join('')}
+            `).join('');
+        }
         this.$tray.showModal?.();
     }
 
