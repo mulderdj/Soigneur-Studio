@@ -1,5 +1,6 @@
 // @ts-check
 import { xf, exists } from '../functions.js';
+import { formatTime } from '../utils.js';
 import { ControlMode, } from '../ble/enums.js';
 
 const SHORTCUTS = [
@@ -8,7 +9,7 @@ const SHORTCUTS = [
     ['E', 'ERG mode'],
     ['R', 'Resistance mode'],
     ['S', 'Slope (Sim) mode'],
-    ['L', 'Lap / next interval'],
+    ['L', 'Mark lap / next interval (while riding)'],
     ['?', 'Show or close shortcuts'],
     ['Esc', 'Close dialogs or full screen'],
 ];
@@ -66,16 +67,21 @@ function isHelpKey(e) {
     return !(typing || interactive || otherModal || exists(t?.form));
 }
 
+function formatLapToast(lapNumber, splitSeconds) {
+    const safeSec = Math.max(0, Math.round(Number(splitSeconds) || 0));
+    return `Lap ${lapNumber} · ${formatTime({ value: safeSec, format: 'mm:ss', unit: 'seconds' })}`;
+}
+
 /** @this {any} */
 function Keyboard() {
 
-    const isKeyUp    = (code) => code === 'ArrowUp';
-    const isKeyDown  = (code) => code === 'ArrowDown';
-    const isKeyE     = (code) => code === 'KeyE';
-    const isKeyR     = (code) => code === 'KeyR';
-    const isKeyS     = (code) => code === 'KeyS';
-    const isKeyL     = (code) => code === 'KeyL';
-    const isKeySpace = (code) => code === 'Space';
+    const isKeyUp    = (code, key) => code === 'ArrowUp' || key === 'ArrowUp';
+    const isKeyDown  = (code, key) => code === 'ArrowDown' || key === 'ArrowDown';
+    const isKeyE     = (code, key) => code === 'KeyE' || key === 'e';
+    const isKeyR     = (code, key) => code === 'KeyR' || key === 'r';
+    const isKeyS     = (code, key) => code === 'KeyS' || key === 's';
+    const isKeyL     = (code, key) => (code === 'KeyL' || key === 'l') && key !== 'L';
+    const isKeySpace = (code, key) => code === 'Space' || key === ' ';
 
     window.addEventListener('keydown', onKeydown.bind(this));
 
@@ -86,31 +92,32 @@ function Keyboard() {
             return;
         }
 
-        let code = e.code;
+        const code = e.code;
+        const key = e.key;
 
         if(ignoredKey(e)) return;
 
-        if(isKeyUp(code)) {
+        if(isKeyUp(code, key)) {
             e.preventDefault();
             xf.dispatch('key:up');
         }
-        if(isKeyDown(code)) {
+        if(isKeyDown(code, key)) {
             e.preventDefault();
             xf.dispatch('key:down');
         }
-        if(isKeyS(code)) {
+        if(isKeyS(code, key)) {
             xf.dispatch('key:s');
         }
-        if(isKeyR(code)) {
+        if(isKeyR(code, key)) {
             xf.dispatch('key:r');
         }
-        if(isKeyE(code)) {
+        if(isKeyE(code, key)) {
             xf.dispatch('key:e');
         }
-        if(isKeyL(code)) {
+        if(isKeyL(code, key)) {
             xf.dispatch('key:l');
         }
-        if(isKeySpace(code)) {
+        if(isKeySpace(code, key)) {
             e.preventDefault();
             xf.dispatch('key:space');
         }
@@ -123,7 +130,41 @@ function KeyboardControls() {
     xf.sub('db:mode', x => mode = x);
 
     let watchStatus = 'stopped';
-    xf.sub('db:watchStatus', x => watchStatus = x);
+    let workoutStatus = 'stopped';
+    let lapTime = 0;
+    let intervalDuration = 0;
+    let recentSplitSec = 0;
+    let lapCount = 0;
+
+    function computeSplitSec() {
+        if(workoutStatus === 'started' && intervalDuration > 0) {
+            return Math.max(0, intervalDuration - lapTime);
+        }
+        return Math.max(0, lapTime);
+    }
+
+    xf.sub('db:watchStatus', x => {
+        watchStatus = x;
+        if(x === 'stopped') {
+            lapCount = 0;
+            lapTime = 0;
+            intervalDuration = 0;
+            recentSplitSec = 0;
+        }
+    });
+    xf.sub('db:workoutStatus', x => { workoutStatus = x; });
+    xf.sub('db:intervalDuration', x => { intervalDuration = Number(x) || 0; });
+    xf.sub('db:lapTime', x => {
+        lapTime = Number(x) || 0;
+        const split = computeSplitSec();
+        if(split > 0) recentSplitSec = split;
+    });
+    xf.sub('session:restore', sessions => {
+        const lastSession = Array.isArray(sessions) && sessions.length > 0 ? sessions[sessions.length - 1] : null;
+        if(lastSession && Array.isArray(lastSession.laps)) {
+            lapCount = lastSession.laps.length;
+        }
+    });
 
     // Modes Inc/Dec
     xf.sub('key:up', e => {
@@ -173,12 +214,20 @@ function KeyboardControls() {
         }
     });
     xf.sub('key:l', e => {
+        if(watchStatus !== 'started') return;
         xf.dispatch('ui:watchLap');
-        xf.dispatch('ui:toast', 'Lap');
+    });
+    xf.sub('ui:watchLap', e => {
+        if(watchStatus !== 'started') return;
+        const splitSec = computeSplitSec() || recentSplitSec;
+        lapCount += 1;
+        recentSplitSec = 0;
+        xf.dispatch('ui:toast', formatLapToast(lapCount, splitSec));
+        xf.dispatch('watch:lap-beep');
     });
 }
 
 Keyboard();
 KeyboardControls();
 
-export { Keyboard, KeyboardControls, ignoredKey, isHelpKey, toggleShortcutsDialog, SHORTCUTS };
+export { Keyboard, KeyboardControls, ignoredKey, isHelpKey, toggleShortcutsDialog, formatLapToast, SHORTCUTS };

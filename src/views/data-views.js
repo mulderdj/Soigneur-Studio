@@ -3,6 +3,7 @@ import { xf, exists, existance, validate, equals, isNumber, last, empty, avg, to
 import { formatTime } from '../utils.js';
 import { models } from '../models/models.js';
 import { DialogMsg } from '../models/enums.js';
+import { formatReminderSetting, nextReminderSetting } from '../fuelling.js';
 
 
 //
@@ -940,6 +941,62 @@ class VirtualGearValue extends DataView {
 
 customElements.define('virtual-gear', VirtualGearValue);
 
+class FuellingBurnedValue extends DataView {
+    getDefaults() {
+        return { prop: 'fuelling:state' };
+    }
+    getValue(state) {
+        return state?.burnedGrams ?? 0;
+    }
+    transform(value) {
+        return `${Math.round(Number(value) || 0)}g`;
+    }
+}
+
+customElements.define('fuelling-burned', FuellingBurnedValue);
+
+class FuellingIntakeValue extends DataView {
+    getDefaults() {
+        return { prop: 'fuelling:state' };
+    }
+    getValue(state) {
+        return state?.intakeGrams ?? 0;
+    }
+    transform(value) {
+        return `${Math.round(Number(value) || 0)}g`;
+    }
+}
+
+customElements.define('fuelling-intake', FuellingIntakeValue);
+
+class FuellingRateValue extends DataView {
+    getDefaults() {
+        return { prop: 'fuelling:state' };
+    }
+    getValue(state) {
+        return state?.burnRateGh ?? 0;
+    }
+    transform(value) {
+        return `${Math.round(Number(value) || 0)}`;
+    }
+}
+
+customElements.define('fuelling-rate', FuellingRateValue);
+
+class FuellingBandValue extends DataView {
+    getDefaults() {
+        return { prop: 'fuelling:state' };
+    }
+    getValue(state) {
+        return state?.band ?? '0–30';
+    }
+    transform(value) {
+        return String(value || '0–30');
+    }
+}
+
+customElements.define('fuelling-band', FuellingBandValue);
+
 function scale(value, max = 100) {
     return 100 * (value/max);
 }
@@ -1526,6 +1583,66 @@ class SoundControl extends DataView {
 }
 
 customElements.define('sound-control', SoundControl);
+
+class PowerMatchToggle extends DataView {
+    postInit() {
+        this.effect = 'sources';
+        this.key    = 'powerMatch';
+        this.state  = false;
+    }
+    getDefaults() {
+        return {
+            prop: 'db:sources',
+            effect: 'sources',
+        };
+    }
+    subs() {
+        xf.sub(`${this.prop}`, this.onUpdate.bind(this), this.signal);
+        this.addEventListener('pointerup', this.onEffect.bind(this), this.signal);
+    }
+    onUpdate(value) {
+        this.state = Boolean(value?.[this.key]);
+        this.render();
+    }
+    onEffect() {
+        xf.dispatch(`${this.effect}`, { powerMatch: !this.state });
+    }
+    render() {
+        this.textContent = this.state ? 'On' : 'Off';
+    }
+}
+
+customElements.define('power-match', PowerMatchToggle);
+
+class FuellingReminderToggle extends DataView {
+    postInit() {
+        this.effect = 'sources';
+        this.key    = 'fuellingReminder';
+        this.state  = 0;
+    }
+    getDefaults() {
+        return {
+            prop: 'db:sources',
+            effect: 'sources',
+        };
+    }
+    subs() {
+        xf.sub(`${this.prop}`, this.onUpdate.bind(this), this.signal);
+        this.addEventListener('pointerup', this.onEffect.bind(this), this.signal);
+    }
+    onUpdate(value) {
+        this.state = Number(value?.[this.key]) || 0;
+        this.render();
+    }
+    onEffect() {
+        xf.dispatch(`${this.effect}`, { fuellingReminder: nextReminderSetting(this.state) });
+    }
+    render() {
+        this.textContent = formatReminderSetting(this.state);
+    }
+}
+
+customElements.define('fuelling-reminder', FuellingReminderToggle);
 
 
 class CompatibilityCheck extends HTMLElement {

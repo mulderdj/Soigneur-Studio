@@ -91,7 +91,7 @@ class Watch {
         xf.sub('workout:restore', e => { self.restoreWorkout(); });
         xf.sub('ui:watchPause',   e => { self.pause();          });
         xf.sub('ui:watchResume',  e => { self.resume();         });
-        xf.sub('ui:watchLap',     e => { self.lap();            });
+        xf.sub('ui:watchLap',     e => { if(self.isStarted()) self.lap(); });
         xf.sub('ui:watchBack',    e => { self.back();           });
         xf.sub('ui:watchStop',    async e => {
             const stop = await confirmAction({

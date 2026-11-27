@@ -9,153 +9,237 @@ const notes = [
      'f#': 185.00, g: 196.00, 'g#': 207.65, a: 220.00, 'a#': 233.08, b: 246.94}, // 3
 
     {c: 261.63, 'c#': 277.18, d: 293.66, 'd#': 311.13, e: 329.63, f: 349.23,
-     'f#': 369.99, g: 392.00, 'g#': 415.30, a: 440.00, 'a#': 466.16, b: 493.88, }, // 4
+     'f#': 369.99, g: 392.00, 'g#': 415.30, a: 440.00, 'a#': 466.16, b: 493.88}, // 4
 
     {c: 523.25, 'c#': 554.37, d: 587.33, 'd#': 622.25, e: 659.25, f: 698.46,
      'f#': 739.99, g: 783.99, 'g#': 830.61, a: 880.00, 'a#': 932.33, b: 987.77}, // 5
 ];
 
-function Sound(args) {
-    let vibrate = false;
-    let volume  = args.volume ?? 0;
-    let audioContext;
-    let oscillator;
-    let abortController;
+/**
+ * @param {{
+ *   volume?: number,
+ *   AudioContext?: typeof AudioContext,
+ *   xf?: typeof xf,
+ * }} [args]
+ */
+function Sound(args = {}) {
+    let volume = Number.isFinite(args.volume) ? args.volume : 0;
+    const bus = args.xf ?? xf;
+    /** @type {AudioContext | null} */
+    let audioContext = null;
+    /** @type {OscillatorNode | null} */
+    let oscillator = null;
+    /** @type {AbortController | null} */
+    let abortController = null;
+
+    function resolveAudioContextCtor() {
+        if(typeof args.AudioContext === 'function') return args.AudioContext;
+        if(typeof AudioContext === 'function') return AudioContext;
+        if(typeof /** @type {any} */ (globalThis).webkitAudioContext === 'function') {
+            return /** @type {any} */ (globalThis).webkitAudioContext;
+        }
+        return null;
+    }
+
+    /**
+     * Lazily initializes (and resumes if suspended) the Web Audio context.
+     * Returns `null` cleanly if Web Audio is unavailable or fails.
+     *
+     * @returns {AudioContext | null}
+     */
+    function ensureContext() {
+        if(!exists(audioContext)) {
+            const Ctor = resolveAudioContextCtor();
+            if(!Ctor) return null;
+            try {
+                audioContext = new Ctor();
+            } catch(_) {
+                audioContext = null;
+                return null;
+            }
+        }
+        if(audioContext && equals(audioContext.state, 'suspended')) {
+            try {
+                const p = audioContext.resume?.();
+                if(p && typeof p.catch === 'function') p.catch(() => {});
+            } catch(_) {}
+        }
+        return audioContext;
+    }
+
+    /**
+     * Creates an OscillatorNode across standard browsers and lightweight mocks.
+     *
+     * @param {AudioContext} ctx
+     * @param {OscillatorType} type
+     * @returns {OscillatorNode | null}
+     */
+    function makeOscillator(ctx, type) {
+        try {
+            if(typeof ctx.createOscillator === 'function') {
+                const osc = ctx.createOscillator();
+                osc.type = type;
+                return osc;
+            }
+            if(typeof OscillatorNode === 'function') {
+                return new OscillatorNode(ctx, { type });
+            }
+        } catch(_) {}
+        return null;
+    }
 
     function start() {
+        abortController?.abort();
         abortController = new AbortController();
-        let signal = { signal: abortController.signal };
+        const signal = { signal: abortController.signal };
 
-        xf.sub(`db:volume`, x => {
-            volume = x;
+        bus.sub('db:volume', x => {
+            volume = Number.isFinite(x) ? x : 0;
         }, signal);
 
-        xf.sub('watch:started', _ => {
-            if(!exists(audioContext)) {
-                audioContext = new AudioContext();
+        bus.sub('watch:started', () => {
+            if(volume > 0 || exists(audioContext)) {
+                ensureContext();
             }
         }, signal);
 
-        xf.sub('watch:beep', _ => {
+        bus.sub('watch:beep', () => {
             interval();
         }, signal);
 
-        xf.sub('watch:paused', _ => {
-            if(exists(oscillator)) {
-                audioContext.suspend();
-            }
+        bus.sub('watch:lap-beep', () => {
+            lap();
         }, signal);
 
-        xf.sub('watch:started', _ => {
+        bus.sub('watch:fuel-beep', () => {
+            fuel();
+        }, signal);
+
+        bus.sub('watch:paused', () => {
             if(exists(audioContext) && exists(oscillator)) {
-                if(equals(audioContext.state, 'suspended')) {
-                    audioContext.resume();
-                }
+                try {
+                    const p = audioContext.suspend?.();
+                    if(p && typeof p.catch === 'function') p.catch(() => {});
+                } catch(_) {}
             }
         }, signal);
     }
 
     function stop() {
-        abortController.abort();
+        abortController?.abort();
     }
 
-    // one standart triange wave,
-    // gain is turned up and down to produce beeps,
+    // 4-beep interval countdown (3 × C5 + 1 × A5)
     function interval() {
-        /** @type {OscillatorOptions} */
-        const options = {
-            type: 'triangle',
-        };
-        oscillator = new OscillatorNode(audioContext, options);
-        const gainNode = audioContext.createGain();
+        if(!(volume > 0)) return false;
+        const ctx = ensureContext();
+        if(!ctx) return false;
 
-        const high = volume / 100;
-        const low = 0;
-        const time = audioContext.currentTime;
+        try {
+            const osc = makeOscillator(ctx, 'triangle');
+            if(!osc) return false;
+            oscillator = osc;
+            const gainNode = ctx.createGain();
 
-        gainNode.gain.setTargetAtTime(low,  time, 0);
-        gainNode.gain.setTargetAtTime(high, time+0.84, 0.001);
-        gainNode.gain.setTargetAtTime(low,  time+1.00, 0.001);
-        gainNode.gain.setTargetAtTime(high, time+1.84, 0.001);
-        gainNode.gain.setTargetAtTime(low,  time+2.00, 0.001);
-        gainNode.gain.setTargetAtTime(high, time+2.84, 0.001);
-        gainNode.gain.setTargetAtTime(low,  time+3.00, 0.001);
-        gainNode.gain.setTargetAtTime(high, time+3.84, 0.001);
-        gainNode.gain.setTargetAtTime(low,  time+4.00, 0.001);
+            const high = Math.min(1, Math.max(0, volume / 100));
+            const low = 0;
+            const time = ctx.currentTime || 0;
 
-        oscillator.frequency.setValueAtTime(notes[5].c, time);
-        oscillator.frequency.setValueAtTime(notes[5].a, time+3.74);
+            gainNode.gain.setTargetAtTime(low,  time, 0.001);
+            gainNode.gain.setTargetAtTime(high, time + 0.84, 0.001);
+            gainNode.gain.setTargetAtTime(low,  time + 1.00, 0.001);
+            gainNode.gain.setTargetAtTime(high, time + 1.84, 0.001);
+            gainNode.gain.setTargetAtTime(low,  time + 2.00, 0.001);
+            gainNode.gain.setTargetAtTime(high, time + 2.84, 0.001);
+            gainNode.gain.setTargetAtTime(low,  time + 3.00, 0.001);
+            gainNode.gain.setTargetAtTime(high, time + 3.84, 0.001);
+            gainNode.gain.setTargetAtTime(low,  time + 4.00, 0.001);
 
-        oscillator.connect(gainNode).connect(audioContext.destination);
+            osc.frequency.setValueAtTime(notes[5].c, time);
+            osc.frequency.setValueAtTime(notes[5].a, time + 3.74);
 
-        oscillator.start(time);
-        oscillator.stop(time + 4.15);
+            osc.connect(gainNode);
+            gainNode.connect(ctx.destination);
+
+            osc.start(time);
+            osc.stop(time + 4.15);
+            return true;
+        } catch(_) {
+            return false;
+        }
     }
 
-    // 2 canceling sine waves,
-    // and gain is turned up and down on the first one to produce beeps
-    function customWaveInterval() {
-        const n     = 2;
-        const waves = [
-            {real: new Float32Array(n), imag: new Float32Array(n)},
-            {real: new Float32Array(n), imag: new Float32Array(n)},
-        ];
+    // Crisp short single lap chirp (A5, ~100 ms)
+    function lap() {
+        if(!(volume > 0)) return false;
+        const ctx = ensureContext();
+        if(!ctx) return false;
 
-        waves[0].real[0] = 0;
-        waves[0].imag[0] = 0;
-        waves[0].real[1] = 1;
-        waves[0].imag[1] = 0;
+        try {
+            const osc = makeOscillator(ctx, 'triangle');
+            if(!osc) return false;
+            const gainNode = ctx.createGain();
 
-        waves[1].real[0] = 0;
-        waves[1].imag[0] = 0;
-        waves[1].real[1] = -1;
-        waves[1].imag[1] = 0;
+            const peak = Math.min(1, Math.max(0, (volume / 100) * 0.85));
+            const time = ctx.currentTime || 0;
 
-        const wave1 = audioContext.createPeriodicWave(waves[0].real, waves[0].imag);
-        const wave2 = audioContext.createPeriodicWave(waves[1].real, waves[1].imag);
+            gainNode.gain.setTargetAtTime(0, time, 0.001);
+            gainNode.gain.setTargetAtTime(peak, time + 0.005, 0.004);
+            gainNode.gain.setTargetAtTime(0, time + 0.095, 0.008);
 
-        let osc1 = new OscillatorNode(audioContext, {});
-        let osc2 = new OscillatorNode(audioContext, {});
-        osc1.setPeriodicWave(wave1);
-        osc2.setPeriodicWave(wave2);
+            osc.frequency.setValueAtTime(notes[5].a, time);
 
-        const gainNode1 = audioContext.createGain();
-        const gainNode2 = audioContext.createGain();
+            osc.connect(gainNode);
+            gainNode.connect(ctx.destination);
 
-        const high = 1;
-        const low  = 0;
-        const fade = 0.015;
-        const time = audioContext.currentTime;
+            osc.start(time);
+            osc.stop(time + 0.14);
+            return true;
+        } catch(_) {
+            return false;
+        }
+    }
 
-        gainNode1.gain.setTargetAtTime(low,  time+0.84, fade);
-        gainNode1.gain.setTargetAtTime(high, time+1.00, fade);
-        gainNode1.gain.setTargetAtTime(low,  time+1.84, fade);
-        gainNode1.gain.setTargetAtTime(high, time+2.00, fade);
-        gainNode1.gain.setTargetAtTime(low,  time+2.84, fade);
-        gainNode1.gain.setTargetAtTime(high, time+3.00, fade);
-        gainNode1.gain.setTargetAtTime(low,  time+3.84, fade);
-        gainNode1.gain.setTargetAtTime(low,  time+4.00, fade);
-        gainNode2.gain.setTargetAtTime(low,  time+4.00, fade);
+    // Gentle rising two-note fuelling chime (C5 -> E5)
+    function fuel() {
+        if(!(volume > 0)) return false;
+        const ctx = ensureContext();
+        if(!ctx) return false;
 
-        osc1.frequency.setValueAtTime(notes[4].c, time);
-        osc1.frequency.setValueAtTime(notes[4].a, time+3.84);
-        osc2.frequency.setValueAtTime(notes[4].c, time);
-        osc2.frequency.setValueAtTime(notes[4].a, time+3.84);
+        try {
+            const osc = makeOscillator(ctx, 'sine');
+            if(!osc) return false;
+            const gainNode = ctx.createGain();
 
-        osc1.connect(gainNode1).connect(audioContext.destination);
-        osc2.connect(gainNode2).connect(audioContext.destination);
+            const peak = Math.min(1, Math.max(0, (volume / 100) * 0.6));
+            const time = ctx.currentTime || 0;
 
-        osc1.start(time);
-        osc1.stop(time + 4.15);
+            gainNode.gain.setTargetAtTime(0, time, 0.001);
+            gainNode.gain.setTargetAtTime(peak, time + 0.01, 0.01);
+            gainNode.gain.setTargetAtTime(0, time + 0.13, 0.012);
+            gainNode.gain.setTargetAtTime(peak, time + 0.18, 0.01);
+            gainNode.gain.setTargetAtTime(0, time + 0.34, 0.02);
 
-        osc2.start(time);
-        osc2.stop(time + 4.15);
+            osc.frequency.setValueAtTime(notes[5].c, time);
+            osc.frequency.setValueAtTime(notes[5].e, time + 0.17);
+
+            osc.connect(gainNode);
+            gainNode.connect(ctx.destination);
+
+            osc.start(time);
+            osc.stop(time + 0.44);
+            return true;
+        } catch(_) {
+            return false;
+        }
     }
 
     return Object.freeze({
         start,
         stop,
         interval,
+        lap,
+        fuel,
     });
 }
 
