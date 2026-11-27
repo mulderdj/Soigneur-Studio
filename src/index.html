@@ -602,87 +602,11 @@
                     </div> <!-- end device-request--wrapper -->
                 </ant-device-request> <!-- end ant-device-request -->
                 <div id="view--settings-settings" class="sub-tab active settings page-content">
-                    <section class="card settings__profile" aria-labelledby="settings-profile-title">
-                        <h2 id="settings-profile-title" class="card__title">Profile</h2>
-                        <div class="settings-tiles--cont">
-                            <div id="ftp-settings" class="settings-tile">
-                                <label for="ftp-value" class="settings-tile--label">FTP</label>
-                                <input is="int-input"
-                                    id="ftp-value"
-                                    class="settings-tile--input input"
-                                    name="ftp-value"
-                                    type="number"
-                                    value="200"
-                                    prop="ftp"
-                                    effect="ftp-set" />
-                                <button is="set-button"
-                                        id="ftp-btn"
-                                        class="settings-tile--btn btn btn--secondary"
-                                        default="200"
-                                        effect="ftp-set"
-                                        prop="ftp">Set</button>
-                            </div>
-                            <div id="weight-settings" class="settings-tile">
-                                <label id="weight-label" for="weight-value" class="settings-tile--label">
-                                    <measurement-unit type="weight">kg</measurement-unit>
-                                </label>
-                                <input is="weight-input"
-                                    id="weight-value"
-                                    class="settings-tile--input input"
-                                    name="weight-value"
-                                    type="number"
-                                    value="75"
-                                    prop="weight"
-                                    effect="weight-set" />
-                                <button is="set-button"
-                                        id="weight-btn"
-                                        class="settings-tile--btn btn btn--secondary"
-                                        default="75"
-                                        effect="weight-set"
-                                        prop="weight">Set</button>
-                            </div>
-                        </div>
-                        <hr-thresholds></hr-thresholds>
-                        <div class="settings-btn-row">
-                            <span class="settings-tile--label">Units</span>
-    
-                            <button is="effect-button"
-                                    id="msystem-settings"
-                                    class="settings-switch-btn-cont btn btn--secondary"
-                                    effect="measurement-switch">
-                                <measurement-value id="measurement-btn"
-                                                class="settings-switch-bnt">Metric</measurement-value>
-                            </button>
-                        </div> <!-- end settings btn row -->
-                    </section>
-
-                    <!-- protocol-settings -->
-                    <!-- <div class="protocol-settings settings-btn-row">
-                         <div class="protocol-btn flat-btn settings-switch-btn-cont">
-                         <svg class="protocol-btn--icon icon">
-                         <use href="#icon--bluetooth"></use>
-                         </svg>
-                         <span class="protocol-btn--label">BLE</span>
-                         </div>
-
-                         <div class="protocol-btn flat-btn settings-switch-btn-cont">
-                         <protocol-switch for="ant:driver" id="switch-controllable" class="protocol-switch ant-switch off">
-                         <svg class="protocol-btn--icon icon" xmlns="http://www.w3.org/2000/svg"
-                         height="24" viewBox="0 0 24 24" width="24">
-                         <path d="M22 9V7h-2V5c0-1.1-.9-2-2-2H4c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2v-2h2v-2h-2v-2h2v-2h-2V9h2zm-4 10H4V5h14v14zM6 13h5v4H6zm6-6h4v3h-4zM6 7h5v5H6zm6 4h4v6h-4z"/>
-                         <path d="M0 0h24v24H0zm0 0h24v24H0z" fill="none"/>
-                         </svg>
-                         <span class="connection-switch--label protocol-btn--label">ANT+</span>
-                         </protocol-switch>
-                         </div>
-                         </div> -->
-                    <!-- end protocol-settings -->
-
-                    <section class="settings__devices" aria-labelledby="settings-devices-title">
-                        <h2 id="settings-devices-title" class="settings__heading">Devices</h2>
+                    <section class="card settings__devices" aria-labelledby="settings-devices-title">
+                        <h2 id="settings-devices-title" class="card__title">Devices</h2>
 
                     <!-- controllable / smart trainer settings -->
-                    <details class="card device-card" open>
+                    <details class="device-card" open>
                         <summary class="device-card--head">
                             <connection-switch for="ble:controllable"
                                             indicatorClass="connection-icon-switch--indicator"
@@ -760,7 +684,7 @@
                     </details> <!-- end controllable settings -->
 
                     <!-- power-meter settings -->
-                    <details class="card device-card">
+                    <details class="device-card">
                         <summary class="device-card--head">
                             <connection-switch for="ble:powerMeter"
                                             id="switch-power-meter"
@@ -830,7 +754,7 @@
                     </details> <!-- end power-meter settings -->
 
                     <!-- cycling-speed-and-cadence settings -->
-                    <details class="card device-card">
+                    <details class="device-card">
                         <summary class="device-card--head">
                             <connection-switch for="ble:speedCadenceSensor"
                                             class="connection-icon-switch"
@@ -887,7 +811,7 @@
                     </details> <!-- end cycling-speed-and-cadence settings -->
 
                     <!-- hrm settings -->
-                    <details class="card device-card">
+                    <details class="device-card">
                         <summary class="device-card--head">
                             <connection-switch for="ble:heartRateMonitor"
                                             id="switch-hrm"
@@ -989,7 +913,7 @@
                     </details> <!-- end hrm settings -->
 
                     <!-- moxy-monitor settings -->
-                    <details class="card device-card">
+                    <details class="device-card">
                         <summary class="device-card--head">
                             <connection-switch for="ble:smo2"
                                             class="connection-icon-switch"
@@ -1046,7 +970,7 @@
                     </details> <!-- end moxy-monitor settings -->
 
                     <!-- core-temp settings -->
-                    <details class="card device-card">
+                    <details class="device-card">
                         <summary class="device-card--head">
                             <connection-switch for="ble:coreTemp"
                                             class="connection-icon-switch"
@@ -1115,7 +1039,7 @@
                     </details> <!-- end core-temp settings -->
 
                     <!-- open bike control settings -->
-                    <div class="card device-card device-card--static">
+                    <div class="device-card device-card--static">
                         <div class="device-card--head">
                             <connection-switch for="ble:openBikeControl"
                                             class="connection-icon-switch"
@@ -1141,11 +1065,11 @@
                     </div> <!-- end open bike control settings -->
                     </section>
 
-                    <!-- Options -->
-                    <section class="card list--sub-section settings__options" aria-labelledby="settings-options-title">
+                    <!-- Ride & Trainer -->
+                    <section class="card list--sub-section settings__options settings__ride" aria-labelledby="settings-ride-title">
                         <div class="list--row--outer">
                             <div class="list--row--inner list--heading--cont">
-                                <h2 id="settings-options-title" class="list--sub-heading card__title">Options</h2>
+                                <h2 id="settings-ride-title" class="list--sub-heading card__title">Ride &amp; Trainer</h2>
                             </div>
                         </div>
                         <div class="list--row--outer">
@@ -1174,13 +1098,6 @@
                                         100%
                                     </div>
                                 </sound-control>
-                            </div>
-                        </div>
-
-                        <div class="list--row--outer">
-                            <div class="list--row--inner option list-row">
-                                <div class="option--name">Simulation</div>
-                                <virtual-state-source class="option--value btn btn--secondary">power</virtual-state-source>
                             </div>
                         </div>
 
@@ -1218,6 +1135,21 @@
 
                         <div class="list--row--outer">
                             <div class="list--row--inner option list-row">
+                                <div class="option--name">Simulation</div>
+                                <virtual-state-source class="option--value btn btn--secondary">power</virtual-state-source>
+                            </div>
+                        </div>
+                    </section> <!-- END Ride & Trainer -->
+
+                    <!-- Appearance -->
+                    <section class="card list--sub-section settings__options settings__appearance" aria-labelledby="settings-appearance-title">
+                        <div class="list--row--outer">
+                            <div class="list--row--inner list--heading--cont">
+                                <h2 id="settings-appearance-title" class="list--sub-heading card__title">Appearance</h2>
+                            </div>
+                        </div>
+                        <div class="list--row--outer">
+                            <div class="list--row--inner option list-row">
                                 <div class="option--name">Theme</div>
                                 <theme-layout class="option--value btn btn--secondary">
                                     DARK
@@ -1233,7 +1165,20 @@
                                 </palette-layout>
                             </div>
                         </div>
-                    </section> <!-- END Options -->
+
+                        <div class="list--row--outer">
+                            <div class="list--row--inner option list-row">
+                                <div class="option--name">Units</div>
+                                <button is="effect-button"
+                                        id="msystem-settings"
+                                        class="settings-switch-btn-cont btn btn--secondary"
+                                        effect="measurement-switch">
+                                    <measurement-value id="measurement-btn"
+                                                       class="settings-switch-bnt">Metric</measurement-value>
+                                </button>
+                            </div>
+                        </div>
+                    </section> <!-- END Appearance -->
 
                     <!-- about -->
                     <section id="about" class="card settings__about">

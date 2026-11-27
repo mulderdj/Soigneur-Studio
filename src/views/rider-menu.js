@@ -1,13 +1,13 @@
 // @ts-check
 //
-// <rider-menu>: rider switcher, account sign-in, saved sensors, ride history
+// <rider-menu>: athlete profile, rider switcher, account sign-in, ride history
 // and user management, in one dialog opened from a pill in the header.
 //
 
 import { xf } from '../functions.js';
 import { riders } from '../riders.js';
 import { isValidAvatar, resizeAvatarFile } from '../avatar.js';
-import { sensors } from '../sensors.js';
+import { models } from '../models/models.js';
 import { api, ApiError } from '../account/api.js';
 import { syncNow, status as syncStatus } from '../account/sync.js';
 import { syncCounts, garminCounts } from './training/format.js';
@@ -99,10 +99,29 @@ function intervalsSync(sync) {
 }
 
 class RiderMenu extends HTMLElement {
+    get tab() {
+        return this._tab;
+    }
+
+    set tab(v) {
+        this._tab = v === 'riders' ? 'profile' : v;
+    }
+
+    isOpen() {
+        return Boolean(this.$dialog?.open || this.$dialog?.hasAttribute('open'));
+    }
+
     connectedCallback() {
-        this.tab = 'riders';
+        this.tab = 'profile';
         this.server = {available: false};
         this.flash = '';
+        const ftp = models.ftp.restore();
+        const weight = models.weight.restore();
+        this._ftp = Number.isFinite(ftp) ? ftp : models.ftp.default;
+        this._weight = Number.isFinite(weight) ? weight : models.weight.default;
+        this._measurement = models.measurement.restore() || models.measurement.default;
+        this._metricsSaved = false;
+        this._metricsSavedTimer = null;
 
         this.innerHTML = `
             <button type="button" class="rm--pill pill" aria-haspopup="dialog">
@@ -110,7 +129,7 @@ class RiderMenu extends HTMLElement {
                 <span class="rm--name sr-only"></span>
                 <span class="rm--dot" aria-hidden="true"></span>
             </button>
-            <dialog class="rm--dialog" aria-label="Riders and account">
+            <dialog class="rm--dialog" aria-label="Profile and account">
                 <div class="rm--head">
                     <nav class="rm--tabs tabs" role="tablist"></nav>
                     <button type="button" class="rm--close" aria-label="Close">×</button>
@@ -147,12 +166,25 @@ class RiderMenu extends HTMLElement {
         this.abort = new AbortController();
         const signal = {signal: this.abort.signal};
         window.addEventListener('riders:changed', () => this.renderPill(), signal);
-        xf.sub('account:sync', () => { this.renderPill(); if(this.$dialog.open && this.tab === 'account') this.render(); }, signal);
-        xf.sub('sensors:changed', () => { if(this.$dialog.open && this.tab === 'sensors') this.render(); }, signal);
-        xf.sub('sensor:reconnect-result', ({identifier, ok}) => {
-            if(!ok && this.$dialog.open && this.tab === 'sensors') {
-                this.say(`${sensors.ROLES[identifier] ?? 'Sensor'} not found. Is it awake and in range?`, 'warn');
+        xf.sub('account:sync', () => {
+            this.renderPill();
+            if(this.isOpen() && (this.tab === 'account' || this.tab === 'profile')) this.render();
+        }, signal);
+        xf.sub('db:ftp', v => {
+            this._ftp = v;
+            if(this.isOpen() && this.tab === 'profile' && !this.$body.querySelector('[data-form="metrics"]')?.contains(document.activeElement)) {
+                this.render();
             }
+        }, signal);
+        xf.sub('db:weight', v => {
+            this._weight = v;
+            if(this.isOpen() && this.tab === 'profile' && !this.$body.querySelector('[data-form="metrics"]')?.contains(document.activeElement)) {
+                this.render();
+            }
+        }, signal);
+        xf.sub('db:measurement', v => {
+            this._measurement = v;
+            if(this.isOpen() && this.tab === 'profile') this.render();
         }, signal);
         window.addEventListener('account:signed-out', () => {
             const r = riders.current();
@@ -214,10 +246,10 @@ class RiderMenu extends HTMLElement {
 
     tabs() {
         const r = riders.current();
-        const t = [['riders', 'Riders'], ['account', 'Account'], ['sensors', 'Sensors']];
+        const t = [['profile', 'Profile'], ['account', 'Account']];
         if(r.account?.token) t.push(['rides', 'Ride history']);
         if(r.account?.token && r.account.role === 'admin') t.push(['users', 'Users']);
-        if(!t.some(([k]) => k === this.tab)) this.tab = 'riders';
+        if(!t.some(([k]) => k === this.tab)) this.tab = 'profile';
         return t;
     }
 
@@ -228,10 +260,57 @@ class RiderMenu extends HTMLElement {
         this[`render_${this.tab}`]();
     }
 
-    render_riders() {
+    markMetricsSaved() {
+        this._metricsSaved = true;
+        const st = this.$body.querySelector('.rm--metrics-status');
+        if(st) st.textContent = 'Saved';
+        clearTimeout(this._metricsSavedTimer);
+        this._metricsSavedTimer = setTimeout(() => {
+            this._metricsSaved = false;
+            const el = this.$body.querySelector('.rm--metrics-status');
+            if(el) el.textContent = '';
+        }, 2500);
+    }
+
+    render_profile() {
+        const cur = riders.current();
         const list = riders.list();
+        const s = cur.account ? (cur.account.token ? syncStatus() : {state: 'error', message: 'Signed out'}) : {state: 'off', message: ''};
+        const syncText = s.message || (SYNC_LABEL[s.state] ?? s.state);
+        const imperial = this._measurement === 'imperial';
+        const weightDisplay = imperial ? Math.round(2.20462 * this._weight) : this._weight;
+        const weightUnit = imperial ? 'lb' : 'kg';
+
         this.$body.innerHTML = `
-            <p class="rm--lead">Each rider has their own FTP, weight, W′, workouts, rides and saved sensors on this device.</p>
+            <div class="rm--card">
+                <button type="button" class="rm--avatar rm--big rm--avatar-btn" data-act="pick-avatar" data-id="${esc(cur.id)}" title="Change photo" aria-label="Change photo">${avatarMarkup(cur)}</button>
+                <span class="rm--who">
+                    <b>${esc(cur.name)}</b>
+                    <small>${cur.account ? `@${esc(cur.account.username)}${cur.account.token ? '' : ', signed out'}` : 'This device only'}</small>
+                    <span class="rm--avatar-actions">
+                        <button type="button" class="btn rm--btn rm--quiet btn--quiet" data-act="pick-avatar" data-id="${esc(cur.id)}">Photo</button>
+                        ${isValidAvatar(cur.avatar) ? `<button type="button" class="btn rm--btn rm--quiet btn--quiet" data-act="remove-avatar" data-id="${esc(cur.id)}">Remove photo</button>` : ''}
+                    </span>
+                </span>
+                <span class="rm--sync" data-sync="${esc(s.state)}">${esc(syncText)}</span>
+            </div>
+            <h3 class="rm--h">Athlete metrics</h3>
+            <form class="rm--metrics" data-form="metrics">
+                <div class="rm--metrics-grid">
+                    <label class="field">FTP <span class="rm--unit">(W)</span>
+                        <input class="input" name="ftp" type="number" min="0" max="500" step="1" inputmode="numeric" value="${esc(this._ftp)}" required>
+                    </label>
+                    <label class="field">Weight <span class="rm--unit">(${weightUnit})</span>
+                        <input class="input" name="weight" type="number" min="1" max="1100" step="1" inputmode="numeric" value="${esc(weightDisplay)}" required>
+                    </label>
+                </div>
+                <div class="rm--metrics-foot">
+                    <button type="submit" class="btn btn--secondary rm--btn">Save</button>
+                    <span class="rm--metrics-status" role="status" aria-live="polite">${this._metricsSaved ? 'Saved' : ''}</span>
+                </div>
+            </form>
+            <hr-thresholds></hr-thresholds>
+            <h3 class="rm--h">Riders on this device</h3>
             <ul class="rm--list">
                 ${list.map(r => `
                 <li class="rm--row list-row${r.current ? ' is-current' : ''}">
@@ -243,9 +322,6 @@ class RiderMenu extends HTMLElement {
                     <span class="rm--actions">
                         ${r.current ? '<span class="rm--tag badge">Riding now</span>' :
                           `<button type="button" class="btn rm--btn" data-act="switch" data-id="${esc(r.id)}">Switch</button>`}
-                        <button type="button" class="btn rm--btn rm--quiet btn--quiet" data-act="pick-avatar" data-id="${esc(r.id)}">Photo</button>
-                        ${isValidAvatar(r.avatar) ?
-                          `<button type="button" class="btn rm--btn rm--quiet btn--quiet" data-act="remove-avatar" data-id="${esc(r.id)}">Remove photo</button>` : ''}
                         <button type="button" class="btn rm--btn rm--quiet btn--quiet" data-act="rename" data-id="${esc(r.id)}">Rename</button>
                         ${!r.current && r.id !== riders.DEFAULT_ID ?
                           `<button type="button" class="btn rm--btn rm--quiet rm--danger btn--quiet btn--danger" data-act="remove" data-id="${esc(r.id)}">Remove</button>` : ''}
@@ -468,36 +544,6 @@ class RiderMenu extends HTMLElement {
             </form>`;
     }
 
-    render_sensors() {
-        const list = sensors.list();
-        const can = sensors.canReconnect();
-        this.$body.innerHTML = `
-            <p class="rm--lead">The last sensor you connected for each role is saved for <b>${esc(riders.current().name)}</b> on this device.</p>
-            ${list.length === 0 ? '<p class="rm--empty">No saved sensors yet. Connect your trainer or heart-rate strap once and it appears here.</p>' : `
-            <ul class="rm--list">
-                ${list.map(d => `
-                <li class="rm--row list-row">
-                    <span class="rm--who"><b>${esc(d.role)}</b><small>${esc(d.name)}, saved ${fmtDate(d.savedAt)}</small></span>
-                    <span class="rm--actions"><button type="button" class="btn rm--btn rm--quiet btn--quiet" data-act="forget-sensor" data-id="${esc(d.identifier)}">Forget</button></span>
-                </li>`).join('')}
-            </ul>`}
-            <label class="rm--check"><input type="checkbox" data-change="auto" ${sensors.isAuto() ? 'checked' : ''}> Reconnect saved sensors when the app opens</label>
-            <div class="rm--buttons">
-                <button type="button" class="btn rm--btn rm--primary btn--primary" data-act="reconnect" ${list.length && can ? '' : 'disabled'}>Reconnect now</button>
-                ${list.length ? '<button type="button" class="btn rm--btn rm--quiet btn--quiet" data-act="forget-all">Forget all</button>' : ''}
-            </div>
-            ${can ? '' : `
-            <div class="rm--hint">
-                <p><b>This browser can't reconnect without the device list yet.</b> Chrome and Edge only allow it with persistent Bluetooth permissions turned on:</p>
-                <ol>
-                    <li>Open <code>${sensors.FLAG_URL}</code> and set it to Enabled.</li>
-                    <li>On Linux, also enable <code>chrome://flags/#enable-experimental-web-platform-features</code>.</li>
-                    <li>Relaunch the browser, then connect each sensor once more.</li>
-                </ol>
-                <p>Until then, the Controllable and HRM buttons work as before.</p>
-            </div>`}`;
-    }
-
     async render_rides() {
         clearTimeout(this.ridesTimer);
         if(!this.$body.querySelector('.rm--table')) this.$body.innerHTML = '<p class="rm--empty">Loading rides…</p>';
@@ -668,17 +714,6 @@ class RiderMenu extends HTMLElement {
                 this.render();
                 break;
             }
-            case 'forget-sensor':
-                sensors.forget(id);
-                break;
-            case 'forget-all':
-                if(!this.confirmed(b)) return;
-                sensors.forgetAll();
-                break;
-            case 'reconnect':
-                sensors.reconnectAll();
-                this.say('Looking for your sensors…');
-                break;
             case 'download':
                 await this.downloadRide(id);
                 break;
@@ -765,7 +800,26 @@ class RiderMenu extends HTMLElement {
     async onChange(e) {
         const el = e.target;
         try {
-            if(el.dataset.change === 'auto') sensors.setAuto(el.checked);
+            if(el.closest?.('form[data-form="metrics"]')) {
+                if(el.name === 'ftp') {
+                    const ftp = parseInt(el.value, 10);
+                    if(Number.isFinite(ftp)) {
+                        this._ftp = ftp;
+                        this.markMetricsSaved();
+                        xf.dispatch('ui:ftp-set', ftp);
+                    }
+                }
+                if(el.name === 'weight') {
+                    const raw = parseFloat(el.value);
+                    if(Number.isFinite(raw)) {
+                        const kg = this._measurement === 'imperial' ? Math.round(0.453592 * raw) : Math.round(raw);
+                        this._weight = kg;
+                        this.markMetricsSaved();
+                        xf.dispatch('ui:weight-set', kg);
+                    }
+                }
+                return;
+            }
             if(el.dataset.change === 'auto-upload') {
                 await api.patch(`/me/connections/${encodeURIComponent(el.dataset.service)}`, {autoUpload: el.checked});
                 this.say(el.checked ? 'New rides will be sent automatically.' : 'New rides will not be sent automatically.');
@@ -792,6 +846,22 @@ class RiderMenu extends HTMLElement {
         if(button) button.disabled = true;
         try {
             switch(form.dataset.form) {
+            case 'metrics': {
+                const ftp = parseInt(String(data.ftp), 10);
+                const rawWeight = parseFloat(String(data.weight));
+                this.markMetricsSaved();
+                if(Number.isFinite(ftp)) {
+                    this._ftp = ftp;
+                    xf.dispatch('ui:ftp-set', ftp);
+                }
+                if(Number.isFinite(rawWeight)) {
+                    const kg = this._measurement === 'imperial' ? Math.round(0.453592 * rawWeight) : Math.round(rawWeight);
+                    this._weight = kg;
+                    xf.dispatch('ui:weight-set', kg);
+                }
+                if(button) button.disabled = false;
+                break;
+            }
             case 'add-rider': {
                 const r = riders.add(data.name);
                 this.say(`${r.name} added. Switch to them to set their FTP and sensors.`);
@@ -881,6 +951,7 @@ class RiderMenu extends HTMLElement {
     disconnectedCallback() {
         this.abort?.abort();
         clearTimeout(this.ridesTimer);
+        clearTimeout(this._metricsSavedTimer);
     }
 }
 
