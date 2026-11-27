@@ -26,7 +26,7 @@ const EDGE = 24;         // px from the container's side that counts as its edge
 
 const SIZE_LABEL = {small: 'Small', wide: 'Wide', large: 'Large', narrow: 'Narrow', full: 'Full'};
 
-function editList(list, op, sizesOf) {
+function editList(list, op, sizesOf, grid = null) {
     const out = list.map(t => ({...t}));
     if(op.move) {
         const [from, to] = op.move;
@@ -37,6 +37,22 @@ function editList(list, op, sizesOf) {
         const t = out[op.size];
         const sizes = t ? sizesOf(t.id) ?? [] : [];
         if(sizes.length) t.size = sizes[(sizes.indexOf(t.size) + 1) % sizes.length];
+    } else if(op.w) {
+        const [i, delta] = op.w;
+        const t = out[i];
+        if(t) {
+            const maxW = grid?.maxW ?? 12;
+            const cur = grid?.widthOf ? grid.widthOf(t) : (t.w ?? maxW);
+            t.w = Math.max(1, Math.min(maxW, cur + delta));
+        }
+    } else if(op.h) {
+        const [i, delta] = op.h;
+        const t = out[i];
+        if(t) {
+            const maxH = grid?.maxH ?? 6;
+            const cur = grid?.heightOf ? grid.heightOf(t) : (t.h ?? 1);
+            t.h = Math.max(1, Math.min(maxH, cur + delta));
+        }
     } else if(op.hide != null) {
         out.splice(op.hide, 1);
     } else if(op.add) {
@@ -91,10 +107,37 @@ class LayoutEditor {
     // (re)adds the bar to every tile; call after the page renders again
     refresh() {
         if(!this.active) return;
+        const list = this.opts.list();
+        const grid = this.opts.grid;
         for(const el of this.tiles()) {
             el.querySelector(':scope > .le-bar')?.remove();
             const id = el.dataset.tile, size = el.dataset.size, name = esc(this.name(id));
-            const sizes = this.opts.sizesOf(id) ?? [];
+            const item = list.find(t => t.id === id);
+            let controls = '';
+            if(grid && item) {
+                const maxW = grid.maxW ?? 12;
+                const maxH = grid.maxH ?? 6;
+                const w = grid.widthOf ? grid.widthOf(item) : (item.w ?? maxW);
+                const h = grid.heightOf ? grid.heightOf(item) : (item.h ?? 1);
+                controls = `
+                    <div class="le-dims">
+                        <span class="le-step" title="Width (twelfths)">
+                            <button type="button" class="le-step__btn" data-le-w="-1" ${w <= 1 ? 'disabled' : ''} aria-label="Narrower ${name}">−</button>
+                            <span class="le-step__val" data-le-w-val>${w}/${maxW}</span>
+                            <button type="button" class="le-step__btn" data-le-w="1" ${w >= maxW ? 'disabled' : ''} aria-label="Wider ${name}">+</button>
+                        </span>
+                        <span class="le-step" title="Height (rows)">
+                            <button type="button" class="le-step__btn" data-le-h="-1" ${h <= 1 ? 'disabled' : ''} aria-label="Shorter ${name}">−</button>
+                            <span class="le-step__val" data-le-h-val>${h}×</span>
+                            <button type="button" class="le-step__btn" data-le-h="1" ${h >= maxH ? 'disabled' : ''} aria-label="Taller ${name}">+</button>
+                        </span>
+                    </div>`;
+            } else {
+                const sizes = this.opts.sizesOf?.(id) ?? [];
+                if(sizes.length > 1) {
+                    controls = `<button type="button" class="le-btn le-size" data-le-size aria-label="Size of ${name}: ${esc(size)}">${esc(SIZE_LABEL[size] ?? size)}</button>`;
+                }
+            }
             el.insertAdjacentHTML('beforeend', `
                 <div class="le-bar">
                     <button type="button" class="le-btn le-handle" data-le-handle aria-label="Move ${name}" title="Drag, or use the arrow keys">
@@ -104,7 +147,7 @@ class LayoutEditor {
                     <button type="button" class="le-btn le-hide" data-le-hide aria-label="Remove ${name}">
                         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6.4 5 5 6.4 10.6 12 5 17.6 6.4 19l5.6-5.6 5.6 5.6 1.4-1.4-5.6-5.6L19 6.4 17.6 5 12 10.6z"/></svg>
                     </button>
-                    ${sizes.length > 1 ? `<button type="button" class="le-btn le-size" data-le-size aria-label="Size of ${name}: ${esc(size)}">${esc(SIZE_LABEL[size] ?? size)}</button>` : ''}
+                    ${controls}
                 </div>`);
         }
         if(this.focusId) {
@@ -121,7 +164,7 @@ class LayoutEditor {
     }
 
     apply(op, said) {
-        const next = editList(this.opts.list(), op, this.opts.sizesOf);
+        const next = editList(this.opts.list(), op, this.opts.sizesOf, this.opts.grid);
         this.opts.onChange(next);
         if(said) this.opts.announce?.(said(next));
     }
@@ -130,7 +173,17 @@ class LayoutEditor {
         const i = this.indexOf(e.target);
         if(i < 0) return;
         const id = this.opts.list()[i].id;
-        if(e.target.closest('[data-le-size]')) {
+        const wBtn = e.target.closest('[data-le-w]');
+        const hBtn = e.target.closest('[data-le-h]');
+        if(wBtn) {
+            this.focusId = null;
+            const delta = Number(wBtn.dataset.leW);
+            this.apply({w: [i, delta]}, next => `${this.name(id)}: width ${next[i].w}/${this.opts.grid?.maxW ?? 12}`);
+        } else if(hBtn) {
+            this.focusId = null;
+            const delta = Number(hBtn.dataset.leH);
+            this.apply({h: [i, delta]}, next => `${this.name(id)}: height ${next[i].h} rows`);
+        } else if(e.target.closest('[data-le-size]')) {
             this.focusId = null;
             this.apply({size: i}, next => `${this.name(id)}: ${SIZE_LABEL[next[i].size] ?? next[i].size}`);
         } else if(e.target.closest('[data-le-hide]')) {
@@ -149,7 +202,13 @@ class LayoutEditor {
             if(i > 0) op = {move: [i, i - 1]}, said = () => `${this.name(id)} moved to place ${i}`;
         } else if(e.key === 'ArrowDown' || e.key === 'ArrowRight') {
             if(i < len - 1) op = {move: [i, i + 1]}, said = () => `${this.name(id)} moved to place ${i + 2}`;
-        } else if(e.key === 'Enter' || e.key === ' ') {
+        } else if(this.opts.grid && (e.key === '[' || e.key === ']')) {
+            op = {w: [i, e.key === ']' ? 1 : -1]};
+            said = next => `${this.name(id)}: width ${next[i].w}/${this.opts.grid?.maxW ?? 12}`;
+        } else if(this.opts.grid && (e.key === '-' || e.key === '+' || e.key === '=')) {
+            op = {h: [i, e.key === '-' ? -1 : 1]};
+            said = next => `${this.name(id)}: height ${next[i].h} rows`;
+        } else if(!this.opts.grid && (e.key === 'Enter' || e.key === ' ')) {
             op = {size: i}; said = next => `${this.name(id)}: ${SIZE_LABEL[next[i].size] ?? next[i].size}`;
         } else if(e.key === 'Delete' || e.key === 'Backspace') {
             op = {hide: i}; said = () => `${this.name(id)} removed`;

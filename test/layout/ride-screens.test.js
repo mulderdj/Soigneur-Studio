@@ -185,7 +185,7 @@ describe('screen sizes', () => {
         window.dispatchEvent(new Event('resize'));
         expect(el.layoutName).toBe('phone-landscape');
         expect(el.screen).toBe(1);
-        expect(el.$track.style.getPropertyValue('--cols')).toBe('5');
+        expect(el.$track.style.getPropertyValue('--cols')).toBe('12');
     });
     test('a phone gets the phone layout', () => {
         size(390, 844);

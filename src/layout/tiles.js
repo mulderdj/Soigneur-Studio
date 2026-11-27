@@ -14,6 +14,8 @@
 
 const VERSION = 1;
 const MAX_SCREENS = 8;
+const GRID_COLS = 12;
+const MAX_ROW_SPAN = 6;
 const NUMBER = ['small', 'wide', 'large'];
 const GRAPH = ['wide', 'large'];
 
@@ -96,6 +98,10 @@ function defaultLayouts() {
 
 const isObj = x => typeof x === 'object' && x !== null && !Array.isArray(x);
 
+function clampInt(v, min, max) {
+    return Number.isInteger(v) && v >= min && v <= max ? v : null;
+}
+
 function readTiles(tiles) {
     const seen = new Set();
     const out = [];
@@ -103,7 +109,12 @@ function readTiles(tiles) {
         const def = RIDE_BY_ID.get(tile?.id);
         if(!def || seen.has(def.id)) continue;
         seen.add(def.id);
-        out.push({id: def.id, size: def.sizes.includes(tile.size) ? tile.size : def.size});
+        const entry = {id: def.id, size: def.sizes.includes(tile.size) ? tile.size : def.size};
+        const w = clampInt(tile.w, 1, GRID_COLS);
+        const h = clampInt(tile.h, 1, MAX_ROW_SPAN);
+        if(w !== null) entry.w = w;
+        if(h !== null) entry.h = h;
+        out.push(entry);
     }
     return out;
 }
@@ -133,7 +144,12 @@ function readCards(saved, fallback) {
         const def = CARD_BY_ID.get(c?.id);
         if(!def || seen.has(def.id)) continue;
         seen.add(def.id);
-        out.push({id: def.id, size: def.sizes.includes(c.size) ? c.size : def.size, hidden: c.hidden === true});
+        const entry = {id: def.id, size: def.sizes.includes(c.size) ? c.size : def.size, hidden: c.hidden === true};
+        const w = clampInt(c.w, 1, GRID_COLS);
+        const h = clampInt(c.h, 1, MAX_ROW_SPAN);
+        if(w !== null) entry.w = w;
+        if(h !== null) entry.h = h;
+        out.push(entry);
     }
     TRAINING_CARDS.forEach((def, i) => {
         if(seen.has(def.id)) return;
@@ -181,7 +197,37 @@ function spanFor(size, columns) {
     return 1;
 }
 
+function widthFor(item, layoutName = 'desktop', kind = 'ride') {
+    if(Number.isInteger(item?.w) && item.w >= 1 && item.w <= GRID_COLS) return item.w;
+    const size = item?.size;
+    if(kind === 'training') {
+        if(screenClass(layoutName) === 'phone') return size === 'narrow' ? 6 : 12;
+        if(size === 'full') return 12;
+        if(size === 'wide') return 8;
+        return 4;
+    }
+    if(size === 'large') return 12;
+    if(layoutName === 'phone') return size === 'wide' ? 8 : 4;
+    if(layoutName === 'tv') return size === 'wide' ? 4 : 2;
+    return size === 'wide' ? 6 : 3;
+}
+
+function heightFor(item, kind = 'ride') {
+    if(Number.isInteger(item?.h) && item.h >= 1 && item.h <= MAX_ROW_SPAN) return item.h;
+    if(kind === 'training') return 1;
+    const id = item?.id;
+    if(id === 'chart' || id === 'map' || id === 'stats') return 3;
+    if(id === 'workout') return 2;
+    if(id === 'power' && item?.size === 'large') return 2;
+    return 1;
+}
+
+function sizeForWidth(w, kind = 'ride') {
+    if(kind === 'training') return w >= 10 ? 'full' : w >= 6 ? 'wide' : 'narrow';
+    return w >= 10 ? 'large' : w >= 6 ? 'wide' : 'small';
+}
+
 export {
-    RIDE_TILES, TRAINING_CARDS, RIDE_BY_ID, CARD_BY_ID, MAX_SCREENS,
-    defaultLayouts, readLayout, screenClass, columnsFor, spanFor,
+    RIDE_TILES, TRAINING_CARDS, RIDE_BY_ID, CARD_BY_ID, MAX_SCREENS, GRID_COLS, MAX_ROW_SPAN,
+    defaultLayouts, readLayout, screenClass, columnsFor, spanFor, widthFor, heightFor, sizeForWidth,
 };

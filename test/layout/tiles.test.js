@@ -1,4 +1,4 @@
-import { RIDE_TILES, TRAINING_CARDS, defaultLayouts, readLayout, screenClass, columnsFor, spanFor } from '../../src/layout/tiles.js';
+import { RIDE_TILES, TRAINING_CARDS, defaultLayouts, readLayout, screenClass, columnsFor, spanFor, widthFor, heightFor } from '../../src/layout/tiles.js';
 
 const D = defaultLayouts();
 const known = new Set(RIDE_TILES.map(t => t.id));
@@ -110,5 +110,21 @@ describe('the grid', () => {
         expect(spanFor('small', 3)).toBe(1);
         expect(spanFor('wide', 3)).toBe(2);
         expect(spanFor('large', 5)).toBe(5);
+    });
+    test('12-column widths and row heights are preserved and clamped', () => {
+        const r = readLayout({
+            version: 1,
+            ride: {phone: {screens: [{id: 's1', name: 'Custom', tiles: [{id: 'power', size: 'wide', w: 5, h: 3}, {id: 'cadence', size: 'small', w: 99, h: 0}]}]}},
+            training: {large: {cards: [{id: 'ftp', size: 'wide', w: 7, h: 2}]}},
+        });
+        expect(r.ride.phone.screens[0].tiles).toEqual([
+            {id: 'power', size: 'wide', w: 5, h: 3},
+            {id: 'cadence', size: 'small'},
+        ]);
+        expect(r.training.large.cards.find(c => c.id === 'ftp')).toMatchObject({w: 7, h: 2});
+        expect(widthFor({id: 'power', size: 'wide', w: 5}, 'phone', 'ride')).toBe(5);
+        expect(widthFor({id: 'power', size: 'wide'}, 'phone', 'ride')).toBe(8);
+        expect(heightFor({id: 'power', size: 'wide', h: 3}, 'ride')).toBe(3);
+        expect(heightFor({id: 'chart', size: 'large'}, 'ride')).toBe(3);
     });
 });

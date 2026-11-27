@@ -120,7 +120,10 @@ svg {
     width: 100%;
     max-width: var(--content-max);
     margin: 0 auto;
-    padding: var(--space-2);
+    padding: calc(var(--space-2) + env(safe-area-inset-top, 0px))
+             calc(var(--space-2) + env(safe-area-inset-right, 0px))
+             var(--space-2)
+             calc(var(--space-2) + env(safe-area-inset-left, 0px));
 }
 
 .page-title {
@@ -130,7 +133,10 @@ svg {
 
 @media (min-width: 600px) {
     .page-content {
-        padding: var(--space-3);
+        padding: calc(var(--space-3) + env(safe-area-inset-top, 0px))
+                 calc(var(--space-3) + env(safe-area-inset-right, 0px))
+                 var(--space-3)
+                 calc(var(--space-3) + env(safe-area-inset-left, 0px));
     }
 
     .page-title {
@@ -148,7 +154,10 @@ svg {
     inset: auto 0 0 0;
     z-index: var(--z-bar);
     height: calc(var(--app-bar-h) + env(safe-area-inset-bottom, 0px));
-    padding: 0 var(--space-2) env(safe-area-inset-bottom, 0px);
+    padding: 0
+             calc(var(--space-2) + env(safe-area-inset-right, 0px))
+             env(safe-area-inset-bottom, 0px)
+             calc(var(--space-2) + env(safe-area-inset-left, 0px));
     display: grid;
     grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto minmax(0, 1fr) minmax(0, 1fr);
     align-items: center;
@@ -276,7 +285,10 @@ svg {
 
     .app-bar {
         grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
-        padding: 0 var(--space-4) env(safe-area-inset-bottom, 0px);
+        padding: 0
+                 calc(var(--space-4) + env(safe-area-inset-right, 0px))
+                 env(safe-area-inset-bottom, 0px)
+                 calc(var(--space-4) + env(safe-area-inset-left, 0px));
         gap: var(--space-4);
     }
 

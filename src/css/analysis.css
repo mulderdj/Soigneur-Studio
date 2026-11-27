@@ -225,7 +225,10 @@ ride-chart.is-full {
     inset: 0;
     z-index: var(--z-fullscreen);
     align-content: start;
-    padding: var(--space-3) max(var(--space-3), env(safe-area-inset-right)) var(--space-3) max(var(--space-3), env(safe-area-inset-left));
+    padding: calc(var(--space-3) + env(safe-area-inset-top, 0px))
+             calc(var(--space-3) + env(safe-area-inset-right, 0px))
+             calc(var(--space-3) + env(safe-area-inset-bottom, 0px))
+             calc(var(--space-3) + env(safe-area-inset-left, 0px));
     background-color: var(--surface);
 }
 

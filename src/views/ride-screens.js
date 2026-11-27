@@ -21,7 +21,7 @@
 import { xf } from '../functions.js';
 import { layouts } from '../layout/store.js';
 import { riders } from '../riders.js';
-import { RIDE_TILES, RIDE_BY_ID, MAX_SCREENS, defaultLayouts, screenClass, columnsFor, spanFor } from '../layout/tiles.js';
+import { RIDE_TILES, RIDE_BY_ID, MAX_SCREENS, GRID_COLS, MAX_ROW_SPAN, defaultLayouts, screenClass, widthFor, heightFor, sizeForWidth } from '../layout/tiles.js';
 import { currentLayout } from './layout.js';
 import { LayoutEditor, editList, editLocked } from './layout-editor.js';
 import { confirmAction } from './confirm.js';
@@ -299,11 +299,14 @@ class RideScreens extends HTMLElement {
         const s = this.screens()[i];
         if(!$screen || !s) return;
         for(const el of $screen.querySelectorAll('.rs-slot > :not(.rs-placeholder)')) this.$pool?.append(el);
-        const cols = this.columns();
-        $screen.innerHTML = s.tiles.length ? s.tiles.map(t => `
-            <div class="rs-slot" data-tile="${t.id}" data-size="${t.size}" style="grid-column: span ${spanFor(t.size, cols)}">
+        $screen.innerHTML = s.tiles.length ? s.tiles.map(t => {
+            const w = widthFor(t, this.layoutName, 'ride');
+            const h = heightFor(t, 'ride');
+            const sz = sizeForWidth(w, 'ride');
+            return `<div class="rs-slot" data-tile="${t.id}" data-size="${sz}" data-w="${w}" data-h="${h}" style="grid-column: span ${w}; grid-row: span ${h}; --row-span: ${h}">
                 ${this.placeholder(t.id)}
-            </div>`).join('') :
+            </div>`;
+        }).join('') :
             `<p class="rs-empty">${this.editing ? 'Add tiles to this screen with Add tile.' : 'This screen is empty. Add tiles in Edit layout.'}</p>`;
         const chart = $screen.querySelector('.rs-slot[data-tile="chart"]');
         if(chart) chart.style.touchAction = 'pan-y';
@@ -347,7 +350,7 @@ class RideScreens extends HTMLElement {
         }
     }
 
-    columns() { return columnsFor(this.layoutName); }
+    columns() { return GRID_COLS; }
 
     onResize() {
         const name = currentLayout();
@@ -358,9 +361,23 @@ class RideScreens extends HTMLElement {
             this.render();
             return;
         }
-        const cols = this.columns();
-        this.$track.style.setProperty('--cols', cols);
-        for(const slot of this.$track.querySelectorAll('.rs-slot')) slot.style.gridColumn = `span ${spanFor(slot.dataset.size, cols)}`;
+        this.$track.style.setProperty('--cols', String(this.columns()));
+        const screens = this.screens();
+        this.$track.querySelectorAll('.rs-screen').forEach(($s, i) => {
+            const tiles = screens[i]?.tiles ?? [];
+            for(const slot of $s.querySelectorAll('.rs-slot')) {
+                const t = tiles.find(x => x.id === slot.dataset.tile);
+                if(!t) continue;
+                const w = widthFor(t, this.layoutName, 'ride');
+                const h = heightFor(t, 'ride');
+                slot.dataset.w = String(w);
+                slot.dataset.h = String(h);
+                slot.dataset.size = sizeForWidth(w, 'ride');
+                slot.style.gridColumn = `span ${w}`;
+                slot.style.gridRow = `span ${h}`;
+                slot.style.setProperty('--row-span', String(h));
+            }
+        });
         this.fit();
     }
 
@@ -404,6 +421,12 @@ class RideScreens extends HTMLElement {
             list: () => this.screens()[this.screen].tiles,
             sizesOf: id => RIDE_BY_ID.get(id)?.sizes ?? [],
             nameOf: id => RIDE_BY_ID.get(id)?.name ?? id,
+            grid: {
+                maxW: GRID_COLS,
+                maxH: MAX_ROW_SPAN,
+                widthOf: t => widthFor(t, this.layoutName, 'ride'),
+                heightOf: t => heightFor(t, 'ride'),
+            },
             onChange: list => this.changeTiles(list),
             onDragEdge: (side, id) => this.moveToNeighbour(side, id),
             announce: text => { this.$live.textContent = text; },

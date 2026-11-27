@@ -59,28 +59,30 @@ describe('the Training cards', () => {
 });
 
 describe('editing the Training cards', () => {
-    test('Edit layout: move, size and remove, then Done saves', () => {
+    test('Edit layout: move, resize width/height and remove, then Done saves', () => {
         const {tl, grid} = setup();
         document.querySelector('[data-tl-edit]').click();
         expect(grid.classList.contains('is-editing')).toBe(true);
         expect(grid.querySelectorAll('[data-le-handle]')).toHaveLength(10);
-        grid.querySelector('[data-tile="week"] [data-le-size]').click();
+        grid.querySelector('[data-tile="week"] [data-le-w="1"]').click();
+        grid.querySelector('[data-tile="week"] [data-le-h="1"]').click();
         grid.querySelector('[data-tile="zones"] [data-le-hide]').click();
         grid.querySelector('[data-tile="ftp"] [data-le-handle]').dispatchEvent(new KeyboardEvent('keydown', {key: 'ArrowUp', bubbles: true}));
         document.querySelector('[data-tl="done"]').click();
         const saved = layouts.get().training.large.cards;
-        expect(saved.find(c => c.id === 'week').size).toBe('full');
+        expect(saved.find(c => c.id === 'week')).toMatchObject({w: 9, h: 2});
         expect(saved.find(c => c.id === 'zones').hidden).toBe(true);
         // the cards that came later (efficiency, readiness-perf, decoupling, compliance, durability) stay after the moved one
         expect(saved.filter(c => !c.hidden && !['efficiency', 'readiness-perf', 'decoupling', 'compliance', 'durability'].includes(c.id)).map(c => c.id).slice(-2)).toEqual(['ftp', 'profile']);
         expect(grid.classList.contains('is-editing')).toBe(false);
     });
 
-    test('on a phone the cards are full width, so there is no size button', () => {
+    test('on a phone cards also get width/height steppers', () => {
         size(390, 844);
         const {grid} = setup();
         document.querySelector('[data-tl-edit]').click();
-        expect(grid.querySelector('[data-le-size]')).toBeNull();
+        expect(grid.querySelector('[data-le-w="-1"]')).not.toBeNull();
+        expect(grid.querySelector('[data-le-h="1"]')).not.toBeNull();
         expect(grid.querySelectorAll('[data-le-handle]')).toHaveLength(10);
     });
 

@@ -12,7 +12,7 @@
 
 import { xf } from '../../functions.js';
 import { layouts } from '../../layout/store.js';
-import { TRAINING_CARDS, CARD_BY_ID, defaultLayouts, screenClass } from '../../layout/tiles.js';
+import { TRAINING_CARDS, CARD_BY_ID, GRID_COLS, MAX_ROW_SPAN, defaultLayouts, screenClass, widthFor, heightFor, sizeForWidth } from '../../layout/tiles.js';
 import { currentLayout } from '../layout.js';
 import { LayoutEditor, editList } from '../layout-editor.js';
 import { confirmAction } from '../confirm.js';
@@ -72,17 +72,32 @@ class TrainingLayout {
 
     all() { return this.layout().training[this.cls].cards; }
 
-    visible() { return this.all().filter(c => !c.hidden).map(({id, size}) => ({id, size})); }
+    visible() {
+        return this.all().filter(c => !c.hidden).map(c => {
+            const out = {id: c.id, size: c.size};
+            if(c.w != null) out.w = c.w;
+            if(c.h != null) out.h = c.h;
+            return out;
+        });
+    }
 
     apply() {
-        this.cls = screenClass(currentLayout());
+        const layoutName = currentLayout();
+        this.cls = screenClass(layoutName);
         const seen = new Set();
         for(const c of this.all()) {
             const el = this.cards[c.id];
             if(!el) continue;
             seen.add(c.id);
             if(c.hidden) { el.remove(); continue; }
-            el.dataset.size = c.size;
+            const w = widthFor(c, layoutName, 'training');
+            const h = heightFor(c, 'training');
+            el.dataset.size = c.w != null ? sizeForWidth(w, 'training') : c.size;
+            el.dataset.w = String(w);
+            el.dataset.h = String(h);
+            el.style.gridColumn = `span ${w}`;
+            el.style.gridRow = h > 1 ? `span ${h}` : '';
+            el.style.setProperty('--row-span', String(h));
             this.$grid.append(el);          // in order
         }
         for(const [id, el] of Object.entries(this.cards)) if(!seen.has(id)) el.remove();
@@ -117,8 +132,14 @@ class TrainingLayout {
         this.apply();
         this.editor = new LayoutEditor(this.$grid, {
             list: () => this.visible(),
-            sizesOf: id => this.cls === 'phone' ? [] : CARD_BY_ID.get(id)?.sizes ?? [],   // a phone shows every card full width
+            sizesOf: id => CARD_BY_ID.get(id)?.sizes ?? [],
             nameOf: id => CARD_BY_ID.get(id)?.name ?? id,
+            grid: {
+                maxW: GRID_COLS,
+                maxH: MAX_ROW_SPAN,
+                widthOf: c => widthFor(c, currentLayout(), 'training'),
+                heightOf: c => heightFor(c, 'training'),
+            },
             onChange: list => this.setVisible(list),
             announce: text => { this.$live.textContent = text; },
         });
