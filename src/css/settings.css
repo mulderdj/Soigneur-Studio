@@ -598,7 +598,26 @@ hr-thresholds {
     color: var(--ink);
 }
 
-material-seed-control[hidden] { display: none; }
+material-seed-control[hidden],
+map-provider-config[hidden] { display: none; }
+
+.map-config__fields {
+    display: grid;
+    gap: var(--space-2);
+    padding: var(--space-2) 0;
+}
+
+.map-config__field {
+    display: grid;
+    gap: var(--space-1);
+    font-size: var(--text-xs);
+    color: var(--muted);
+}
+
+.map-style__select {
+    min-height: var(--tap);
+    max-width: 200px;
+}
 
 .material-seed__controls {
     display: flex;

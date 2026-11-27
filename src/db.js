@@ -69,6 +69,8 @@ let db = {
     palette: models.palette.default,
     materialSeed: models.materialSeed.default,
     mapStyle: models.mapStyle.default,
+    mapApiKey: models.mapApiKey.default,
+    mapTileUrl: models.mapTileUrl.default,
     measurement: models.measurement.default,
     volume: models.volume.default,
 
@@ -319,6 +321,14 @@ xf.reg('ui:mapStyle-switch', (_, db) => {
     db.mapStyle = models.mapStyle.switch(db.mapStyle);
     models.mapStyle.backup(db.mapStyle);
 });
+xf.reg('ui:mapApiKey-set', (key, db) => {
+    db.mapApiKey = models.mapApiKey.set(key);
+    models.mapApiKey.backup(db.mapApiKey);
+});
+xf.reg('ui:mapTileUrl-set', (url, db) => {
+    db.mapTileUrl = models.mapTileUrl.set(url);
+    models.mapTileUrl.backup(db.mapTileUrl);
+});
 
 xf.reg('ui:measurement-switch', (_, db) => {
     db.measurement = models.measurement.switch(db.measurement);
@@ -448,6 +458,8 @@ xf.reg('app:start', async function(_, db) {
     db.palette = models.palette.set(models.palette.restore());
     db.materialSeed = models.materialSeed.set(models.materialSeed.restore());
     db.mapStyle = models.mapStyle.set(models.mapStyle.restore());
+    db.mapApiKey = models.mapApiKey.set(models.mapApiKey.restore());
+    db.mapTileUrl = models.mapTileUrl.set(models.mapTileUrl.restore());
     db.measurement = models.measurement.set(models.measurement.restore());
     db.volume = models.volume.set(models.volume.restore());
     db.dataTileSwitch = models.dataTileSwitch.set(models.dataTileSwitch.restore()),

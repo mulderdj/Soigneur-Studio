@@ -119,10 +119,19 @@ describe('Web Mercator helpers', () => {
         }
     });
 
-    test('tileUrl and tileRange support terrain tiles with max zoom 17', () => {
+    test('tileUrl and tileRange support all map providers including API key and custom URL', () => {
         expect(tileUrl(12, 2099, 1461, false, 'standard')).toContain('basemaps.cartocdn.com/dark_all/');
         expect(tileUrl(12, 2099, 1461, true, 'standard')).toContain('basemaps.cartocdn.com/rastertiles/voyager/');
         expect(tileUrl(12, 2099, 1461, false, 'terrain')).toBe('https://a.tile.opentopomap.org/12/2099/1461.png');
+        expect(tileUrl(12, 2099, 1461, false, 'cyclosm')).toBe('https://a.tile-cyclosm.openstreetmap.fr/cyclosm/12/2099/1461.png');
+        expect(tileUrl(12, 2099, 1461, false, 'satellite')).toBe('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/12/1461/2099');
+        expect(tileUrl(12, 2099, 1461, false, 'osm')).toBe('https://tile.openstreetmap.org/12/2099/1461.png');
+        expect(tileUrl(12, 2099, 1461, false, 'thunderforest', {apiKey: ''})).toBeNull();
+        expect(tileUrl(12, 2099, 1461, false, 'thunderforest', {apiKey: 'secret'})).toBe('https://tile.thunderforest.com/cycle/12/2099/1461.png?apikey=secret');
+        expect(tileUrl(12, 2099, 1461, false, 'custom', {
+            customUrl: 'https://tiles.example.com/{z}/{x}/{y}.png?k={key}',
+            apiKey: 'abc123',
+        })).toBe('https://tiles.example.com/12/2099/1461.png?k=abc123');
 
         const closeView = fitBounds([{lat: 52.3676, lon: 4.9041}, {lat: 52.3677, lon: 4.9042}], 400, 300, 24);
         const terrainTiles = tileRange(closeView, 17);

@@ -1575,11 +1575,23 @@ function applyPalette(palette) {
 
 function applyMapStyle(style) {
     if(typeof document === 'undefined' || !document.body) return;
-    if(style === 'terrain') {
-        document.body.dataset.mapStyle = 'terrain';
+    if(style && style !== 'standard' && models.mapStyle.isValid(style)) {
+        document.body.dataset.mapStyle = style;
     } else {
         delete document.body.dataset.mapStyle;
     }
+}
+
+function applyMapApiKey(key) {
+    if(typeof document === 'undefined' || !document.body) return;
+    if(key) document.body.dataset.mapApiKey = key;
+    else delete document.body.dataset.mapApiKey;
+}
+
+function applyMapTileUrl(url) {
+    if(typeof document === 'undefined' || !document.body) return;
+    if(url) document.body.dataset.mapTileUrl = url;
+    else delete document.body.dataset.mapTileUrl;
 }
 
 if(typeof window !== 'undefined') {
@@ -1590,6 +1602,8 @@ if(typeof window !== 'undefined') {
         }
     });
     xf.sub('db:mapStyle', applyMapStyle);
+    xf.sub('db:mapApiKey', applyMapApiKey);
+    xf.sub('db:mapTileUrl', applyMapTileUrl);
     xf.sub('db:sources', s => { if(s?.theme) applyThemeMode(s.theme); });
     if(typeof window.matchMedia === 'function') {
         const mq = window.matchMedia('(prefers-color-scheme: light)');
@@ -1721,35 +1735,96 @@ class MaterialSeedControl extends HTMLElement {
 
 customElements.define('material-seed-control', MaterialSeedControl);
 
-class MapStyleLayout extends DataView {
-    postInit() {
-        this.state = models.mapStyle.default;
-    }
-    getDefaults() {
-        return {
-            prop: 'db:mapStyle',
+class MapStyleLayout extends HTMLElement {
+    connectedCallback() {
+        if(!this.$select) {
+            this.innerHTML = `<select class="input map-style__select" aria-label="Map style">${
+                models.mapStyle.values
+                    .map(v => `<option value="${v}">${models.mapStyle.label(v)}</option>`)
+                    .join('')
+            }</select>`;
+            this.$select = this.querySelector('select');
+        }
+        this._abort?.abort();
+        this._abort = new AbortController();
+        const signal = {signal: this._abort.signal};
+
+        const sync = val => {
+            const style = models.mapStyle.isValid(val) ? val : models.mapStyle.default;
+            if(this.$select) this.$select.value = style;
+            applyMapStyle(style);
         };
+        sync(models.mapStyle.state || models.mapStyle.default);
+        xf.sub('db:mapStyle', sync, signal);
+        this.$select.addEventListener('change', () => {
+            xf.dispatch('ui:mapStyle-set', this.$select.value);
+        }, signal);
     }
-    subs() {
-        this.state = models.mapStyle.state || models.mapStyle.default;
-        this.render();
-        xf.sub(`${this.prop}`, this.onUpdate.bind(this), this.signal);
-        this.addEventListener('pointerup', this.onEffect.bind(this), this.signal);
-    }
-    onUpdate(value) {
-        this.state = models.mapStyle.isValid(value) ? value : models.mapStyle.default;
-        this.render();
-    }
-    onEffect() {
-        xf.dispatch('ui:mapStyle-switch');
-    }
-    render() {
-        this.textContent = models.mapStyle.label(this.state);
-        applyMapStyle(this.state);
+    disconnectedCallback() {
+        this._abort?.abort();
+        this._abort = null;
     }
 }
 
 customElements.define('map-style-layout', MapStyleLayout);
+
+class MapProviderConfig extends HTMLElement {
+    connectedCallback() {
+        if(!this.$key) {
+            this.innerHTML = `
+                <div class="list--row--inner map-config__fields">
+                    <label class="map-config__field" data-mc-url>
+                        <span>Custom tile URL (use {z}, {x}, {y}, optional {key})</span>
+                        <input type="url" class="input" data-mc-url-input placeholder="https://tile.example.com/{z}/{x}/{y}.png?apikey={key}" autocomplete="off" spellcheck="false">
+                    </label>
+                    <label class="map-config__field" data-mc-key>
+                        <span>API key</span>
+                        <input type="text" class="input" data-mc-key-input placeholder="Paste provider API key" autocomplete="off" spellcheck="false">
+                    </label>
+                </div>`;
+            this.$urlWrap = this.querySelector('[data-mc-url]');
+            this.$url     = this.querySelector('[data-mc-url-input]');
+            this.$keyWrap = this.querySelector('[data-mc-key]');
+            this.$key     = this.querySelector('[data-mc-key-input]');
+        }
+        this._abort?.abort();
+        this._abort = new AbortController();
+        const signal = {signal: this._abort.signal};
+
+        const syncStyle = style => {
+            const needsKey = style === 'thunderforest' || style === 'custom';
+            const needsUrl = style === 'custom';
+            this.hidden = !needsKey && !needsUrl;
+            if(this.$urlWrap) this.$urlWrap.hidden = !needsUrl;
+            if(this.$keyWrap) this.$keyWrap.hidden = !needsKey;
+        };
+        const syncKey = key => {
+            if(this.$key && document.activeElement !== this.$key) this.$key.value = key || '';
+            applyMapApiKey(key || '');
+        };
+        const syncUrl = url => {
+            if(this.$url && document.activeElement !== this.$url) this.$url.value = url || '';
+            applyMapTileUrl(url || '');
+        };
+
+        syncStyle(models.mapStyle.state || models.mapStyle.default);
+        syncKey(models.mapApiKey.state || '');
+        syncUrl(models.mapTileUrl.state || '');
+
+        xf.sub('db:mapStyle', syncStyle, signal);
+        xf.sub('db:mapApiKey', syncKey, signal);
+        xf.sub('db:mapTileUrl', syncUrl, signal);
+
+        this.$key.addEventListener('change', () => xf.dispatch('ui:mapApiKey-set', this.$key.value), signal);
+        this.$url.addEventListener('change', () => xf.dispatch('ui:mapTileUrl-set', this.$url.value), signal);
+    }
+    disconnectedCallback() {
+        this._abort?.abort();
+        this._abort = null;
+    }
+}
+
+customElements.define('map-provider-config', MapProviderConfig);
 
 class SoundControl extends DataView {
     postInit() {

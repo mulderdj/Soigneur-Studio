@@ -528,10 +528,15 @@ class MaterialSeed extends Model {
 class MapStyle extends Model {
     postInit(args = {}) {
         const self = this;
-        self.values = ['standard', 'terrain'];
+        self.values = ['standard', 'terrain', 'cyclosm', 'satellite', 'osm', 'thunderforest', 'custom'];
         self.labels = {
-            standard: 'Standard',
-            terrain: 'Terrain',
+            standard:      'Standard (CARTO)',
+            terrain:       'Terrain (OpenTopoMap)',
+            cyclosm:       'CyclOSM',
+            satellite:     'Satellite (Esri)',
+            osm:           'OpenStreetMap',
+            thunderforest: 'Thunderforest',
+            custom:        'Custom URL',
         };
         const storageModel = {
             key: self.prop,
@@ -552,6 +557,29 @@ class MapStyle extends Model {
             return self.set(self.default);
         }
         return self.set(self.values[(idx + 1) % self.values.length]);
+    }
+}
+
+class TextSetting extends Model {
+    postInit(args = {}) {
+        const self = this;
+        const storageModel = {
+            key: self.prop,
+            fallback: self.defaultValue(),
+            isValid: (v) => self.defaultIsValid(v),
+        };
+        self.state = self.default;
+        self.storage = new args.storage(storageModel);
+    }
+    defaultValue() { return ''; }
+    defaultIsValid(value) { return typeof value === 'string' && value.length <= 512; }
+    set(value) {
+        if(!this.defaultIsValid(value)) {
+            this.state = this.default;
+            return this.state;
+        }
+        this.state = value.trim();
+        return this.state;
     }
 }
 
@@ -1611,6 +1639,8 @@ const theme = new Theme({prop: 'theme', storage: LocalStorageItem});
 const palette = new Palette({prop: 'palette', storage: LocalStorageItem});
 const materialSeed = new MaterialSeed({prop: 'materialSeed', storage: LocalStorageItem});
 const mapStyle = new MapStyle({prop: 'mapStyle', storage: LocalStorageItem});
+const mapApiKey = new TextSetting({prop: 'mapApiKey', storage: LocalStorageItem});
+const mapTileUrl = new TextSetting({prop: 'mapTileUrl', storage: LocalStorageItem});
 const volume = new Volume({prop: 'volume', storage: LocalStorageItem});
 const measurement = new Measurement({prop: 'measurement', storage: LocalStorageItem});
 const dataTileSwitch = new DataTileSwitch({prop: 'dataTileSwitch', storage: LocalStorageItem});
@@ -1666,6 +1696,8 @@ let models = {
     palette,
     materialSeed,
     mapStyle,
+    mapApiKey,
+    mapTileUrl,
     measurement,
     dataTileSwitch,
 

@@ -712,7 +712,8 @@ div.graph--bar-group {
         color: var(--accent);
     }
 
-    .rm-metric-select {
+    .rm-metric-select,
+    .rm-style-select {
         max-width: 112px;
         padding-right: var(--space-2);
     }

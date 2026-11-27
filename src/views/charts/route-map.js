@@ -356,8 +356,26 @@ function isLightTheme() {
     return false;
 }
 
+const MAP_PROVIDERS = {
+    standard:      {label: 'Standard',      maxZoom: 18, attribution: '© OSM · CARTO'},
+    terrain:       {label: 'Terrain',       maxZoom: 17, attribution: '© OSM · OpenTopoMap'},
+    cyclosm:       {label: 'CyclOSM',       maxZoom: 18, attribution: '© OSM · CyclOSM'},
+    satellite:     {label: 'Satellite',     maxZoom: 18, attribution: '© Esri'},
+    osm:           {label: 'OSM',           maxZoom: 18, attribution: '© OpenStreetMap'},
+    thunderforest: {label: 'Thunderforest', maxZoom: 18, attribution: '© OSM · Thunderforest'},
+    custom:        {label: 'Custom',        maxZoom: 18, attribution: '© Map tiles'},
+};
+
 function currentMapStyle() {
-    return document.body?.dataset?.mapStyle === 'terrain' ? 'terrain' : 'standard';
+    const s = document.body?.dataset?.mapStyle ?? 'standard';
+    return Object.prototype.hasOwnProperty.call(MAP_PROVIDERS, s) ? s : 'standard';
+}
+
+function currentMapConfig() {
+    return {
+        apiKey: document.body?.dataset?.mapApiKey ?? '',
+        customUrl: document.body?.dataset?.mapTileUrl ?? '',
+    };
 }
 
 /**
@@ -365,15 +383,39 @@ function currentMapStyle() {
  * @param {number} x
  * @param {number} y
  * @param {boolean} light
- * @param {'standard' | 'terrain'} [style='standard']
+ * @param {string} [style='standard']
+ * @param {{apiKey?: string, customUrl?: string}} [cfg]
+ * @returns {string | null}
  */
-function tileUrl(z, x, y, light, style = 'standard') {
-    if(style === 'terrain') {
+function tileUrl(z, x, y, light, style = 'standard', cfg = {}) {
+    switch(style) {
+    case 'terrain':
         return `https://a.tile.opentopomap.org/${z}/${x}/${y}.png`;
+    case 'cyclosm':
+        return `https://a.tile-cyclosm.openstreetmap.fr/cyclosm/${z}/${x}/${y}.png`;
+    case 'satellite':
+        return `https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/${z}/${y}/${x}`;
+    case 'osm':
+        return `https://tile.openstreetmap.org/${z}/${x}/${y}.png`;
+    case 'thunderforest': {
+        const key = (cfg.apiKey ?? '').trim();
+        if(!key) return null;
+        return `https://tile.thunderforest.com/cycle/${z}/${x}/${y}.png?apikey=${encodeURIComponent(key)}`;
     }
-    return light
-        ? `https://a.basemaps.cartocdn.com/rastertiles/voyager/${z}/${x}/${y}@2x.png`
-        : `https://a.basemaps.cartocdn.com/dark_all/${z}/${x}/${y}@2x.png`;
+    case 'custom': {
+        const tpl = (cfg.customUrl ?? '').trim();
+        if(!tpl || !/^https?:\/\//i.test(tpl)) return null;
+        return tpl
+            .replace(/\{z\}/g, String(z))
+            .replace(/\{x\}/g, String(x))
+            .replace(/\{y\}/g, String(y))
+            .replace(/\{key\}/g, encodeURIComponent((cfg.apiKey ?? '').trim()));
+    }
+    default:
+        return light
+            ? `https://a.basemaps.cartocdn.com/rastertiles/voyager/${z}/${x}/${y}@2x.png`
+            : `https://a.basemaps.cartocdn.com/dark_all/${z}/${x}/${y}@2x.png`;
+    }
 }
 
 /**
@@ -436,7 +478,7 @@ class RouteMap extends HTMLElement {
         this._cursor = null;
         /** @type {string | null} */
         this._metric = null;
-        /** @type {'standard' | 'terrain' | null} */
+        /** @type {string | null} */
         this._mapStyle = null;
         /** @type {{cx: number, cy: number, zoom: number} | null} */
         this._panZoom = null;
@@ -458,8 +500,8 @@ class RouteMap extends HTMLElement {
         this.$controls = null;
         /** @type {HTMLSelectElement | null} */
         this.$metricSelect = null;
-        /** @type {HTMLButtonElement | null} */
-        this.$styleBtn = null;
+        /** @type {HTMLSelectElement | null} */
+        this.$styleSelect = null;
         /** @type {HTMLButtonElement | null} */
         this.$fullBtn = null;
         /** @type {HTMLElement | null} */
@@ -498,15 +540,15 @@ class RouteMap extends HTMLElement {
                 this.setMetric(this.$metricSelect?.value ?? 'none');
             });
 
-            this.$styleBtn = document.createElement('button');
-            this.$styleBtn.type = 'button';
-            this.$styleBtn.className = 'rm-ctrl rm-style-btn';
-            this.$styleBtn.setAttribute('aria-label', 'Switch map style');
-            this.$styleBtn.addEventListener('click', () => {
+            this.$styleSelect = document.createElement('select');
+            this.$styleSelect.className = 'rm-ctrl rm-style-select';
+            this.$styleSelect.setAttribute('aria-label', 'Map style');
+            this.$styleSelect.addEventListener('change', () => {
+                const next = this.$styleSelect?.value ?? 'standard';
                 if(this._mapStyle) {
-                    this.setMapStyle(this._mapStyle === 'terrain' ? 'standard' : 'terrain');
+                    this.setMapStyle(next);
                 } else {
-                    xf.dispatch('ui:mapStyle-switch');
+                    xf.dispatch('ui:mapStyle-set', next);
                 }
             });
 
@@ -515,7 +557,7 @@ class RouteMap extends HTMLElement {
             this.$fullBtn.className = 'rm-ctrl rm-full-btn';
             this.$fullBtn.addEventListener('click', () => this.full ? this.exitFull() : this.enterFull());
 
-            this.$controls.append(this.$metricSelect, this.$styleBtn, this.$fullBtn);
+            this.$controls.append(this.$metricSelect, this.$styleSelect, this.$fullBtn);
             this.append(this.$controls);
         }
         if(!this.$zoomControls) {
@@ -567,7 +609,10 @@ class RouteMap extends HTMLElement {
                 this._syncStyleBtn();
                 this.scheduleDraw();
             });
-            this._theme.observe(document.body, {attributes: true, attributeFilter: ['class', 'data-palette', 'data-map-style']});
+            this._theme.observe(document.body, {
+                attributes: true,
+                attributeFilter: ['class', 'data-palette', 'data-map-style', 'data-map-api-key', 'data-map-tile-url'],
+            });
         }
         this.draw();
     }
@@ -771,25 +816,35 @@ class RouteMap extends HTMLElement {
             : '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg>';
     }
 
-    /** @returns {'standard' | 'terrain'} */
+    /** @returns {string} */
     getMapStyle() {
         return this._mapStyle ?? currentMapStyle();
     }
 
-    /** @param {'standard' | 'terrain' | null} style */
+    /** @param {string | null} style */
     setMapStyle(style) {
-        this._mapStyle = style === 'terrain' || style === 'standard' ? style : null;
+        this._mapStyle = style && Object.prototype.hasOwnProperty.call(MAP_PROVIDERS, style) ? style : null;
         this._syncStyleBtn();
         this.scheduleDraw();
     }
 
     _syncStyleBtn() {
-        if(!this.$styleBtn) return;
-        const style = this.getMapStyle();
-        const isTerrain = style === 'terrain';
-        this.$styleBtn.textContent = isTerrain ? 'Terrain' : 'Map';
-        this.$styleBtn.setAttribute('aria-pressed', String(isTerrain));
-        this.$styleBtn.title = isTerrain ? 'Switch to standard map' : 'Switch to terrain map';
+        if(!this.$styleSelect) return;
+        const active = this.getMapStyle();
+        const cfg = currentMapConfig();
+        const options = ['standard', 'terrain', 'cyclosm', 'satellite', 'osm'];
+        if(cfg.apiKey || active === 'thunderforest') options.push('thunderforest');
+        if(cfg.customUrl || active === 'custom') options.push('custom');
+        const sig = options.join(',');
+        if(this.$styleSelect.dataset.sig !== sig) {
+            this.$styleSelect.dataset.sig = sig;
+            this.$styleSelect.innerHTML = options
+                .map(id => `<option value="${id}">${MAP_PROVIDERS[id].label}</option>`)
+                .join('');
+        }
+        if(this.$styleSelect.value !== active) {
+            this.$styleSelect.value = active;
+        }
     }
 
     /** Return list of metrics that have usable data on the current track (always includes 'none'). */
@@ -918,7 +973,6 @@ class RouteMap extends HTMLElement {
             if(oldest !== undefined) tileCache.delete(oldest);
         }
         const img = new Image();
-        img.crossOrigin = 'anonymous';
         entry = {img, status: 'loading'};
         tileCache.set(url, entry);
         img.onload = () => {
@@ -1065,17 +1119,19 @@ class RouteMap extends HTMLElement {
     /**
      * @param {CanvasRenderingContext2D} ctx
      * @param {ReturnType<typeof makeViewport>} view
-     * @param {'standard' | 'terrain'} [style='standard']
+     * @param {string} [style='standard']
      * @returns {boolean}
      */
     _drawBasemap(ctx, view, style = 'standard') {
         if(typeof navigator !== 'undefined' && navigator.onLine === false) return false;
         const light = isLightTheme();
-        const maxZoom = style === 'terrain' ? TERRAIN_MAX_ZOOM : 18;
-        const tiles = tileRange(view, maxZoom);
+        const provider = MAP_PROVIDERS[style] ?? MAP_PROVIDERS.standard;
+        const cfg = currentMapConfig();
+        const tiles = tileRange(view, provider.maxZoom);
         let drewAny = false;
         for(const t of tiles) {
-            const url = tileUrl(t.z, t.x, t.y, light, style);
+            const url = tileUrl(t.z, t.x, t.y, light, style, cfg);
+            if(!url) continue;
             const entry = this._requestTile(url);
             if(entry && entry.status === 'ready') {
                 try {
@@ -1321,12 +1377,12 @@ class RouteMap extends HTMLElement {
      * @param {number} w
      * @param {number} h
      * @param {ReturnType<RouteMap['_colors']>} c
-     * @param {'standard' | 'terrain'} [style='standard']
+     * @param {string} [style='standard']
      */
     _drawAttribution(ctx, w, h, c, style = 'standard') {
         ctx.save();
         ctx.font = '10px system-ui, -apple-system, sans-serif';
-        const text = style === 'terrain' ? '© OSM · OpenTopoMap' : '© OSM · CARTO';
+        const text = (MAP_PROVIDERS[style] ?? MAP_PROVIDERS.standard).attribution;
         const tw = ctx.measureText ? ctx.measureText(text).width : 76;
         const px = 6;
         const bx = w - tw - px * 2 - 4;
