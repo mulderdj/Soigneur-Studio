@@ -97,6 +97,27 @@ describe('health chart', () => {
         const [a, b] = rangeWindow(model.x, 'all', model.today);
         expect(b - a).toBeGreaterThanOrEqual(DAY);
     });
+
+    test('rolling mean scales with time range (1m daily, 3m 7-day, long all 14-day)', () => {
+        const longHistory = [
+            night('2026-01-01', {hrv: 60, restingHr: 50}),
+            ...many,
+        ];
+        const m1 = healthChart({today: '2026-11-23', wellness: longHistory}, colors, '1m');
+        const m3 = healthChart({today: '2026-11-23', wellness: longHistory}, colors, '3m');
+        const mAll = healthChart({today: '2026-11-23', wellness: longHistory}, colors, 'all');
+
+        expect(m1.model.smoothDays).toBe(1);
+        expect(m3.model.smoothDays).toBe(7);
+        expect(mAll.model.smoothDays).toBe(14);
+        // 1m keeps raw alternating values; 3m smooths them toward ~55
+        expect(m1.model.series[2].values.at(-1)).toBe(50);
+        expect(m3.model.series[2].values.at(-1)).toBeCloseTo(54.3, 1);
+        // Hover readout keeps exact nightly value and appends rolling average note
+        const r = m3.readout(longHistory.length - 1);
+        expect(r.rows[0].value).toBe('50 ms');
+        expect(r.more[0]).toMatch(/7-day avg: HRV 54 ms · RHR 52 bpm/);
+    });
 });
 
 describe('weekly volume and time in zones', () => {

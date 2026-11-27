@@ -54,11 +54,12 @@ class HealthCard extends UPlotCard {
     }
 
     foot() {
-        return '<p class="card__note hc-legend"><span class="hc-key hc-key--hrv"></span>HRV (ms) <span class="hc-key hc-key--rest"></span>Resting heart rate (bpm) <span class="hc-key hc-key--band"></span>Normal HRV range</p>';
+        const smooth = this.model?.smoothDays > 1 ? ` · ${this.model.smoothDays}-day avg` : ' · daily';
+        return `<p class="card__note hc-legend"><span class="hc-key hc-key--hrv"></span>HRV (ms) <span class="hc-key hc-key--rest"></span>Resting heart rate (bpm) <span class="hc-key hc-key--band"></span>Normal HRV range${smooth}</p>`;
     }
 
     chart() {
-        return healthChart(this.data, {accent: token(this, '--accent'), hr: token(this, '--hr'), band: token(this, '--band', 'rgba(76,154,255,0.15)')});
+        return healthChart(this.data, {accent: token(this, '--accent'), hr: token(this, '--hr'), band: token(this, '--band', 'rgba(76,154,255,0.15)')}, this.range ?? '3m');
     }
 }
 

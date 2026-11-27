@@ -110,39 +110,79 @@ function formChart(data, colors = {}) {
     return {model, readout};
 }
 
-// HRV with each night's own normal range as a band, and resting heart rate
-function healthChart(data, colors = {}) {
+function healthSmoothDays(range, days) {
+    if(range === '1m') return 1;
+    if(range === 'all' && days.length > 1) {
+        const spanDays = (daySec(days[days.length - 1].day) - daySec(days[0].day)) / 86400;
+        return spanDays > 180 ? 14 : 7;
+    }
+    return 7;
+}
+
+// Trailing calendar-day rolling mean for wellness metrics (HRV, resting HR).
+// Preserves null on nights without a reading when windowDays === 1.
+function rollingWellness(days, key, windowDays) {
+    if(windowDays <= 1) return days.map(d => (has(d[key]) ? d[key] : null));
+    const secs = days.map(d => daySec(d.day));
+    const span = (windowDays - 1) * 86400;
+    return days.map((d, i) => {
+        if(!has(d[key])) return null;
+        const from = secs[i] - span;
+        let sum = 0, count = 0;
+        for(let j = i; j >= 0 && secs[j] >= from; j--) {
+            const v = days[j][key];
+            if(has(v)) { sum += v; count++; }
+        }
+        return count > 0 ? Math.round((sum / count) * 10) / 10 : null;
+    });
+}
+
+// HRV with each night's own normal range as a band, and resting heart rate.
+// Applies a rolling mean whose window scales with the chosen range (1m: daily,
+// 3m: 7-day, all: 7-day or 14-day), while hover read-outs keep exact nightly values.
+function healthChart(data, colors = {}, range = '3m') {
     const days = sortedDays(data.wellness ?? []);
     const ranges = days.map(d => hrvRangeOn(d.day, days));
+    const smoothDays = healthSmoothDays(range, days);
+    const hrvLine = rollingWellness(days, 'hrv', smoothDays);
+    const rhrLine = rollingWellness(days, 'restingHr', smoothDays);
     const model = {
         x: days.map(d => daySec(d.day)),
         series: [
             {label: 'Range high', color: 'transparent', width: 0, values: ranges.map(r => r?.high ?? null)},
             {label: 'Range low', color: 'transparent', width: 0, values: ranges.map(r => r?.low ?? null)},
-            {label: 'HRV', color: colors.accent, width: 2.5, values: days.map(d => (has(d.hrv) ? d.hrv : null))},
-            {label: 'Resting HR', color: colors.hr, width: 1.5, values: days.map(d => (has(d.restingHr) ? d.restingHr : null))},
+            {label: 'HRV', color: colors.accent, width: 2.5, values: hrvLine},
+            {label: 'Resting HR', color: colors.hr, width: 1.5, values: rhrLine},
         ],
         bands: [[1, 2, colors.band]],
         ranges: [['1m', '1 month'], ['3m', '3 months'], ['all', 'All']],
         defaultRange: '3m',
         today: daySec(data.today),
+        smoothDays,
         zoom: true,
         sync: 'days',
     };
     const readout = (i) => {
         const d = days[i];
         if(!d) return null;
-        const range = ranges[i];
+        const r = ranges[i];
         const rows = [];
         if(has(d.hrv)) {
-            const state = !range ? null : d.hrv < range.low ? 'below' : d.hrv > range.high ? 'above' : 'in';
+            const state = !r ? null : d.hrv < r.low ? 'below' : d.hrv > r.high ? 'above' : 'in';
             rows.push({label: 'HRV', color: colors.accent, value: `${Math.round(d.hrv)} ms`,
-                       note: state ? `${state} your range (${range.low}–${range.high})` : 'no range yet'});
+                       note: state ? `${state} your range (${r.low}–${r.high})` : 'no range yet'});
         }
         if(has(d.restingHr)) rows.push({label: 'Resting HR', color: colors.hr, value: `${d.restingHr} bpm`});
         if(has(d.sleepSeconds)) rows.push({label: 'Sleep', value: fmtDuration(d.sleepSeconds), note: has(d.sleepScore) ? `score ${d.sleepScore}` : undefined});
         if(has(d.bodyBattery)) rows.push({label: 'Body Battery', value: String(d.bodyBattery)});
-        return {title: longDay(d.day), rows, more: [], day: d.day};
+        const more = [];
+        if(smoothDays > 1) {
+            const parts = [];
+            if(has(hrvLine[i])) parts.push(`HRV ${Math.round(hrvLine[i])} ms`);
+            if(has(rhrLine[i])) parts.push(`RHR ${Math.round(rhrLine[i])} bpm`);
+            if(parts.length) more.push(`${smoothDays}-day avg: ${parts.join(' · ')}`);
+        }
+        return {title: longDay(d.day), rows, more, day: d.day};
     };
     return {model, readout};
 }
