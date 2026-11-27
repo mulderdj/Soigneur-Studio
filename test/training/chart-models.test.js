@@ -237,4 +237,63 @@ describe('power curve and FTP trend', () => {
         expect(o.more).toEqual(['No 20 or 60-minute effort in the 6 weeks before']);
         expect(o.day).toBeUndefined();
     });
+
+    test('power curve comparison modes (90d vs all time, prior season) and delta readout', () => {
+        const withPrior = {
+            ...data,
+            summaries: [
+                ...data.summaries,
+                r('prior', '2025-08-15', best(800, 410, 290, 260, 240), 75, 'Last year'),
+            ],
+        };
+        const cAll = curveChart(withPrior, 'w', {}, null, 'all');
+        expect(cAll.readout(3).more[0]).toMatch(/Last 6 weeks vs all time: −17 W \(−6\.0 %\)/);
+
+        const c90 = curveChart(withPrior, 'w', {}, null, '90d');
+        expect(c90.model.series.map(s => s.label)).toEqual(['Last 90 days', 'All time']);
+        expect(c90.readout(3).more[0]).toBe('Last 90 days vs all time: Matches best (100 %)');
+
+        const cPrior = curveChart(withPrior, 'w', {}, null, 'prior');
+        expect(cPrior.model.series.map(s => s.label)).toEqual(['Last 90 days', 'Prior season']);
+        expect(cPrior.readout(3).rows.map(x => [x.label, x.value])).toEqual([['Last 90 days', '285 W'], ['Prior season', '260 W']]);
+        expect(cPrior.readout(3).more[0]).toMatch(/Last 90 days vs prior season: \+25 W \(\+9\.6 %\)/);
+
+        const cPriorWkg = curveChart(withPrior, 'wkg', {}, null, 'prior');
+        expect(cPriorWkg.readout(3).more[0]).toMatch(/\+0\.33 W\/kg/);
+    });
+});
+
+describe('CP and W′ trend chart', () => {
+    const { cpTrendChart } = require('../../src/views/training/chart-models.js');
+    const trend = [
+        {week: '2026-11-02', end: '2026-11-08', cp: null, wprime: null, r2: null},
+        {week: '2026-11-09', end: '2026-11-15', cp: 260, wprime: 19500, r2: 0.994},
+        {week: '2026-11-16', end: '2026-11-22', cp: 268, wprime: 21000, r2: 0.996},
+    ];
+
+    test('plots CP on y and W′ (kJ) on y2 with 12w/24w ranges and readouts', () => {
+        const {model, readout} = cpTrendChart({today: '2026-11-22', trend}, {accent: 'a', good: 'g'});
+        expect(model.x).toHaveLength(3);
+        expect(model.ranges.map(r => r[0])).toEqual(['12w', '24w']);
+        expect(model.defaultRange).toBe('12w');
+        expect(model.series.map(s => [s.label, s.scale ?? 'y'])).toEqual([['CP', 'y'], ['W′', 'y2']]);
+        expect(model.series[0].values).toEqual([null, 260, 268]);
+        expect(model.series[1].values).toEqual([null, 19.5, 21]);
+        expect(model.yFormat(268)).toBe('268 W');
+        expect(model.y2Format(21)).toBe('21.0 kJ');
+
+        const o = readout(2);
+        expect(o.rows.map(x => [x.label, x.value])).toEqual([['CP', '268 W'], ['W′', '21.0 kJ'], ['Fit', 'R² 0.996']]);
+        expect(o.more).toEqual(['Rolling 90-day fit']);
+
+        const empty = readout(0);
+        expect(empty.rows.map(x => [x.label, x.value])).toEqual([['CP', '–'], ['W′', '–']]);
+        expect(empty.more[0]).toMatch(/Not enough 2–20 min efforts/);
+    });
+
+    test('returns an empty model when no week can be fitted', () => {
+        const {model} = cpTrendChart({today: '2026-11-22', summaries: []}, {});
+        expect(model.x).toEqual([]);
+        expect(model.series).toEqual([]);
+    });
 });

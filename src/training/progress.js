@@ -70,13 +70,16 @@ function bests(list) {
     return {watts, wkg, from};
 }
 
-function powerCurve(all, today) {
+function powerCurve(all, today, {recentDays = RECENT_DAYS, compare = 'all'} = {}) {
     const summaries = all.filter(isCycling);
-    return {
-        windows: WINDOWS,
-        recent: bests(between(summaries, addDays(today, -(RECENT_DAYS - 1)), today)),
-        allTime: bests(summaries.filter(s => s.day <= today)),
-    };
+    const seasonStart = `${String(today).slice(0, 4)}-01-01`;
+    const recent = bests(between(summaries, addDays(today, -(recentDays - 1)), today));
+    const allTime = bests(summaries.filter(s => s.day <= today));
+    if(compare === 'prior') {
+        const priorSeason = bests(summaries.filter(s => s.day < seasonStart));
+        return {windows: WINDOWS, recent, allTime, priorSeason};
+    }
+    return {windows: WINDOWS, recent, allTime};
 }
 
 // FTP from the best 20 minutes (× 0.95) or 60 minutes, whichever is

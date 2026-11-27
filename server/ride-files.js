@@ -25,6 +25,51 @@ const MESSAGES = {
 };
 const STATUS = {'not-connected': 409, 'strava': 404, 'refused': 502, 'unreadable': 502, 'not-found': 404};
 
+let fitToolsPromise = null;
+function loadFitTools() {
+    fitToolsPromise ??= Promise.all([
+        import('../src/training/fit-records.js'),
+        import('../src/training/summary.js'),
+        import('../src/analytics.js'),
+    ]).then(([rec, sum, an]) => ({
+        fitToSamples: rec.fitToSamples,
+        decouplingOf: sum.decouplingOf,
+        durabilityPowers: sum.durabilityPowers,
+        DECOUPLING_MIN: sum.DECOUPLING_MIN,
+        STEADY_VI: sum.STEADY_VI,
+        SessionStats: an.SessionStats,
+    }));
+    return fitToolsPromise;
+}
+
+// aerobic decoupling and durability from a .fit buffer, using the same
+// per-second statistics as src/training/summary.js; null when unreadable
+async function fitMetrics(fit) {
+    if(!fit || fit.length < 14) return null;
+    const {fitToSamples, decouplingOf, durabilityPowers, DECOUPLING_MIN, STEADY_VI, SessionStats} = await loadFitTools();
+    const view = new DataView(fit.buffer, fit.byteOffset, fit.byteLength);
+    const read = fitToSamples(view);
+    if(!read.samples.length) return null;
+    let hasPower = false, hrN = 0;
+    const powers = new Array(read.samples.length);
+    for(let i = 0; i < read.samples.length; i++) {
+        const s = read.samples[i];
+        powers[i] = s.power;
+        if(s.power > 0) hasPower = true;
+        if(s.heartRate > 0) hrN++;
+    }
+    if(!hasPower) return {decoupling: null, durability: null};
+    const durability = durabilityPowers(powers);
+    let decoupling = null;
+    if(hrN > 0 && read.samples.length >= DECOUPLING_MIN) {
+        const stats = new SessionStats({ftp: read.ftp || 250});
+        for(const s of read.samples) stats.push({power: s.power, heartRate: s.heartRate, cadence: s.cadence});
+        const {vi} = stats.summary();
+        if(vi > 0 && vi <= STEADY_VI) decoupling = decouplingOf(read.samples);
+    }
+    return {decoupling, durability};
+}
+
 class RideFileError extends Error {
     constructor(reason, detail = '') {
         super(detail || MESSAGES[reason]);
@@ -42,14 +87,63 @@ function createRideFiles({db, ownFit, garmin, intervals, now = () => Date.now(),
             fetched_at INTEGER NOT NULL,
             PRIMARY KEY (user_id, id)
         );
+        CREATE TABLE IF NOT EXISTS ride_file_checked (
+            user_id    TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+            id         TEXT NOT NULL,
+            PRIMARY KEY (user_id, id)
+        );
+        CREATE TABLE IF NOT EXISTS external_rides (
+            user_id    TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+            id         TEXT NOT NULL,
+            summary    TEXT NOT NULL,
+            day        TEXT NOT NULL,
+            fingerprint TEXT,
+            updated_at INTEGER NOT NULL,
+            PRIMARY KEY (user_id, id)
+        );
     `);
     const q = {
-        get:    db.prepare('SELECT fit FROM ride_files WHERE user_id = ? AND id = ?'),
-        put:    db.prepare('INSERT OR REPLACE INTO ride_files (user_id, id, fit, bytes, fetched_at) VALUES (?, ?, ?, ?, ?)'),
-        all:    db.prepare('SELECT id, bytes FROM ride_files WHERE user_id = ? ORDER BY fetched_at DESC, rowid DESC'),
-        drop:   db.prepare('DELETE FROM ride_files WHERE user_id = ? AND id = ?'),
-        forget: db.prepare('DELETE FROM ride_files WHERE user_id = ? AND id LIKE ?'),
+        get:           db.prepare('SELECT fit FROM ride_files WHERE user_id = ? AND id = ?'),
+        put:           db.prepare('INSERT OR REPLACE INTO ride_files (user_id, id, fit, bytes, fetched_at) VALUES (?, ?, ?, ?, ?)'),
+        all:           db.prepare('SELECT id, bytes FROM ride_files WHERE user_id = ? ORDER BY fetched_at DESC, rowid DESC'),
+        drop:          db.prepare('DELETE FROM ride_files WHERE user_id = ? AND id = ?'),
+        forget:        db.prepare('DELETE FROM ride_files WHERE user_id = ? AND id LIKE ?'),
+        checked:       db.prepare('SELECT 1 FROM ride_file_checked WHERE user_id = ? AND id = ?'),
+        markChecked:   db.prepare('INSERT OR IGNORE INTO ride_file_checked (user_id, id) VALUES (?, ?)'),
+        forgetChecked: db.prepare('DELETE FROM ride_file_checked WHERE user_id = ? AND id LIKE ?'),
+        extGet:        db.prepare('SELECT summary FROM external_rides WHERE user_id = ? AND id = ?'),
+        extSet:        db.prepare('UPDATE external_rides SET summary = ?, updated_at = ? WHERE user_id = ? AND id = ?'),
     };
+    const metricsCache = new Map();
+
+    async function metricsFor(userId, id, fit) {
+        const key = `${userId}|${id}`;
+        if(metricsCache.has(key)) return metricsCache.get(key);
+        const m = await fitMetrics(fit).catch(() => null);
+        if(metricsCache.size >= 500) metricsCache.delete(metricsCache.keys().next().value);
+        metricsCache.set(key, m);
+        return m;
+    }
+
+    function mergeMetrics(summary, metrics) {
+        if(!metrics || (summary?.sport ?? 'cycling') !== 'cycling') return summary;
+        return {
+            ...summary,
+            decoupling: metrics.decoupling ?? summary.decoupling ?? null,
+            durability: metrics.durability ?? summary.durability ?? null,
+        };
+    }
+
+    function applyToExternal(userId, id, metrics) {
+        if(!metrics) return;
+        const row = q.extGet.get(userId, id);
+        if(!row) return;
+        let summary;
+        try { summary = JSON.parse(row.summary); } catch(e) { return; }
+        const next = mergeMetrics(summary, metrics);
+        const json = JSON.stringify(next);
+        if(json !== row.summary) q.extSet.run(json, now(), userId, id);
+    }
 
     function keep(userId, id, fit) {
         q.put.run(userId, id, fit, fit.length, now());
@@ -82,7 +176,12 @@ function createRideFiles({db, ownFit, garmin, intervals, now = () => Date.now(),
         const own = ownFit(userId, id);
         if(own) return Buffer.from(own);
         const kept = q.get.get(userId, id);
-        if(kept) return Buffer.from(kept.fit);
+        if(kept) {
+            const buf = Buffer.from(kept.fit);
+            const metrics = await metricsFor(userId, id, buf);
+            applyToExternal(userId, id, metrics);
+            return buf;
+        }
         const key = `${userId}|${id}`;
         let p = inFlight.get(key);
         if(!p) {
@@ -90,6 +189,9 @@ function createRideFiles({db, ownFit, garmin, intervals, now = () => Date.now(),
                 const fit = await fetchOutside(userId, id);
                 if(!fit) throw new RideFileError('not-found');
                 keep(userId, id, fit);
+                q.markChecked.run(userId, id);
+                const metrics = await metricsFor(userId, id, fit);
+                applyToExternal(userId, id, metrics);
                 return fit;
             })().finally(() => inFlight.delete(key));
             inFlight.set(key, p);
@@ -97,9 +199,44 @@ function createRideFiles({db, ownFit, garmin, intervals, now = () => Date.now(),
         return p;
     }
 
+    // enrich an external cycling summary with decoupling and durability from
+    // its .fit (cached in ride_files, or fetched gracefully when allowed)
+    async function enrichSummary(userId, summary, {allowDownload = true} = {}) {
+        const qualifies = summary?.sport === 'cycling' && !summary.auukiRideId &&
+            (summary.avgPower > 0 || summary.np > 0 || summary.kj > 0) &&
+            ((summary.duration ?? 0) >= 45 * 60 || (summary.kj ?? 0) >= 1000);
+        if(!qualifies) return {summary, downloaded: false};
+        const kept = q.get.get(userId, summary.id);
+        if(kept) {
+            const metrics = await metricsFor(userId, summary.id, Buffer.from(kept.fit));
+            return {summary: mergeMetrics(summary, metrics), downloaded: false};
+        }
+        if(!allowDownload || q.checked.get(userId, summary.id)) return {summary, downloaded: false};
+        if(String(summary.remote?.source ?? '').toUpperCase() === 'STRAVA') {
+            q.markChecked.run(userId, summary.id);
+            return {summary, downloaded: false};
+        }
+        try {
+            const fit = await get(userId, summary.id);
+            const metrics = await metricsFor(userId, summary.id, fit);
+            return {summary: mergeMetrics(summary, metrics), downloaded: true};
+        } catch(e) {
+            if(e.reason === 'not-found' || e.reason === 'strava' || e.reason === 'unreadable') {
+                q.markChecked.run(userId, summary.id);
+            }
+            return {summary, downloaded: true};
+        }
+    }
+
     function forget(userId, service) {
         const prefix = service === 'garmin' ? 'garmin-' : service === 'intervals' ? 'icu-' : null;
-        if(prefix) q.forget.run(userId, `${prefix}%`);
+        if(prefix) {
+            q.forget.run(userId, `${prefix}%`);
+            q.forgetChecked.run(userId, `${prefix}%`);
+            for(const k of metricsCache.keys()) {
+                if(k.startsWith(`${userId}|${prefix}`)) metricsCache.delete(k);
+            }
+        }
     }
 
     function routes(route, {validId}) {
@@ -115,7 +252,7 @@ function createRideFiles({db, ownFit, garmin, intervals, now = () => Date.now(),
         }, {auth: true});
     }
 
-    return {get, forget, routes};
+    return {get, forget, enrichSummary, routes};
 }
 
-module.exports = { createRideFiles, RideFileError, MESSAGES };
+module.exports = { createRideFiles, fitMetrics, RideFileError, MESSAGES };

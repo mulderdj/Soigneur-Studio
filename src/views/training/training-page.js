@@ -51,6 +51,7 @@ class TrainingPage extends HTMLElement {
                 <efficiency-card class="card"></efficiency-card>
                 <readiness-perf-card class="card"></readiness-perf-card>
                 <decoupling-card class="card"></decoupling-card>
+                <compliance-card class="card"></compliance-card>
                 <durability-card class="card"></durability-card>
             </div>
             <day-dialog></day-dialog>`;
@@ -64,7 +65,7 @@ class TrainingPage extends HTMLElement {
             cards: {readiness: card('.tp-readiness'), form: card('.tp-form'), week: card('.tp-week'), health: card('.tp-health'), calendar: card('.tp-calendar'),
                     volume: card('volume-card'), curve: card('curve-card'), model: card('model-card'), profile: card('profile-card'), zones: card('zones-card'), ftp: card('ftp-card'),
                     efficiency: card('efficiency-card'), 'readiness-perf': card('readiness-perf-card'),
-                    decoupling: card('decoupling-card'), durability: card('durability-card')},
+                    decoupling: card('decoupling-card'), compliance: card('compliance-card'), durability: card('durability-card')},
         });
         this.querySelector('[data-import-fit]').addEventListener('click', () => this.$file.click());
         this.$file.addEventListener('change', () => this.importFiles());

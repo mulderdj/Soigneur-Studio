@@ -55,7 +55,11 @@ function createGarminSync({db, options = {}}) {
     const pauseMs = options.pauseMs ?? 200;
     const maxWaitMs = options.maxWaitMs ?? 5 * 60 * 1000;
     const syncEveryMs = options.syncEveryMs ?? 15 * 60 * 1000;
+    const enrichDays = options.enrichDays ?? 90;
+    const enrichMax = options.enrichMax ?? 20;
     const now = () => Date.now();
+    let rideFiles = null;
+    function setRideFiles(rf) { rideFiles = rf; }
 
     db.exec(`
         CREATE TABLE IF NOT EXISTS external_rides (
@@ -241,15 +245,29 @@ function createGarminSync({db, options = {}}) {
         const stale = q.staleRide.get(userId, MAPPING)?.day;
         if(stale && stale < from) from = stale;
         const to = isoDay(now() + DAY_MS);
+        const enrichCutoff = isoDay(now() - enrichDays * DAY_MS);
+        let downloads = 0;
         const MAX_PAGES = 200;
         for(let start = 0, pages = 0; pages < MAX_PAGES; start += PAGE, pages++) {
             const page = await get(`/activitylist-service/activities/search/activities?start=${start}&limit=${PAGE}&startDate=${from}&endDate=${to}`);
             const list = Array.isArray(page) ? page : (Array.isArray(page?.activityList) ? page.activityList : []);
             for(const a of list) {
-                const s = toSummary(a);
+                let s = toSummary(a);
                 if(!s) continue;
-                const json = JSON.stringify(s);
                 const stored = q.ride.get(userId, s.id);
+                if(stored?.summary) {
+                    try {
+                        const prev = JSON.parse(stored.summary);
+                        if(prev.decoupling !== null && prev.decoupling !== undefined) s = {...s, decoupling: prev.decoupling};
+                        if(prev.durability !== null && prev.durability !== undefined) s = {...s, durability: prev.durability};
+                    } catch(e) {}
+                }
+                if(rideFiles && s.durability === null && s.decoupling === null) {
+                    const out = await rideFiles.enrichSummary(userId, s, {allowDownload: downloads < enrichMax && s.day >= enrichCutoff});
+                    s = out.summary;
+                    if(out.downloaded) downloads++;
+                }
+                const json = JSON.stringify(s);
                 if(stored?.summary === json) {                          // unchanged
                     if(stored.fingerprint !== MAPPING) q.markRide.run(MAPPING, userId, s.id);
                     continue;
@@ -400,7 +418,7 @@ function createGarminSync({db, options = {}}) {
         }, {auth: true});
     }
 
-    return {run, status, start, close, routes, download, setOnDisconnect};
+    return {run, status, start, close, routes, download, setOnDisconnect, setRideFiles};
 }
 
 module.exports = { createGarminSync, GarminError, jwtExp };

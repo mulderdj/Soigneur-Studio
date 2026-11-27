@@ -6,6 +6,23 @@ import zlib from 'node:zlib';
 import { createRequire } from 'node:module';
 const require = createRequire(import.meta.url);
 const { createApp } = require('./app.js');
+const { fitMetrics } = require('./ride-files.js');
+import { fit as fitCodec } from '../src/fit/fit.js';
+
+function steadyFit({seconds = 5400, power = 220, hr1 = 140, hr2 = 150} = {}) {
+    const start = Date.UTC(2026, 10, 20, 8, 0, 0);
+    const half = Math.floor(seconds / 2);
+    const records = Array.from({length: seconds}, (_, i) => ({
+        timestamp: start + i * 1000,
+        power,
+        cadence: 88,
+        speed: 9,
+        heart_rate: i < half ? hr1 : hr2,
+        distance: i * 9,
+    }));
+    const view = fitCodec.localActivity.encode({records, laps: [], events: [], ftp: 250});
+    return Buffer.from(view.buffer, view.byteOffset, view.byteLength);
+}
 
 const fit = (tag, n = 200) => { const b = Buffer.alloc(n, tag); b[0] = 14; b.write('.FIT', 8, 'ascii'); return b; };
 function zipOne(name, data) {
@@ -151,5 +168,35 @@ test('kept files: the oldest go past the cap; disconnecting a source forgets its
         assert.deepEqual(kept(), ['icu-i222']);
         await t.call('DELETE', '/api/me/connections/intervals', {token: t.token});
         assert.deepEqual(kept(), []);
+    } finally { t.stop(); }
+});
+
+test('fitMetrics computes decoupling and durability from a real .fit buffer', async () => {
+    const buf = steadyFit({seconds: 5400, power: 220, hr1: 140, hr2: 150});
+    const m = await fitMetrics(buf);
+    assert.ok(m !== null);
+    assert.ok(m.decoupling > 4 && m.decoupling < 12, `unexpected decoupling: ${m.decoupling}`);
+    assert.equal(m.durability[1000][300], 220);
+    assert.equal(await fitMetrics(Buffer.from('short')), null);
+});
+
+test('fetching an external ride .fit enriches its stored external_rides summary', async () => {
+    const t = await setup();
+    try {
+        t.connect('garmin', {apiKey: 'gpk_x', expiresOn: '2027-01-01'});
+        t.fake.state.garmin['777'] = zipOne('777_ACTIVITY.fit', steadyFit());
+        const baseSummary = {
+            id: 'garmin-777', day: '2026-11-20', sport: 'cycling', duration: 5400,
+            avgPower: 220, np: 220, kj: 1188, decoupling: null, durability: null,
+        };
+        t.app.db.prepare('INSERT INTO external_rides (user_id, id, summary, day, fingerprint, updated_at) VALUES (?, ?, ?, ?, ?, ?)')
+            .run(t.userId, 'garmin-777', JSON.stringify(baseSummary), '2026-11-20', 'm', Date.now());
+
+        const r = await t.call('GET', '/api/me/rides/garmin-777/file', {token: t.token});
+        assert.equal(r.status, 200);
+        const row = t.app.db.prepare('SELECT summary FROM external_rides WHERE user_id = ? AND id = ?').get(t.userId, 'garmin-777');
+        const enriched = JSON.parse(row.summary);
+        assert.ok(enriched.decoupling > 4, `expected decoupling, got ${enriched.decoupling}`);
+        assert.equal(enriched.durability[1000][300], 220);
     } finally { t.stop(); }
 });

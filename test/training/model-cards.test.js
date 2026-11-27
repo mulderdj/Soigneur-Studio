@@ -1,6 +1,8 @@
 /**
  * @jest-environment jsdom
  */
+import './browser-stubs.js';
+import { UPlotCard } from '../../src/views/training/uplot-chart.js';
 import '../../src/views/training/model-cards.js';
 import { modelSettings } from '../../src/training/rider-model-settings.js';
 import { currentModel } from '../../src/training/rider-model.js';
@@ -78,6 +80,34 @@ describe('the CP and W′ card', () => {
         const el = mount('model-card');
         changed(model());
         expect(el.querySelector('[data-mc="ride-test"]')).toBeNull();
+    });
+    test('Trend view mounts cp-trend-plot, hides mode toggle, and shows delta note', () => {
+        const orig = UPlotCard.uPlot;
+        const plots = [];
+        UPlotCard.uPlot = class {
+            constructor(opts, data, root) { this.opts = opts; this.data = data; this.over = document.createElement('div'); root.append(this.over); plots.push(this); }
+            setScale() {}
+            setSize() {}
+            destroy() {}
+        };
+        try {
+            const historyRides = [
+                {id: 'old', day: '2026-10-10', name: 'Earlier', sport: 'cycling', best: curve(250, 18000)},
+                {id: 'new', day: '2026-11-20', name: 'Recent', sport: 'cycling', best: curve(270, 22000)},
+            ];
+            const el = mount('model-card', {summaries: historyRides});
+            changed(model(undefined, historyRides));
+            el.querySelector('[data-mc-view="trend"]').click();
+            expect(el.querySelector('cp-trend-plot')).not.toBeNull();
+            expect(el.querySelector('[data-mode="auto"]')).toBeNull();
+            expect(plots.length).toBeGreaterThan(0);
+            expect(el.querySelector('[data-k="trend-delta"]').textContent).toMatch(/Since .*CP \+\d+ W, W′ \+\d+\.\d kJ/);
+            el.querySelector('[data-mc-view="now"]').click();
+            expect(el.querySelector('cp-trend-plot')).toBeNull();
+            expect(el.querySelector('[data-mode="auto"]')).not.toBeNull();
+        } finally {
+            UPlotCard.uPlot = orig;
+        }
     });
 });
 

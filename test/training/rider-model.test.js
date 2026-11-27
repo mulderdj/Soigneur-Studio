@@ -1,7 +1,7 @@
 /**
  * @jest-environment jsdom
  */
-import { meanMaximal, fitCp, effective, offer, powerProfile, CATEGORIES, currentModel } from '../../src/training/rider-model.js';
+import { meanMaximal, fitCp, cpTrend, effective, offer, powerProfile, CATEGORIES, currentModel } from '../../src/training/rider-model.js';
 import { modelSettings } from '../../src/training/rider-model-settings.js';
 import { DURATIONS } from '../../src/training/summary.js';
 
@@ -130,5 +130,42 @@ describe('the model now, for the app', () => {
         const m = currentModel({summaries: [ride('a', 100, curve(270, 22000))], today, ftp: 250, typedWprime: 20000, settings: {mode: 'auto', use: null, table: 'men'}});
         expect(m.fit.ok).toBe(false);
         expect(m.effective).toEqual({cp: 250, wprime: 20000, source: 'settings'});
+    });
+    test('currentModel includes the 24-week rolling CP/W′ trend', () => {
+        const m = currentModel({summaries: [ride('a', 5, curve(270, 22000))], today, ftp: 250, typedWprime: 20000, settings: {mode: 'ask', use: null, table: 'men'}});
+        expect(m.trend).toHaveLength(24);
+        expect(m.trend.at(-1).cp).toBeCloseTo(270, -1);
+    });
+});
+
+describe('rolling CP and W′ trend', () => {
+    test('weekly 90-day fits track rising CP/W′, ignore runs, and leave unfitted weeks null', () => {
+        const rides = [
+            ride('early', 42, curve(250, 18000)),
+            ride('recent', 3, curve(275, 22000)),
+            ride('run', 2, curve(400, 30000), {sport: 'run'}),
+            ride('future', -5, curve(350, 30000)),
+        ];
+        const rows = cpTrend(rides, today, 10, 90);
+        expect(rows).toHaveLength(10);
+        expect(rows[0].week < rows[9].week).toBe(true);
+        expect(rows[0].cp).toBeNull();                          // before early ride
+        const mid = rows.find(r => r.week === '2026-10-12');    // after early, before recent
+        expect(mid.cp).toBeCloseTo(250, -1);
+        expect(mid.wprime).toBeGreaterThan(16500);
+        expect(mid.wprime).toBeLessThan(19500);
+        expect(mid.r2).toBeGreaterThan(0.99);
+        const last = rows.at(-1);
+        expect(last.end).toBe(today);
+        expect(last.cp).toBeCloseTo(275, -1);                   // higher recent curve, run/future ignored
+        expect(last.wprime).toBeGreaterThan(20500);
+    });
+
+    test('empty or invalid arguments return []', () => {
+        expect(cpTrend([], null)).toEqual([]);
+        expect(cpTrend([], today, 0)).toEqual([]);
+        const empty = cpTrend([], today, 4);
+        expect(empty).toHaveLength(4);
+        expect(empty.every(r => r.cp === null && r.wprime === null && r.r2 === null)).toBe(true);
     });
 });

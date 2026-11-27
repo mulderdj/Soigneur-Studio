@@ -12,9 +12,10 @@
 //
 
 import { xf } from '../../functions.js';
-import { powerProfile, CATEGORIES } from '../../training/rider-model.js';
+import { powerProfile, cpTrend, CATEGORIES } from '../../training/rider-model.js';
 import { modelSettings } from '../../training/rider-model-settings.js';
-import { durationLabel } from './chart-models.js';
+import { UPlotCard, token } from './uplot-chart.js';
+import { durationLabel, cpTrendChart } from './chart-models.js';
 import { esc, fmtDay } from './format.js';
 
 let latest = null;
@@ -54,10 +55,33 @@ class ModelCardBase extends HTMLElement {
     get model() { return latest; }
 }
 
+class CpTrendPlot extends UPlotCard {
+    head() { return ''; }
+    emptyText() { return 'Needs 2–20 minute best efforts across weeks to plot how CP and W′ move.'; }
+    foot() {
+        const fitted = (this.result?.rows ?? []).filter(r => r.cp !== null);
+        let delta = '';
+        if(fitted.length >= 2) {
+            const first = fitted[0], last = fitted[fitted.length - 1];
+            const dCp = last.cp - first.cp;
+            const dWp = (last.wprime - first.wprime) / 1000;
+            const fmtS = (v, u, d = 0) => `${v > 0 ? '+' : v < 0 ? '−' : '±'}${Math.abs(v).toFixed(d)} ${u}`;
+            delta = `<p class="card__note" data-k="trend-delta">Since ${esc(fmtDay(first.week, {day: 'numeric', month: 'short'}))}: CP ${fmtS(dCp, 'W')}, W′ ${fmtS(dWp, 'kJ', 1)}.</p>`;
+        }
+        return `<p class="card__note pc-legend"><span class="pc-key pc-key--recent"></span> CP (W) <span class="pc-key pc-key--model"></span> W′ (kJ)</p>${delta}<p class="card__note">Rolling 90-day CP and W′ fitted at the end of each week.</p>`;
+    }
+    chart() {
+        this.result = cpTrendChart(this.data, {accent: token(this, '--accent'), good: token(this, '--good')});
+        return this.result;
+    }
+}
+customElements.define('cp-trend-plot', CpTrendPlot);
+
 class ModelCard extends ModelCardBase {
     onClick(e) {
-        const b = e.target.closest('[data-mc], [data-mode]');
+        const b = e.target.closest('[data-mc], [data-mode], [data-mc-view]');
         if(!b) return;
+        if(b.dataset.mcView) { this.view = b.dataset.mcView; this.render(); return; }
         if(b.dataset.mode) modelSettings.set({mode: b.dataset.mode});
         else if(b.dataset.mc === 'use' && this.model?.offer) modelSettings.set({use: {cp: this.model.offer.cp, wprime: this.model.offer.wprime}});
         else if(b.dataset.mc === 'unuse') modelSettings.set({use: null});
@@ -68,10 +92,18 @@ class ModelCard extends ModelCardBase {
     render() {
         if(!this.isConnected) return;
         const m = this.model, d = this._data ?? {};
+        const view = this.view ?? 'now';
         const settings = modelSettings.get();
-        const head = `<div class="pc-head"><h2 class="card__title">CP and W′</h2>${
-            segmented('Use the model', 'mode', [['ask', 'Ask me'], ['auto', 'Automatically']], settings.mode)}</div>`;
-        if(!m) { this.innerHTML = `${head}<p class="card__note">Working out your model…</p>`; return; }
+        const viewToggle = segmented('Model view', 'mc-view', [['now', 'Now'], ['trend', 'Trend']], view);
+        const modeToggle = view === 'now' ? segmented('Use the model', 'mode', [['ask', 'Ask me'], ['auto', 'Automatically']], settings.mode) : '';
+        const head = `<div class="pc-head"><h2 class="card__title">CP and W′</h2><div class="mc-toggles">${viewToggle}${modeToggle}</div></div>`;
+        if(!m && view === 'now') { this.innerHTML = `${head}<p class="card__note">Working out your model…</p>`; return; }
+        if(view === 'trend') {
+            this.innerHTML = `${head}<cp-trend-plot></cp-trend-plot>`;
+            const plot = this.querySelector('cp-trend-plot');
+            if(plot) plot.data = {today: d.today, summaries: d.summaries ?? [], trend: m?.trend ?? (d.today ? cpTrend(d.summaries ?? [], d.today) : [])};
+            return;
+        }
         const fit = m.fit, eff = m.effective;
         let body;
         if(fit.ok) {
