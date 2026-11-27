@@ -544,7 +544,7 @@ ride-screens {
     flex: 0 0 100%;
     display: grid;
     grid-template-columns: repeat(var(--cols, 12), minmax(0, 1fr));
-    grid-auto-rows: minmax(var(--rs-row-h), auto);
+    grid-auto-rows: var(--rs-row-h);
     grid-auto-flow: row dense;
     align-content: start;
     gap: var(--rs-gap);
@@ -557,27 +557,21 @@ ride-screens {
     scrollbar-color: var(--line) transparent;
 }
 
-/* a screen of numbers only fills the height: big numbers, no empty half */
-.rs-screen:not(.is-editing):not(:has(.rs-slot[data-tile="chart"], .rs-slot[data-tile="workout"], .rs-slot[data-tile="stats"], .rs-slot[data-tile="map"])) {
-    grid-auto-rows: minmax(min-content, 1fr);
-    align-content: stretch;
-}
-
-.rs-screen:not(.is-editing):not(:has(.rs-slot[data-tile="chart"], .rs-slot[data-tile="workout"], .rs-slot[data-tile="stats"], .rs-slot[data-tile="map"]))
-    .rs-slot:is([data-size="wide"], [data-size="large"]) .tile__value {
-    font-size: clamp(40px, min(26cqi, 16dvh), 240px);
+.rs-screen.is-editing {
+    grid-auto-rows: minmax(104px, var(--rs-row-h));
 }
 
 .rs-slot {
     position: relative;
     display: flex;
-    min-width: 0;        /* no min-height: 0, or a screen of fixed height squeezes its rows to nothing */
-    min-height: calc(var(--row-span, 1) * var(--rs-row-h, 72px) + (var(--row-span, 1) - 1) * var(--rs-gap, var(--space-2)));
+    min-width: 0;
+    min-height: 0;
 }
 
 .rs-slot > * {
     flex: 1;
     min-width: 0;
+    min-height: 0;
     height: 100%;
 }
 
@@ -608,7 +602,7 @@ ride-screens {
 
 /* tile sizes: numbers grow with their tile (the number tokens follow the tile's width) */
 .ride .tile {
-    min-height: 64px;
+    min-height: 0;
     padding: var(--space-2) var(--space-3);
 }
 
@@ -617,7 +611,7 @@ ride-screens {
 }
 
 .rs-slot[data-size="wide"] .tile__value {
-    font-size: clamp(28px, 24cqi, 180px);
+    font-size: clamp(24px, 20cqi, 120px);
 }
 
 .rs-slot[data-size="large"] .tile__value,
@@ -629,28 +623,12 @@ ride-screens {
     font-size: var(--num-tile);
 }
 
-.rs-slot[data-size="large"] .tile {
-    min-height: 120px;
-}
-
 .ride #data-tile--elapsed-time .tile__value {
     font-size: var(--num-tile-long);
 }
 
 .rs-slot[data-size="large"] #data-tile--elapsed-time .tile__value {
-    font-size: clamp(40px, 18cqi, 160px);
-}
-
-.rs-slot[data-tile="chart"] {
-    min-height: calc(var(--row-span, 3) * var(--rs-row-h, 72px) + (var(--row-span, 3) - 1) * var(--rs-gap, var(--space-2)));
-}
-
-.rs-slot[data-tile="workout"] {
-    min-height: calc(var(--row-span, 2) * var(--rs-row-h, 72px) + (var(--row-span, 2) - 1) * var(--rs-gap, var(--space-2)));
-}
-
-.rs-slot[data-tile="map"] {
-    min-height: calc(var(--row-span, 3) * var(--rs-row-h, 72px) + (var(--row-span, 3) - 1) * var(--rs-gap, var(--space-2)));
+    font-size: clamp(32px, 16cqi, 120px);
 }
 
 .ride__map {
@@ -1860,10 +1838,9 @@ ride-screens.is-editing .rs-dot,
 
     .rs-screen {
         --rs-gap: var(--space-3);
-        --rs-row-h: 84px;
+        --rs-row-h: 88px;
     }
 
-    .ride .tile { min-height: 80px; }
     .ride .tile__label { font-size: var(--text-s); }
 
     .ride__modes .targets--cont {
@@ -1897,8 +1874,7 @@ ride-screens.is-editing .rs-dot,
 }
 
 @media (min-width: 1200px) {
-    .rs-screen { --rs-row-h: 96px; }
-    .ride .tile { min-height: 96px; }
+    .rs-screen { --rs-row-h: 88px; }
 }
 
 /* ---------- phone landscape: handlebar mount ---------- */
