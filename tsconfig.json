@@ -24,6 +24,7 @@
     "src/training/**/*.js",
     "src/analysis/**/*.js",
     "src/views/charts/tooltip.js",
+    "src/views/charts/live-chart-data.js",
     "src/views/toast.js",
     "src/views/confirm.js",
     "server/**/*.js"

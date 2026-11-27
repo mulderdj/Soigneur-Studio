@@ -897,16 +897,23 @@ ride-screens.is-editing .rs-dot,
     min-height: 0;
 }
 
-.lc--canvas {
+.lc--stage {
     position: absolute;
     inset: 0;
-    display: block;
-    cursor: crosshair;
+}
+
+.lc--stage .uplot {
+    font-family: var(--font-text);
+}
+
+.lc--stage .u-cursor-x {
+    border-right: 1px solid color-mix(in srgb, var(--ink) 45%, transparent);
 }
 
 .lc--empty {
     position: absolute;
     inset: 0 0 var(--space-5) var(--space-7);
+    z-index: 1;
     display: flex;
     align-items: center;
     justify-content: center;
