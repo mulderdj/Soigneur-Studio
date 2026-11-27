@@ -15,8 +15,9 @@ RideChart.uPlot = class {
     destroy() { this.root.remove(); } setSize() {} setSeries() {} setScale(k, s) { this.scales[k] = s; }
 };
 
-// the ride chart's plot (the extra charts below it draw too)
-const rideChartPlot = () => [...made].reverse().find(p => p.el?.closest?.('ride-chart'));
+// the ride chart's plots (split into stacked panes when both power and telemetry exist)
+const rideChartPlots = () => made.filter(p => p.el?.closest?.('ride-chart'));
+const rideChartPlot = () => rideChartPlots().at(-1);
 
 // the extra charts (ride-insights.js) draw with the same stub
 UPlotCard.uPlot = RideChart.uPlot;
@@ -65,7 +66,9 @@ describe('opening a ride', () => {
         expect(el.textContent).toMatch(/Reading the ride/);
         release(); await opening;
         expect(el.querySelector('ride-chart')).not.toBeNull();
-        expect(rideChartPlot().opts.series.map(s => s.label)).toEqual(expect.arrayContaining(['Power', 'Target', 'Heart rate', 'W′bal']));
+        const labels = rideChartPlots().flatMap(p => p.opts.series.map(s => s.label));
+        expect(labels).toEqual(expect.arrayContaining(['Power', 'Target', 'Heart rate', 'W′bal']));
+        expect(rideChartPlots()).toHaveLength(2);
         expect(el.textContent).not.toMatch(/NaN|undefined/);
     });
 
