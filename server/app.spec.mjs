@@ -295,6 +295,44 @@ test('profile merges updates and validates palette', async () => {
     }
 });
 
+test('profile validates avatar and preserves it across partial updates', async () => {
+    const {call, stop} = await start();
+    try {
+        const token = (await call('POST', '/api/auth/register', {body: {username: 'dj', password: 'password123'}})).json.token;
+        const avatar = 'data:image/webp;base64,UklGRh4AAABXRUJQVlA4TBEAAAAvAAAAAAfQ//73v/+BiOh/AAA=';
+
+        assert.equal((await call('PUT', '/api/me/profile', {token, body: {data: {ftp: 260, avatar}}})).status, 200);
+        assert.deepEqual((await call('GET', '/api/me/profile', {token})).json.data, {ftp: 260, avatar});
+
+        // Partial update without avatar keeps the saved avatar
+        assert.equal((await call('PUT', '/api/me/profile', {token, body: {data: {ftp: 270}}})).status, 200);
+        assert.deepEqual((await call('GET', '/api/me/profile', {token})).json.data, {ftp: 270, avatar});
+
+        // Explicit null clears the avatar
+        assert.equal((await call('PUT', '/api/me/profile', {token, body: {data: {avatar: null}}})).status, 200);
+        assert.deepEqual((await call('GET', '/api/me/profile', {token})).json.data, {ftp: 270, avatar: null});
+
+        // Invalid avatars are rejected with 400
+        const tooLong = 'data:image/png;base64,' + 'A'.repeat(48000);
+        for(const bad of [
+            '',
+            'data:image/svg+xml;base64,PHN2Zz48L3N2Zz4=',
+            'https://example.com/a.png',
+            'javascript:alert(1)',
+            'data:image/png;base64,not valid!',
+            tooLong,
+            123,
+            {},
+        ]) {
+            const res = await call('PUT', '/api/me/profile', {token, body: {data: {avatar: bad}}});
+            assert.equal(res.status, 400, String(bad));
+            assert.equal(res.json.error, 'Invalid avatar.');
+        }
+    } finally {
+        stop();
+    }
+});
+
 test('goal events in /api/me/plan validate priority, name and date, and sync incrementally', async () => {
     const {call, stop} = await start({allowSignup: true});
     try {

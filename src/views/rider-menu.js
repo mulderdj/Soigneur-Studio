@@ -6,6 +6,7 @@
 
 import { xf } from '../functions.js';
 import { riders } from '../riders.js';
+import { isValidAvatar, resizeAvatarFile } from '../avatar.js';
 import { sensors } from '../sensors.js';
 import { api, ApiError } from '../account/api.js';
 import { syncNow, status as syncStatus } from '../account/sync.js';
@@ -17,6 +18,11 @@ function esc(s) {
 
 function initial(name) {
     return esc(String(name ?? '?').trim().charAt(0).toUpperCase() || '?');
+}
+
+function avatarMarkup(rider) {
+    if(isValidAvatar(rider?.avatar)) return `<img class="rm--avatar-img" src="${rider.avatar}" alt="">`;
+    return initial(rider?.name);
 }
 
 function fmtDate(ts) {
@@ -111,6 +117,7 @@ class RiderMenu extends HTMLElement {
                 </div>
                 <div class="rm--flash flash" role="status" hidden></div>
                 <div class="rm--body"></div>
+                <input type="file" class="rm--avatar-input" accept="image/*" hidden>
             </dialog>`;
 
         /** @type {HTMLElement} */
@@ -120,6 +127,9 @@ class RiderMenu extends HTMLElement {
         this.$body   = this.querySelector('.rm--body');
         /** @type {HTMLElement} */
         this.$flash  = this.querySelector('.rm--flash');
+        /** @type {HTMLInputElement} */
+        this.$avatarInput = this.querySelector('.rm--avatar-input');
+        this._avatarTargetId = null;
 
         this.$pill.addEventListener('click', () => this.open());
         this.querySelector('.rm--close').addEventListener('click', () => this.$dialog.close());
@@ -132,6 +142,7 @@ class RiderMenu extends HTMLElement {
         this.$body.addEventListener('click', e => this.onClick(e));
         this.$body.addEventListener('submit', e => this.onSubmit(e));
         this.$body.addEventListener('change', e => this.onChange(e));
+        this.$avatarInput.addEventListener('change', e => this.onAvatarFile(e));
 
         this.abort = new AbortController();
         const signal = {signal: this.abort.signal};
@@ -177,7 +188,7 @@ class RiderMenu extends HTMLElement {
     renderPill() {
         const r = riders.current();
         const s = r.account ? (r.account.token ? syncStatus().state : 'error') : 'off';
-        this.$pill.querySelector('.rm--avatar').innerHTML = initial(r.name);
+        this.$pill.querySelector('.rm--avatar').innerHTML = avatarMarkup(r);
         this.$pill.querySelector('.rm--name').textContent = r.name;
         this.$pill.dataset.sync = s;
         const label = r.account && !r.account.token ? 'Signed out' : SYNC_LABEL[s];
@@ -224,7 +235,7 @@ class RiderMenu extends HTMLElement {
             <ul class="rm--list">
                 ${list.map(r => `
                 <li class="rm--row list-row${r.current ? ' is-current' : ''}">
-                    <span class="rm--avatar">${initial(r.name)}</span>
+                    <button type="button" class="rm--avatar rm--avatar-btn" data-act="pick-avatar" data-id="${esc(r.id)}" title="Change photo" aria-label="Change photo for ${esc(r.name)}">${avatarMarkup(r)}</button>
                     <span class="rm--who">
                         <b>${esc(r.name)}</b>
                         <small>${r.account ? `Account @${esc(r.account.username)}${r.account.token ? '' : ', signed out'}` : 'This device only'}</small>
@@ -232,6 +243,9 @@ class RiderMenu extends HTMLElement {
                     <span class="rm--actions">
                         ${r.current ? '<span class="rm--tag badge">Riding now</span>' :
                           `<button type="button" class="btn rm--btn" data-act="switch" data-id="${esc(r.id)}">Switch</button>`}
+                        <button type="button" class="btn rm--btn rm--quiet btn--quiet" data-act="pick-avatar" data-id="${esc(r.id)}">Photo</button>
+                        ${isValidAvatar(r.avatar) ?
+                          `<button type="button" class="btn rm--btn rm--quiet btn--quiet" data-act="remove-avatar" data-id="${esc(r.id)}">Remove photo</button>` : ''}
                         <button type="button" class="btn rm--btn rm--quiet btn--quiet" data-act="rename" data-id="${esc(r.id)}">Rename</button>
                         ${!r.current && r.id !== riders.DEFAULT_ID ?
                           `<button type="button" class="btn rm--btn rm--quiet rm--danger btn--quiet btn--danger" data-act="remove" data-id="${esc(r.id)}">Remove</button>` : ''}
@@ -251,8 +265,15 @@ class RiderMenu extends HTMLElement {
             const s = syncStatus();
             this.$body.innerHTML = r.account?.token ? `
                 <div class="rm--card">
-                    <span class="rm--avatar rm--big">${initial(r.name)}</span>
-                    <span class="rm--who"><b>${esc(r.name)}</b><small>@${esc(r.account.username)}</small></span>
+                    <button type="button" class="rm--avatar rm--big rm--avatar-btn" data-act="pick-avatar" data-id="${esc(r.id)}" title="Change photo" aria-label="Change photo">${avatarMarkup(r)}</button>
+                    <span class="rm--who">
+                        <b>${esc(r.name)}</b>
+                        <small>@${esc(r.account.username)}</small>
+                        <span class="rm--avatar-actions">
+                            <button type="button" class="btn rm--btn rm--quiet btn--quiet" data-act="pick-avatar" data-id="${esc(r.id)}">Photo</button>
+                            ${isValidAvatar(r.avatar) ? `<button type="button" class="btn rm--btn rm--quiet btn--quiet" data-act="remove-avatar" data-id="${esc(r.id)}">Remove photo</button>` : ''}
+                        </span>
+                    </span>
                     <span class="rm--sync" data-sync="offline">${esc(s.state === 'offline' && s.message ? s.message : SYNC_LABEL.offline)}</span>
                 </div>
                 <p class="rm--lead" data-k="offline">Your account server can't be reached right now.</p>
@@ -271,8 +292,15 @@ class RiderMenu extends HTMLElement {
             const s = syncStatus();
             this.$body.innerHTML = `
                 <div class="rm--card">
-                    <span class="rm--avatar rm--big">${initial(r.name)}</span>
-                    <span class="rm--who"><b>${esc(r.name)}</b><small>@${esc(r.account.username)}, ${r.account.role === 'admin' ? 'admin' : 'rider'}</small></span>
+                    <button type="button" class="rm--avatar rm--big rm--avatar-btn" data-act="pick-avatar" data-id="${esc(r.id)}" title="Change photo" aria-label="Change photo">${avatarMarkup(r)}</button>
+                    <span class="rm--who">
+                        <b>${esc(r.name)}</b>
+                        <small>@${esc(r.account.username)}, ${r.account.role === 'admin' ? 'admin' : 'rider'}</small>
+                        <span class="rm--avatar-actions">
+                            <button type="button" class="btn rm--btn rm--quiet btn--quiet" data-act="pick-avatar" data-id="${esc(r.id)}">Photo</button>
+                            ${isValidAvatar(r.avatar) ? `<button type="button" class="btn rm--btn rm--quiet btn--quiet" data-act="remove-avatar" data-id="${esc(r.id)}">Remove photo</button>` : ''}
+                        </span>
+                    </span>
                     <span class="rm--sync" data-sync="${esc(s.state)}">${esc(s.message || (SYNC_LABEL[s.state] ?? s.state))}</span>
                 </div>
                 <p class="rm--note">FTP, weight, W′, imported workouts and every saved ride sync to your account.</p>
@@ -594,6 +622,16 @@ class RiderMenu extends HTMLElement {
             case 'switch':
                 riders.switchTo(id);
                 break;
+            case 'pick-avatar':
+                this._avatarTargetId = id || riders.current().id;
+                this.$avatarInput.value = '';
+                this.$avatarInput.click();
+                break;
+            case 'remove-avatar':
+                riders.setAvatar(id || riders.current().id, null);
+                this.say('Photo removed.');
+                this.render();
+                break;
             case 'rename': {
                 const row = b.closest('.rm--row');
                 const r = riders.find(id);
@@ -705,6 +743,22 @@ class RiderMenu extends HTMLElement {
             }
         } catch(err) {
             this.say(err.message, 'warn');
+        }
+    }
+
+    async onAvatarFile(e) {
+        const input = /** @type {HTMLInputElement} */ (e.target);
+        const file = input.files?.[0];
+        input.value = '';
+        if(!file) return;
+        const id = this._avatarTargetId || riders.current().id;
+        try {
+            const dataUrl = await resizeAvatarFile(file);
+            riders.setAvatar(id, dataUrl);
+            this.say('Photo updated.');
+            this.render();
+        } catch(err) {
+            this.say(err?.message || 'Could not use that image.', 'warn');
         }
     }
 

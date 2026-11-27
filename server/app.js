@@ -26,6 +26,8 @@ const LOGIN_MAX_FAILS = 10;
 const LOGIN_IP_MAX_FAILS = 30;
 const MAX_RATE_ENTRIES = 1000;
 const MAX_ACCESS_TOKENS = 20;
+const MAX_AVATAR_LEN = 48000;
+const AVATAR_RE = /^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/=]+$/;
 // what an access token (AI access, MCP) may reach: reading, and with the
 // 'plan' scope the training plan. Everything else needs a sign-in session.
 const TOKEN_ROUTES = {
@@ -541,6 +543,10 @@ function createApp(options = {}) {
         if('palette' in body.data && body.data.palette !== null &&
            (typeof body.data.palette !== 'string' || !/^[a-z0-9-]{1,32}$/.test(body.data.palette))) {
             fail(400, 'Invalid palette.');
+        }
+        if('avatar' in body.data && body.data.avatar !== null &&
+           (typeof body.data.avatar !== 'string' || body.data.avatar.length > MAX_AVATAR_LEN || !AVATAR_RE.test(body.data.avatar))) {
+            fail(400, 'Invalid avatar.');
         }
         const prevRow = q.profile.get(auth.user.id);
         const prev = prevRow ? JSON.parse(prevRow.data) : {};
