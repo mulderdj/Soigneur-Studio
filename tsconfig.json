@@ -21,6 +21,8 @@
   "include": [
     "src/analytics.js",
     "src/physics.js",
+    "src/power-match.js",
+    "src/fuelling.js",
     "src/training/**/*.js",
     "src/analysis/**/*.js",
     "src/views/charts/tooltip.js",

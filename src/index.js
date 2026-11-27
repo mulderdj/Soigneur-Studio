@@ -4,8 +4,13 @@ import './views/views.js';
 import './ble/devices.js';
 import './ble/obc/controls.js';
 import './watch.js';
+import { startPowerMatch } from './power-match.js';
+import { startFuelling } from './fuelling.js';
 import './course.js';
 import './lock.js';
+
+startPowerMatch();
+startFuelling();
 
 // The service worker (src/sw.js) keeps the app usable without a connection.
 // Production builds only: on the Vite dev server (import.meta.env.DEV) a cached

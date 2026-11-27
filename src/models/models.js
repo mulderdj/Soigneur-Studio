@@ -193,9 +193,11 @@ class Sources extends Model {
             skinTemperature:     'ble:coreTemp',
 
             // settings
-            virtualState: 'power',
-            autoPause:    true,
-            autoStart:    true,
+            virtualState:     'power',
+            powerMatch:       false,
+            fuellingReminder: 0,
+            autoPause:        true,
+            autoStart:        true,
             theme:        'DARK',
 
             // data tile settings
@@ -209,6 +211,8 @@ class Sources extends Model {
             kcalZStack: 0,
             // ['graph', 'power']
             graphZStack: 0,
+            // ['carbsBurned', 'carbsIntake', 'carbsBurnRate', 'carbsBand']
+            fuellingZStack: 0,
         };
         return sources;
     }

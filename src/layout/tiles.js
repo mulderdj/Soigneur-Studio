@@ -28,6 +28,7 @@ const RIDE_TILES = [
     {id: 'distance',              name: 'Distance',         description: 'Distance', sizes: NUMBER, size: 'small'},
     {id: 'slope',                 name: 'Slope',            description: 'Slope in slope mode', sizes: NUMBER, size: 'small'},
     {id: 'power-avg',             name: 'Power Lap / Avg',  description: 'Lap and average power, kcal, gear on tap', sizes: NUMBER, size: 'small'},
+    {id: 'fuelling',              name: 'Carbs',            description: 'Carbs burned and recommended intake, g/h on tap', sizes: NUMBER, size: 'small'},
     {id: 'smo2',                  name: 'SmO2',             description: 'Muscle oxygen (Moxy)', sizes: NUMBER, size: 'small'},
     {id: 'thb',                   name: 'THb',              description: 'Total haemoglobin (Moxy)', sizes: NUMBER, size: 'small'},
     {id: 'core-body-temperature', name: 'Core',             description: 'Core body temperature (CORE sensor)', sizes: NUMBER, size: 'small'},

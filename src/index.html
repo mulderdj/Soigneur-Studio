@@ -330,6 +330,38 @@
                                 </z-stack-item>
                             </z-stack>
                         </div>
+                        <div class="tile" id="data-tile--fuelling">
+                            <z-stack data-key="fuellingZStack">
+                                <z-stack-item class="active">
+                                    <h2 class="tile__label">Carbs</h2>
+                                    <div class="tile__value-cont">
+                                        <fuelling-burned id="fuelling-burned-value"
+                                                         class="tile__value">0g</fuelling-burned>
+                                    </div>
+                                </z-stack-item>
+                                <z-stack-item>
+                                    <h2 class="tile__label">Fuel Needed</h2>
+                                    <div class="tile__value-cont">
+                                        <fuelling-intake id="fuelling-intake-value"
+                                                         class="tile__value">0g</fuelling-intake>
+                                    </div>
+                                </z-stack-item>
+                                <z-stack-item>
+                                    <h2 class="tile__label">Burn g/h</h2>
+                                    <div class="tile__value-cont">
+                                        <fuelling-rate id="fuelling-rate-value"
+                                                       class="tile__value">0</fuelling-rate>
+                                    </div>
+                                </z-stack-item>
+                                <z-stack-item>
+                                    <h2 class="tile__label">Intake g/h</h2>
+                                    <div class="tile__value-cont">
+                                        <fuelling-band id="fuelling-band-value"
+                                                       class="tile__value">0–30</fuelling-band>
+                                    </div>
+                                </z-stack-item>
+                            </z-stack>
+                        </div>
                         <div class="tile" id="data-tile--smo2">
                             <h2 class="tile__label">SmO2</h2>
                             <div class="tile__value-cont">
@@ -1146,6 +1178,20 @@
                             <div class="list--row--inner option list-row">
                                 <div class="option--name">Simulation</div>
                                 <virtual-state-source class="option--value btn btn--secondary">power</virtual-state-source>
+                            </div>
+                        </div>
+
+                        <div class="list--row--outer">
+                            <div class="list--row--inner option list-row">
+                                <div class="option--name">Power Match</div>
+                                <power-match class="option--value btn btn--secondary">Off</power-match>
+                            </div>
+                        </div>
+
+                        <div class="list--row--outer">
+                            <div class="list--row--inner option list-row">
+                                <div class="option--name">Fuelling Reminder</div>
+                                <fuelling-reminder class="option--value btn btn--secondary">Off</fuelling-reminder>
                             </div>
                         </div>
 

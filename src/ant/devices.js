@@ -244,6 +244,8 @@ function Controllable() {
     const device        = Device({name, channelNumber, onData, profile: 'fec',});
 
     let _mode = 'erg';
+    let _lastPowerTarget = 0;
+    let _powerMatchOffset = 0;
 
     function start() {
         const self = this;
@@ -251,6 +253,7 @@ function Controllable() {
         console.log(':ant :controllable :start');
         xf.sub(`db:mode`, onMode.bind(self));
         xf.sub('db:powerTarget', onPowerTarget.bind(self));
+        xf.sub('power-match:offset', onPowerMatchOffset.bind(self));
         xf.sub('db:resistanceTarget', onResistanceTarget.bind(self));
         xf.sub('db:slopeTarget', onSlopeTarget.bind(self));
     }
@@ -260,6 +263,7 @@ function Controllable() {
         device.stop();
         xf.unsub(`db:mode`, onMode.bind(self));
         xf.unsub('db:powerTarget', onPowerTarget.bind(self));
+        xf.unsub('power-match:offset', onPowerMatchOffset.bind(self));
         xf.unsub('db:resistanceTarget', onResistanceTarget.bind(self));
         xf.unsub('db:slopeTarget', onSlopeTarget.bind(self));
     }
@@ -270,8 +274,19 @@ function Controllable() {
 
     function onPowerTarget(power) {
         console.log(power);
+        _lastPowerTarget = power;
         if(device.isConnected() && (equals(_mode, 'erg'))) {
-            setPowerTarget(power);
+            const adjusted = power > 0 ? Math.max(0, Math.round(power + _powerMatchOffset)) : 0;
+            setPowerTarget(adjusted);
+        }
+    }
+
+    function onPowerMatchOffset(payload) {
+        const nextOffset = Number.isFinite(payload?.offset) ? payload.offset : 0;
+        if(equals(nextOffset, _powerMatchOffset)) return;
+        _powerMatchOffset = nextOffset;
+        if(device.isConnected() && equals(_mode, 'erg') && _lastPowerTarget > 0) {
+            setPowerTarget(Math.max(0, Math.round(_lastPowerTarget + _powerMatchOffset)));
         }
     }
 
@@ -304,6 +319,7 @@ function Controllable() {
         const data = existance(fec.decode(payload), {});
 
         if(exists(data.power)) {
+            xf.dispatch('ant:controllable:power', data.power);
             xf.dispatch('power', data.power);
         }
 

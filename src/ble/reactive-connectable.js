@@ -22,6 +22,8 @@ function ReactiveConnectable(args = {}) {
 
     // state
     let mode = ControlMode.erg;
+    let lastPowerTarget = 0;
+    let powerMatchOffset = 0;
 
     let abortController;
     let signal;
@@ -57,6 +59,9 @@ function ReactiveConnectable(args = {}) {
     }
 
     function onDisconnect() {
+        if(equals(deviceType, Device.controllable)) {
+            powerMatchOffset = 0;
+        }
         xf.dispatch(`${getIdentifier()}:disconnected`);
         xf.dispatch(`${getIdentifier()}:name`, '--');
 
@@ -89,8 +94,11 @@ function ReactiveConnectable(args = {}) {
     }
 
     function onData(data) {
-        if('power' in data && models.sources.isSource('power', identifier)) {
-            xf.dispatch(`power`, data.power);
+        if('power' in data) {
+            xf.dispatch(`${getIdentifier()}:power`, data.power);
+            if(models.sources.isSource('power', identifier)) {
+                xf.dispatch(`power`, data.power);
+            }
         }
 
         if('cadence' in data && models.sources.isSource('cadence', identifier)) {
@@ -152,9 +160,24 @@ function ReactiveConnectable(args = {}) {
     }
 
     function onPowerTarget(powerTarget) {
+        lastPowerTarget = powerTarget;
         if(!connectable.isConnected() ||
            !equals(mode, ControlMode.erg)) return;
-        connectable.services.trainer.setPowerTarget({power: powerTarget});
+        const adjusted = powerTarget > 0
+            ? Math.max(0, Math.round(powerTarget + powerMatchOffset))
+            : 0;
+        connectable.services.trainer.setPowerTarget({power: adjusted});
+    }
+
+    function onPowerMatchOffset(payload) {
+        const nextOffset = Number.isFinite(payload?.offset) ? payload.offset : 0;
+        if(equals(nextOffset, powerMatchOffset)) return;
+        powerMatchOffset = nextOffset;
+        if(!connectable.isConnected() ||
+           !equals(mode, ControlMode.erg) ||
+           !(lastPowerTarget > 0)) return;
+        const adjusted = Math.max(0, Math.round(lastPowerTarget + powerMatchOffset));
+        connectable.services.trainer.setPowerTarget({power: adjusted});
     }
 
     function onResistanceTarget(resistanceTarget) {
@@ -188,6 +211,7 @@ function ReactiveConnectable(args = {}) {
             xf.sub('db:mode',             onMode, signal);
             xf.sub('db:weight',           onUserWeight, signal);
             xf.sub('db:powerTarget',      onPowerTarget, signal);
+            xf.sub('power-match:offset',  onPowerMatchOffset, signal);
             xf.sub('db:resistanceTarget', onResistanceTarget, signal);
             xf.sub('db:slopeTarget',      onSlopeTarget, signal);
             xf.sub('ui:trainer:reset',    onTrainerReset, signal);
