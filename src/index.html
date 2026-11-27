@@ -680,459 +680,462 @@
 
                     <section class="settings__devices" aria-labelledby="settings-devices-title">
                         <h2 id="settings-devices-title" class="settings__heading">Devices</h2>
-                    <!-- controlable settings -->
-                    <div class="card device-card">
-                        <div class="device-card--cont">
-                            <div class="device-card--header">
-                                <div></div>
-                                <div class="device-card--header--label card__title">Controllable</div>
-                                <div></div>
+
+                    <!-- controllable / smart trainer settings -->
+                    <details class="card device-card" open>
+                        <summary class="device-card--head">
+                            <connection-switch for="ble:controllable"
+                                            indicatorClass="connection-icon-switch--indicator"
+                                            class="connection-icon-switch"
+                                            role="button"
+                                            tabindex="0"
+                                            aria-label="Connect Smart Trainer">
+                                <svg class="connection-icon-switch--icon icon" aria-hidden="true">
+                                    <use href="#icon--bluetooth"></use>
+                                </svg>
+                                <div class="connection-icon-switch--indicator off"></div>
+                            </connection-switch>
+                            <div class="device-card--info">
+                                <span class="device-card--title">Smart Trainer</span>
+                                <data-view class="device-card--name" prop="ble:controllable:name">--</data-view>
                             </div>
-
-                            <div class="device-card--body">
-                                <div class="device-card--body--row">
-                                    <connection-switch for="ble:controllable"
-                                                    indicatorClass="connection-icon-switch--indicator"
-                                                    class="connection-icon-switch">
-
-                                        <svg class="connection-icon-switch--icon icon">
-                                            <use href="#icon--bluetooth"></use>
-                                        </svg>
-                                        <div class="connection-icon-switch--indicator off"></div>
-                                    </connection-switch>
-                                    <div class="tile device-card--tile name">
-                                        <h3 class="device-card--tile--header tile__label">Name</h3>
-                                        <data-view class="device-card--tile--value tile__value"
-                                                prop="ble:controllable:name">--</data-view>
+                            <div class="device-card--meta">
+                                <svg class="device-card--chevron" viewBox="0 0 24 24" aria-hidden="true">
+                                    <path d="M7.41 8.59 12 13.17l4.59-4.58L18 10l-6 6-6-6z"/>
+                                </svg>
+                            </div>
+                        </summary>
+                        <div class="device-card--body">
+                            <div class="device-card--sources">
+                                <source-switch class="source-switch"
+                                            for="power"
+                                            use="ble:controllable">
+                                    <div class="source-switch--info">
+                                        <span class="source-switch--label">Power</span>
+                                        <power-value class="data-view source-switch--value" prop="db:power1s">--</power-value>
                                     </div>
-                                    <div class="tile device-card--tile">
-                                        <source-switch class="source-switch"
-                                                    for="power"
-                                                    use="ble:controllable">
-                                            <h3 class="device-card--tile--header tile__label">Power</h3>
-                                            <power-value class="data-view device-card--tile--value tile__value" prop="db:power1s">--</power-value>
-                                            <svg class="toggle--button">
-                                                <use class="on" href="#icon--toggle--on"></use>
-                                                <use class="off" href="#icon--toggle--off"></use>
-                                            </svg>
-
-                                        </source-switch>
+                                    <svg class="toggle--button" aria-hidden="true">
+                                        <use class="on" href="#icon--toggle--on"></use>
+                                        <use class="off" href="#icon--toggle--off"></use>
+                                    </svg>
+                                </source-switch>
+                                <source-switch class="source-switch"
+                                               for="cadence"
+                                               use="ble:controllable">
+                                    <div class="source-switch--info">
+                                        <span class="source-switch--label">Cadence</span>
+                                        <cadence-value class="data-view source-switch--value">--</cadence-value>
                                     </div>
-                                    <div class="tile device-card--tile">
-                                        <source-switch class="source-switch"
-                                                       for="cadence"
-                                                       use="ble:controllable">
-                                            <h3 class="device-card--tile--header tile__label">Cadence</h3>
-                                            <cadence-value class="data-view device-card--tile--value tile__value">--</cadence-value>
-                                            <svg class="toggle--button">
-                                                <use class="on" href="#icon--toggle--on"></use>
-                                                <use class="off" href="#icon--toggle--off"></use>
-                                            </svg>
-                                        </source-switch>
+                                    <svg class="toggle--button" aria-hidden="true">
+                                        <use class="on" href="#icon--toggle--on"></use>
+                                        <use class="off" href="#icon--toggle--off"></use>
+                                    </svg>
+                                </source-switch>
+                                <source-switch class="source-switch"
+                                               for="speed"
+                                               use="ble:controllable">
+                                    <div class="source-switch--info">
+                                        <span class="source-switch--label">Speed</span>
+                                        <speed-value class="data-view source-switch--value">--</speed-value>
                                     </div>
-                                    <div class="tile device-card--tile">
-                                        <source-switch class="source-switch"
-                                                       for="speed"
-                                                       use="ble:controllable">
-                                            <h3 class="device-card--tile--header tile__label">Speed</h3>
-                                            <speed-value class="data-view device-card--tile--value tile__value">--</speed-value>
-                                            <svg class="toggle--button">
-                                                <use class="on" href="#icon--toggle--on"></use>
-                                                <use class="off" href="#icon--toggle--off"></use>
-                                            </svg>
-                                        </source-switch>
+                                    <svg class="toggle--button" aria-hidden="true">
+                                        <use class="on" href="#icon--toggle--on"></use>
+                                        <use class="off" href="#icon--toggle--off"></use>
+                                    </svg>
+                                </source-switch>
+                                <source-switch class="source-switch"
+                                               for="heartRate"
+                                               use="ble:controllable">
+                                    <div class="source-switch--info">
+                                        <span class="source-switch--label">Heart Rate</span>
+                                        <heart-rate-value class="data-view source-switch--value">--</heart-rate-value>
                                     </div>
-                                    <div class="tile device-card--tile">
-                                        <source-switch class="source-switch"
-                                                       for="heartRate"
-                                                       use="ble:controllable">
-                                            <h3 class="device-card--tile--header tile__label">Heart Rate</h3>
-                                            <heart-rate-value class="data-view device-card--tile--value tile__value">--</heart-rate-value>
-                                            <svg class="toggle--button">
-                                                <use class="on" href="#icon--toggle--on"></use>
-                                                <use class="off" href="#icon--toggle--off"></use>
-                                            </svg>
-                                        </source-switch>
-                                    </div>
-                                </div>
-                                <!-- end ble controllable -->
-
+                                    <svg class="toggle--button" aria-hidden="true">
+                                        <use class="on" href="#icon--toggle--on"></use>
+                                        <use class="off" href="#icon--toggle--off"></use>
+                                    </svg>
+                                </source-switch>
                             </div>
                         </div>
-                    </div> <!-- end controlable settings -->
+                    </details> <!-- end controllable settings -->
 
                     <!-- power-meter settings -->
-                    <div class="card device-card">
-                        <div class="device-card--cont">
-                            <div class="device-card--header">
-                                <div></div>
-                                <div class="device-card--header--label card__title">Power Meter</div>
+                    <details class="card device-card">
+                        <summary class="device-card--head">
+                            <connection-switch for="ble:powerMeter"
+                                            id="switch-power-meter"
+                                            indicatorClass="connection-icon-switch--indicator"
+                                            class="connection-icon-switch"
+                                            role="button"
+                                            tabindex="0"
+                                            aria-label="Connect Power Meter">
+                                <svg class="connection-icon-switch--icon icon" aria-hidden="true">
+                                    <use href="#icon--bluetooth"></use>
+                                </svg>
+                                <div class="connection-icon-switch--indicator off"></div>
+                            </connection-switch>
+                            <div class="device-card--info">
+                                <span class="device-card--title">Power Meter</span>
+                                <data-view class="data-view device-card--name" prop="ble:powerMeter:name">--</data-view>
+                            </div>
+                            <div class="device-card--meta">
                                 <battery-level for="ble:powerMeter">
                                     <div class="battery--level"></div>
                                 </battery-level>
+                                <svg class="device-card--chevron" viewBox="0 0 24 24" aria-hidden="true">
+                                    <path d="M7.41 8.59 12 13.17l4.59-4.58L18 10l-6 6-6-6z"/>
+                                </svg>
                             </div>
-                            <div class="device-card--body">
-                                <div class="device-card--body--row">
-                                    <connection-switch for="ble:powerMeter"
-                                                    id="switch-power-meter"
-                                                    indicatorClass="connection-icon-switch--indicator"
-                                                    class="connection-icon-switch">
-                                        <svg class="connection-icon-switch--icon icon">
-                                            <use href="#icon--bluetooth"></use>
-                                        </svg>
-                                        <div class="connection-icon-switch--indicator off"></div>
-                                    </connection-switch>
-                                    <div class="tile device-card--tile">
-                                        <h3 class="device-card--tile--header tile__label">Name</h3>
-                                        <data-view class="data-view device-card--tile--value tile__value"
-                                                prop="ble:powerMeter:name">--</data-view>
+                        </summary>
+                        <div class="device-card--body">
+                            <div class="device-card--sources">
+                                <source-switch class="source-switch"
+                                            for="power"
+                                            use="ble:powerMeter">
+                                    <div class="source-switch--info">
+                                        <span class="source-switch--label">Power</span>
+                                        <power-value class="data-view source-switch--value" prop="db:power1s">--</power-value>
                                     </div>
-                                    <div class="tile device-card--tile">
-                                        <source-switch class="source-switch"
-                                                    for="power"
-                                                    use="ble:powerMeter">
-                                            <h3 class="device-card--tile--header tile__label">Power</h3>
-                                            <power-value class="data-view device-card--tile--value tile__value" prop="db:power1s">--</power-value>
-                                            <svg class="toggle--button">
-                                                <use class="on" href="#icon--toggle--on"></use>
-                                                <use class="off" href="#icon--toggle--off"></use>
-                                            </svg>
-                                        </source-switch>
+                                    <svg class="toggle--button" aria-hidden="true">
+                                        <use class="on" href="#icon--toggle--on"></use>
+                                        <use class="off" href="#icon--toggle--off"></use>
+                                    </svg>
+                                </source-switch>
+                                <source-switch class="source-switch"
+                                               for="cadence"
+                                               use="ble:powerMeter">
+                                    <div class="source-switch--info">
+                                        <span class="source-switch--label">Cadence</span>
+                                        <cadence-value class="data-view source-switch--value">--</cadence-value>
                                     </div>
-                                    <div class="tile device-card--tile">
-                                        <source-switch class="source-switch"
-                                                       for="cadence"
-                                                       use="ble:powerMeter">
-                                            <h3 class="device-card--tile--header tile__label">Cadence</h3>
-                                            <cadence-value class="data-view device-card--tile--value tile__value">--</cadence-value>
-                                            <svg class="toggle--button">
-                                                <use class="on" href="#icon--toggle--on"></use>
-                                                <use class="off" href="#icon--toggle--off"></use>
-                                            </svg>
-                                        </source-switch>
+                                    <svg class="toggle--button" aria-hidden="true">
+                                        <use class="on" href="#icon--toggle--on"></use>
+                                        <use class="off" href="#icon--toggle--off"></use>
+                                    </svg>
+                                </source-switch>
+                                <source-switch class="source-switch"
+                                               for="speed"
+                                               use="ble:powerMeter">
+                                    <div class="source-switch--info">
+                                        <span class="source-switch--label">Speed</span>
+                                        <speed-value class="data-view source-switch--value">--</speed-value>
                                     </div>
-                                    <div class="tile device-card--tile">
-                                        <source-switch class="source-switch"
-                                                       for="speed"
-                                                       use="ble:powerMeter">
-                                            <h3 class="device-card--tile--header tile__label">Speed</h3>
-                                            <speed-value class="data-view device-card--tile--value tile__value">--</speed-value>
-                                            <svg class="toggle--button">
-                                                <use class="on" href="#icon--toggle--on"></use>
-                                                <use class="off" href="#icon--toggle--off"></use>
-                                            </svg>
-                                        </source-switch>
-                                    </div>
-                                </div>
+                                    <svg class="toggle--button" aria-hidden="true">
+                                        <use class="on" href="#icon--toggle--on"></use>
+                                        <use class="off" href="#icon--toggle--off"></use>
+                                    </svg>
+                                </source-switch>
                             </div>
                         </div>
-                    </div> <!-- end power-meter settings -->
+                    </details> <!-- end power-meter settings -->
 
                     <!-- cycling-speed-and-cadence settings -->
-                    <div class="card device-card">
-                        <div class="device-card--cont">
-                            <div class="device-card--header">
-                                <div></div>
-                                <div class="device-card--header--label card__title">Speed and Cadence</div>
+                    <details class="card device-card">
+                        <summary class="device-card--head">
+                            <connection-switch for="ble:speedCadenceSensor"
+                                            class="connection-icon-switch"
+                                            indicatorClass="connection-icon-switch--indicator"
+                                            role="button"
+                                            tabindex="0"
+                                            aria-label="Connect Speed and Cadence">
+                                <svg class="connection-icon-switch--icon icon" aria-hidden="true">
+                                    <use href="#icon--bluetooth"></use>
+                                </svg>
+                                <div class="connection-icon-switch--indicator off"></div>
+                            </connection-switch>
+                            <div class="device-card--info">
+                                <span class="device-card--title">Speed &amp; Cadence</span>
+                                <data-view class="data-view device-card--name" prop="ble:speedCadenceSensor:name">--</data-view>
+                            </div>
+                            <div class="device-card--meta">
                                 <battery-level for="ble:speedCadenceSensor">
                                     <div class="battery--level"></div>
                                 </battery-level>
+                                <svg class="device-card--chevron" viewBox="0 0 24 24" aria-hidden="true">
+                                    <path d="M7.41 8.59 12 13.17l4.59-4.58L18 10l-6 6-6-6z"/>
+                                </svg>
                             </div>
-                            <div class="device-card--body">
-                                <div class="device-card--body--row">
-                                    <connection-switch for="ble:speedCadenceSensor"
-                                                    class="connection-icon-switch"
-                                                    indicatorClass="connection-icon-switch--indicator">
-                                        <svg class="connection-icon-switch--icon icon">
-                                            <use href="#icon--bluetooth"></use>
-                                        </svg>
-                                        <div class="connection-icon-switch--indicator off"></div>
-                                    </connection-switch>
-                                    <div class="tile device-card--tile">
-                                        <h3 class="device-card--tile--header tile__label">Name</h3>
-                                        <data-view class="data-view device-card--tile--value tile__value"
-                                                prop="ble:speedCadenceSensor:name">--</data-view>
+                        </summary>
+                        <div class="device-card--body">
+                            <div class="device-card--sources">
+                                <source-switch class="source-switch"
+                                            for="cadence"
+                                            use="ble:speedCadenceSensor">
+                                    <div class="source-switch--info">
+                                        <span class="source-switch--label">Cadence</span>
+                                        <cadence-value class="data-view source-switch--value">--</cadence-value>
                                     </div>
-                                    <div class="tile device-card--tile"></div>
-                                    <div class="tile device-card--tile">
-                                        <source-switch class="source-switch"
-                                                    for="cadence"
-                                                    use="ble:speedCadenceSensor">
-                                            <h3 class="device-card--tile--header tile__label">Cadence</h3>
-                                            <cadence-value class="data-view device-card--tile--value tile__value">--</cadence-value>
-                                            <svg class="toggle--button">
-                                                <use class="on" href="#icon--toggle--on"></use>
-                                                <use class="off" href="#icon--toggle--off"></use>
-                                            </svg>
-                                        </source-switch>
+                                    <svg class="toggle--button" aria-hidden="true">
+                                        <use class="on" href="#icon--toggle--on"></use>
+                                        <use class="off" href="#icon--toggle--off"></use>
+                                    </svg>
+                                </source-switch>
+                                <source-switch class="source-switch"
+                                               for="speed"
+                                               use="ble:speedCadenceSensor">
+                                    <div class="source-switch--info">
+                                        <span class="source-switch--label">Speed</span>
+                                        <speed-value class="data-view source-switch--value">--</speed-value>
                                     </div>
-                                    <div class="tile device-card--tile">
-                                        <source-switch class="source-switch"
-                                                       for="speed"
-                                                       use="ble:speedCadenceSensor">
-                                            <h3 class="device-card--tile--header tile__label">Speed</h3>
-                                            <speed-value class="data-view device-card--tile--value tile__value">--</speed-value>
-                                            <svg class="toggle--button">
-                                                <use class="on" href="#icon--toggle--on"></use>
-                                                <use class="off" href="#icon--toggle--off"></use>
-                                            </svg>
-                                        </source-switch>
-                                    </div>
-                                </div>
+                                    <svg class="toggle--button" aria-hidden="true">
+                                        <use class="on" href="#icon--toggle--on"></use>
+                                        <use class="off" href="#icon--toggle--off"></use>
+                                    </svg>
+                                </source-switch>
                             </div>
                         </div>
-                    </div> <!-- end cycling-speed-and-cadence settings -->
+                    </details> <!-- end cycling-speed-and-cadence settings -->
 
                     <!-- hrm settings -->
-                    <div class="card device-card">
-                        <div class="device-card--cont">
-                            <div class="device-card--header">
-                                <div></div>
-                                <div class="device-card--header--label card__title">HRM</div>
+                    <details class="card device-card">
+                        <summary class="device-card--head">
+                            <connection-switch for="ble:heartRateMonitor"
+                                            id="switch-hrm"
+                                            indicatorClass="connection-icon-switch--indicator"
+                                            class="connection-icon-switch"
+                                            role="button"
+                                            tabindex="0"
+                                            aria-label="Connect HRM">
+                                <svg class="connection-icon-switch--icon icon" aria-hidden="true">
+                                    <use href="#icon--bluetooth"></use>
+                                </svg>
+                                <div class="connection-icon-switch--indicator off"></div>
+                            </connection-switch>
+                            <div class="device-card--info">
+                                <span class="device-card--title">HRM</span>
+                                <data-view class="device-card--name" prop="ble:heartRateMonitor:name">--</data-view>
+                            </div>
+                            <div class="device-card--meta">
                                 <battery-level for="ble:heartRateMonitor">
                                     <div class="battery--level"></div>
                                 </battery-level>
+                                <svg class="device-card--chevron" viewBox="0 0 24 24" aria-hidden="true">
+                                    <path d="M7.41 8.59 12 13.17l4.59-4.58L18 10l-6 6-6-6z"/>
+                                </svg>
                             </div>
-                            <div class="device-card--body">
-                                <div class="device-card--body--row">
-                                    <connection-switch for="ble:heartRateMonitor"
-                                                    id="switch-hrm"
-                                                    indicatorClass="connection-icon-switch--indicator"
-                                                    class="connection-icon-switch">
+                        </summary>
+                        <div class="device-card--body">
+                            <div class="device-card--sources">
+                                <source-switch class="source-switch"
+                                            for="cadence"
+                                            use="ble:heartRateMonitor">
+                                    <div class="source-switch--info">
+                                        <span class="source-switch--label">Cadence</span>
+                                        <cadence-value class="data-view source-switch--value">--</cadence-value>
+                                    </div>
+                                    <svg class="toggle--button" aria-hidden="true">
+                                        <use class="on" href="#icon--toggle--on"></use>
+                                        <use class="off" href="#icon--toggle--off"></use>
+                                    </svg>
+                                </source-switch>
+                                <source-switch class="source-switch"
+                                            for="heartRate"
+                                            use="ble:heartRateMonitor">
+                                    <div class="source-switch--info">
+                                        <span class="source-switch--label">Heart Rate</span>
+                                        <heart-rate-value id="hrm-heartRate"
+                                                        class="data-view source-switch--value">--</heart-rate-value>
+                                    </div>
+                                    <svg class="toggle--button" aria-hidden="true">
+                                        <use class="on" href="#icon--toggle--on"></use>
+                                        <use class="off" href="#icon--toggle--off"></use>
+                                    </svg>
+                                </source-switch>
+                            </div>
 
-                                        <svg class="connection-icon-switch--icon icon">
-                                            <use href="#icon--bluetooth"></use>
-                                        </svg>
-                                        <div class="connection-icon-switch--indicator off"></div>
-                                    </connection-switch>
-                                    <div class="tile device-card--tile">
-                                        <h3 class="device-card--tile--header tile__label">Name</h3>
-                                        <data-view class="device-card--tile--value tile__value"
-                                                prop="ble:heartRateMonitor:name">--</data-view>
-                                    </div>
-                                    <div class="tile device-card--tile"></div>
-                                    <div class="tile device-card--tile">
-                                        <source-switch class="source-switch"
-                                                    for="cadence"
-                                                    use="ble:heartRateMonitor">
-                                            <h3 class="device-card--tile--header tile__label">Cadence</h3>
-                                            <cadence-value class="data-view device-card--tile--value tile__value">--</cadence-value>
-                                            <svg class="toggle--button">
-                                                <use class="on" href="#icon--toggle--on"></use>
-                                                <use class="off" href="#icon--toggle--off"></use>
-                                            </svg>
-                                        </source-switch>
-                                    </div>
-                                    <div class="tile device-card--tile"></div>
-                                    <div class="tile device-card--tile">
-                                        <source-switch class="source-switch"
-                                                    for="heartRate"
-                                                    use="ble:heartRateMonitor">
-                                            <h3 class="device-card--tile--header tile__label">Heart Rate</h3>
-                                            <heart-rate-value id="hrm-heartRate"
-                                                            class="data-view device-card--tile--value tile__value">--</heart-rate-value>
-                                            <svg class="toggle--button">
-                                                <use class="on" href="#icon--toggle--on"></use>
-                                                <use class="off" href="#icon--toggle--off"></use>
-                                            </svg>
-                                        </source-switch>
-                                    </div>
-                                </div>
-
-                                <!-- ant hrm -->
-                                <div class="device-card--body--row ant-not-supported"
-                                    id="ant-hrm-settings"
-                                >
+                            <!-- ant hrm -->
+                            <div class="device-card--ant ant-not-supported"
+                                id="ant-hrm-settings">
+                                <div class="device-card--ant-head">
                                     <connection-switch for="ant:hrm"
                                                     id="switch-hrm"
                                                     indicatorClass="connection-icon-switch--indicator"
-                                                    class="connection-icon-switch">
+                                                    class="connection-icon-switch"
+                                                    role="button"
+                                                    tabindex="0"
+                                                    aria-label="Connect ANT+ HRM">
                                         <svg class="connection-icon-switch--icon icon" xmlns="http://www.w3.org/2000/svg"
                                             height="24"
                                             viewBox="0 0 24 24"
-                                            width="24">
+                                            width="24"
+                                            aria-hidden="true">
                                             <path d="M22 9V7h-2V5c0-1.1-.9-2-2-2H4c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2v-2h2v-2h-2v-2h2v-2h-2V9h2zm-4 10H4V5h14v14zM6 13h5v4H6zm6-6h4v3h-4zM6 7h5v5H6zm6 4h4v6h-4z"/>
                                             <path d="M0 0h24v24H0zm0 0h24v24H0z" fill="none"/>
                                         </svg>
                                         <div class="connection-icon-switch--indicator off"></div>
                                     </connection-switch>
-                                    <div class="tile device-card--tile">
-                                        <h3 class="device-card--tile--header tile__label">Name</h3>
-                                        <data-view class="device-card--tile--value tile__value"
-                                                prop="ant:hrm:name">--</data-view>
+                                    <div class="device-card--info">
+                                        <span class="device-card--title">ANT+ HRM</span>
+                                        <data-view class="device-card--name" prop="ant:hrm:name">--</data-view>
                                     </div>
-                                    <div class="tile device-card--tile"></div>
-                                    <div class="tile device-card--tile"></div>
-                                    <div class="tile device-card--tile"></div>
-                                    <div class="tile device-card--tile">
-                                        <source-switch class="source-switch"
-                                                    for="heartRate"
-                                                    use="ant:hrm">
-                                            <h3 class="device-card--tile--header tile__label">Heart Rate</h3>
+                                </div>
+                                <div class="device-card--sources">
+                                    <source-switch class="source-switch"
+                                                for="heartRate"
+                                                use="ant:hrm">
+                                        <div class="source-switch--info">
+                                            <span class="source-switch--label">Heart Rate</span>
                                             <heart-rate-value id="ant-heartRate"
-                                                            class="data-view device-card--tile--value tile__value">--</heart-rate-value>
-                                        </source-switch>
-                                    </div>
-                                </div> <!-- end device-card--body--row -->
-                                <!-- end ant hrm -->
-                            </div>
+                                                            class="data-view source-switch--value">--</heart-rate-value>
+                                        </div>
+                                        <svg class="toggle--button" aria-hidden="true">
+                                            <use class="on" href="#icon--toggle--on"></use>
+                                            <use class="off" href="#icon--toggle--off"></use>
+                                        </svg>
+                                    </source-switch>
+                                </div>
+                            </div> <!-- end ant hrm -->
                         </div>
-                    </div> <!--end ant hrm settings -->
+                    </details> <!-- end hrm settings -->
 
                     <!-- moxy-monitor settings -->
-                    <div class="card device-card">
-                        <div class="device-card--cont">
-                            <div class="device-card--header">
-                                <div></div>
-                                <div class="device-card--header--label card__title">Moxy</div>
+                    <details class="card device-card">
+                        <summary class="device-card--head">
+                            <connection-switch for="ble:smo2"
+                                            class="connection-icon-switch"
+                                            indicatorClass="connection-icon-switch--indicator"
+                                            role="button"
+                                            tabindex="0"
+                                            aria-label="Connect Moxy">
+                                <svg class="connection-icon-switch--icon icon" aria-hidden="true">
+                                    <use href="#icon--bluetooth"></use>
+                                </svg>
+                                <div class="connection-icon-switch--indicator off"></div>
+                            </connection-switch>
+                            <div class="device-card--info">
+                                <span class="device-card--title">Moxy</span>
+                                <data-view class="data-view device-card--name" prop="ble:smo2:name">--</data-view>
+                            </div>
+                            <div class="device-card--meta">
                                 <battery-level for="ble:smo2">
                                     <div class="battery--level"></div>
                                 </battery-level>
+                                <svg class="device-card--chevron" viewBox="0 0 24 24" aria-hidden="true">
+                                    <path d="M7.41 8.59 12 13.17l4.59-4.58L18 10l-6 6-6-6z"/>
+                                </svg>
                             </div>
-                            <div class="device-card--body">
-                                <div class="device-card--body--row">
-                                    <connection-switch for="ble:smo2"
-                                                    class="connection-icon-switch"
-                                                    indicatorClass="connection-icon-switch--indicator">
-
-                                        <svg class="connection-icon-switch--icon icon">
-                                            <use href="#icon--bluetooth"></use>
-                                        </svg>
-                                        <div class="connection-icon-switch--indicator off"></div>
-                                    </connection-switch>
-                                    <div class="tile device-card--tile">
-                                        <h3 class="device-card--tile--header tile__label">Name</h3>
-                                        <data-view class="data-view device-card--tile--value tile__value"
-                                                prop="ble:smo2:name">--</data-view>
+                        </summary>
+                        <div class="device-card--body">
+                            <div class="device-card--sources">
+                                <source-switch class="source-switch"
+                                            for="smo2"
+                                            use="ble:smo2">
+                                    <div class="source-switch--info">
+                                        <span class="source-switch--label">SmO2</span>
+                                        <smo2-value class="data-view source-switch--value">--</smo2-value>
                                     </div>
-                                    <div class="tile device-card--tile">
-                                        <source-switch class="source-switch"
-                                                    for="smo2"
-                                                    use="ble:smo2">
-                                            <h3 class="device-card--tile--header tile__label">SmO2</h3>
-                                            <smo2-value class="data-view device-card--tile--value tile__value">--</smo2-value>
-                                            <svg class="toggle--button">
-                                                <use class="on" href="#icon--toggle--on"></use>
-                                                <use class="off" href="#icon--toggle--off"></use>
-                                            </svg>
-                                        </source-switch>
+                                    <svg class="toggle--button" aria-hidden="true">
+                                        <use class="on" href="#icon--toggle--on"></use>
+                                        <use class="off" href="#icon--toggle--off"></use>
+                                    </svg>
+                                </source-switch>
+                                <source-switch class="source-switch"
+                                               for="thb"
+                                               use="ble:smo2">
+                                    <div class="source-switch--info">
+                                        <span class="source-switch--label">THb</span>
+                                        <thb-value class="data-view source-switch--value">--</thb-value>
                                     </div>
-                                    <div class="tile device-card--tile">
-                                        <source-switch class="source-switch"
-                                                       for="thb"
-                                                       use="ble:smo2">
-                                            <h3 class="device-card--tile--header tile__label">THb</h3>
-                                            <thb-value class="data-view device-card--tile--value tile__value">--</thb-value>
-                                            <svg class="toggle--button">
-                                                <use class="on" href="#icon--toggle--on"></use>
-                                                <use class="off" href="#icon--toggle--off"></use>
-                                            </svg>
-                                        </source-switch>
-                                    </div>
-                                </div>
+                                    <svg class="toggle--button" aria-hidden="true">
+                                        <use class="on" href="#icon--toggle--on"></use>
+                                        <use class="off" href="#icon--toggle--off"></use>
+                                    </svg>
+                                </source-switch>
                             </div>
                         </div>
-                    </div> <!-- end moxy-monitor settings -->
+                    </details> <!-- end moxy-monitor settings -->
 
                     <!-- core-temp settings -->
-                    <div class="card device-card">
-                        <div class="device-card--cont">
-                            <div class="device-card--header">
-                                <div></div>
-                                <div class="device-card--header--label card__title">CoreTemp</div>
+                    <details class="card device-card">
+                        <summary class="device-card--head">
+                            <connection-switch for="ble:coreTemp"
+                                            class="connection-icon-switch"
+                                            indicatorClass="connection-icon-switch--indicator"
+                                            role="button"
+                                            tabindex="0"
+                                            aria-label="Connect CORE">
+                                <svg class="connection-icon-switch--icon icon" aria-hidden="true">
+                                    <use href="#icon--bluetooth"></use>
+                                </svg>
+                                <div class="connection-icon-switch--indicator off"></div>
+                            </connection-switch>
+                            <div class="device-card--info">
+                                <span class="device-card--title">CORE</span>
+                                <data-view class="data-view device-card--name" prop="ble:coreTemp:name">--</data-view>
+                            </div>
+                            <div class="device-card--meta">
                                 <battery-level for="ble:coreTemp">
                                     <div class="battery--level"></div>
                                 </battery-level>
+                                <svg class="device-card--chevron" viewBox="0 0 24 24" aria-hidden="true">
+                                    <path d="M7.41 8.59 12 13.17l4.59-4.58L18 10l-6 6-6-6z"/>
+                                </svg>
                             </div>
-                            <div class="device-card--body">
-                                <div class="device-card--body--row">
-                                    <connection-switch for="ble:coreTemp"
-                                                    class="connection-icon-switch"
-                                                    indicatorClass="connection-icon-switch--indicator">
-
-                                        <svg class="connection-icon-switch--icon icon">
-                                            <use href="#icon--bluetooth"></use>
-                                        </svg>
-                                        <div class="connection-icon-switch--indicator off"></div>
-                                    </connection-switch>
-                                    <div class="tile device-card--tile">
-                                        <h3 class="device-card--tile--header tile__label">Name</h3>
-                                        <data-view class="data-view device-card--tile--value tile__value"
-                                                prop="ble:coreTemp:name">--</data-view>
+                        </summary>
+                        <div class="device-card--body">
+                            <div class="device-card--sources">
+                                <source-switch class="source-switch"
+                                            for="coreBodyTemperature"
+                                            use="ble:coreTemp">
+                                    <div class="source-switch--info">
+                                        <span class="source-switch--label">Core</span>
+                                        <core-body-temperature-value class="data-view source-switch--value">--</core-body-temperature-value>
                                     </div>
-                                    <div class="tile device-card--tile">
-                                        <source-switch class="source-switch"
-                                                    for="coreBodyTemperature"
-                                                    use="ble:coreTemp">
-                                            <h3 class="device-card--tile--header tile__label">Core</h3>
-                                            <core-body-temperature-value class="data-view device-card--tile--value tile__value">--</core-body-temperature-value>
-                                            <svg class="toggle--button">
-                                                <use class="on" href="#icon--toggle--on"></use>
-                                                <use class="off" href="#icon--toggle--off"></use>
-                                            </svg>
-                                        </source-switch>
+                                    <svg class="toggle--button" aria-hidden="true">
+                                        <use class="on" href="#icon--toggle--on"></use>
+                                        <use class="off" href="#icon--toggle--off"></use>
+                                    </svg>
+                                </source-switch>
+                                <source-switch class="source-switch"
+                                               for="skinTemperature"
+                                               use="ble:coreTemp">
+                                    <div class="source-switch--info">
+                                        <span class="source-switch--label">Skin</span>
+                                        <skin-temperature-value class="data-view source-switch--value">--</skin-temperature-value>
                                     </div>
-                                    <div class="tile device-card--tile">
-                                        <source-switch class="source-switch"
-                                                       for="skinTemperature"
-                                                       use="ble:coreTemp">
-                                            <h3 class="device-card--tile--header tile__label">Skin</h3>
-                                            <skin-temperature-value class="data-view device-card--tile--value tile__value">--</skin-temperature-value>
-                                            <svg class="toggle--button">
-                                                <use class="on" href="#icon--toggle--on"></use>
-                                                <use class="off" href="#icon--toggle--off"></use>
-                                            </svg>
-                                        </source-switch>
+                                    <svg class="toggle--button" aria-hidden="true">
+                                        <use class="on" href="#icon--toggle--on"></use>
+                                        <use class="off" href="#icon--toggle--off"></use>
+                                    </svg>
+                                </source-switch>
+                                <source-switch class="source-switch"
+                                               for="heartRate"
+                                               use="ble:coreTemp">
+                                    <div class="source-switch--info">
+                                        <span class="source-switch--label">Heart Rate</span>
+                                        <heart-rate-value class="data-view source-switch--value">--</heart-rate-value>
                                     </div>
-                                    <div class="tile device-card--tile">
-                                    </div>
-                                    <div class="tile device-card--tile">
-                                        <source-switch class="source-switch"
-                                                       for="heartRate"
-                                                       use="ble:coreTemp">
-                                            <h3 class="device-card--tile--header tile__label">Heart Rate</h3>
-                                            <heart-rate-value class="data-view device-card--tile--value tile__value">--</heart-rate-value>
-                                            <svg class="toggle--button">
-                                                <use class="on" href="#icon--toggle--on"></use>
-                                                <use class="off" href="#icon--toggle--off"></use>
-                                            </svg>
-                                        </source-switch>
-                                    </div>
-                                </div>
+                                    <svg class="toggle--button" aria-hidden="true">
+                                        <use class="on" href="#icon--toggle--on"></use>
+                                        <use class="off" href="#icon--toggle--off"></use>
+                                    </svg>
+                                </source-switch>
                             </div>
                         </div>
-                    </div> <!-- end moxy-monitor settings -->
+                    </details> <!-- end core-temp settings -->
 
                     <!-- open bike control settings -->
-                    <div class="card device-card">
-                        <div class="device-card--cont">
-                            <div class="device-card--header">
-                                <div></div>
-                                <div class="device-card--header--label card__title">OpenBikeControl</div>
+                    <div class="card device-card device-card--static">
+                        <div class="device-card--head">
+                            <connection-switch for="ble:openBikeControl"
+                                            class="connection-icon-switch"
+                                            indicatorClass="connection-icon-switch--indicator"
+                                            role="button"
+                                            tabindex="0"
+                                            aria-label="Connect OpenBikeControl">
+                                <svg class="connection-icon-switch--icon icon" aria-hidden="true">
+                                    <use href="#icon--bluetooth"></use>
+                                </svg>
+                                <div class="connection-icon-switch--indicator off"></div>
+                            </connection-switch>
+                            <div class="device-card--info">
+                                <span class="device-card--title">OpenBikeControl</span>
+                                <data-view class="data-view device-card--name" prop="ble:openBikeControl:name">--</data-view>
+                            </div>
+                            <div class="device-card--meta">
                                 <battery-level for="ble:openBikeControl">
                                     <div class="battery--level"></div>
                                 </battery-level>
-                            </div>
-                            <div class="device-card--body">
-                                <div class="device-card--body--row">
-                                    <connection-switch for="ble:openBikeControl"
-                                                    class="connection-icon-switch"
-                                                    indicatorClass="connection-icon-switch--indicator">
-
-                                        <svg class="connection-icon-switch--icon icon">
-                                            <use href="#icon--bluetooth"></use>
-                                        </svg>
-                                        <div class="connection-icon-switch--indicator off"></div>
-                                    </connection-switch>
-                                    <div class="tile device-card--tile">
-                                        <h3 class="device-card--tile--header tile__label">Name</h3>
-                                        <data-view class="data-view device-card--tile--value tile__value"
-                                                prop="ble:openBikeControl:name">--</data-view>
-                                    </div>
-                                    <div class="tile device-card--tile"></div>
-                                    <div class="tile device-card--tile"></div>
-                                    <div class="tile device-card--tile"></div>
-                                </div>
                             </div>
                         </div>
                     </div> <!-- end open bike control settings -->

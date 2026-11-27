@@ -33,9 +33,20 @@ class ConnectionSwitch extends HTMLElement {
 
         // a panel button acts on click: on pointerup the tap's own click would land on the panel's backdrop
         this.addEventListener(this.hasAttribute('data-panel') ? 'click' : 'pointerup', this.onEffect.bind(this), this.signal);
+        // inside a <details><summary>, tapping the connect switch should not toggle the card open/closed
+        if(this.closest('summary')) {
+            this.addEventListener('click', e => {
+                e.preventDefault();
+                e.stopPropagation();
+            }, this.signal);
+        }
         // as a button from the keyboard too
         this.addEventListener('keydown', e => {
-            if(e.key === 'Enter' || e.key === ' ') { e.preventDefault(); this.onEffect(e); }
+            if(e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                e.stopPropagation();
+                this.onEffect(e);
+            }
         }, this.signal);
         xf.sub(`${this.for}:connected`,    this.on.bind(this), this.signal);
         xf.sub(`${this.for}:disconnected`, this.off.bind(this), this.signal);
@@ -66,6 +77,8 @@ class ConnectionSwitch extends HTMLElement {
         this.$indicator.classList.remove(this.offClass);
         this.$indicator.classList.add(this.onClass);
         this.status = 'on';
+        const card = this.closest('details.device-card');
+        if(card instanceof HTMLDetailsElement) card.open = true;
     }
     off(e) {
         this.$indicator.classList.remove(this.loadingClass);
