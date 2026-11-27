@@ -299,9 +299,9 @@ class RideChart extends HTMLElement {
                 : spec.series.find(s => s.scale === 'kj' && left.scale !== 'kj' && s.show);
             return {spec, left, right};
         });
-        const leftSize = narrow ? 36 : 46;
+        const leftSize = narrow ? 28 : 36;
         const anyRight = paneConfigs.some(cfg => !!cfg.right);
-        const rightSize = anyRight ? (narrow ? 32 : 40) : 8;
+        const rightSize = anyRight ? (narrow ? 28 : 36) : 6;
 
         paneConfigs.forEach(({spec, left, right}, paneIdx) => {
             const wrap = document.createElement('div');
@@ -333,10 +333,10 @@ class RideChart extends HTMLElement {
                 }))],
                 axes: [
                     spec.showX
-                        ? {...axis, size: 24, values: (u, ts) => ts.map(clock)}
-                        : {...axis, show: false, size: 0, grid: {show: true, stroke: c.line, width: 1}},
-                    {...axis, scale: left.scale, size: leftSize, label: '', values: (u, ts) => ts.map(t => `${Math.round(t)}`)},
-                    ...(right ? [{...axis, scale: right.scale, side: 1, size: rightSize, grid: {show: false}, values: (u, ts) => ts.map(t => `${Math.round(t)}`)}] : []),
+                        ? {...axis, size: 22, labelSize: 0, labelGap: 0, values: (u, ts) => ts.map(clock)}
+                        : {...axis, show: false, size: 0, labelSize: 0, labelGap: 0, grid: {show: true, stroke: c.line, width: 1}},
+                    {...axis, scale: left.scale, size: leftSize, label: null, labelSize: 0, labelGap: 0, values: (u, ts) => ts.map(t => `${Math.round(t)}`)},
+                    ...(right ? [{...axis, scale: right.scale, side: 1, size: rightSize, label: null, labelSize: 0, labelGap: 0, grid: {show: false}, values: (u, ts) => ts.map(t => `${Math.round(t)}`)}] : []),
                 ],
                 cursor: {
                     drag: {x: !touchDevice, y: false},

@@ -148,7 +148,6 @@ ride-chart {
 
 .rc-pane { min-width: 0; }
 .rc-pane + .rc-pane:not([hidden]) {
-    border-top: var(--line-w) solid var(--line);
     padding-top: 4px;
 }
 

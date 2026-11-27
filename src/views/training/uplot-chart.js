@@ -193,10 +193,10 @@ class UPlotCard extends HTMLElement {
                 ...(y2 ? {y2: model.y2Range ? {range: model.y2Range} : {}} : {}),
             },
             axes: [
-                {...axis, size: 24, gap: 4, ...(model.xTicks ? {splits: () => model.xTicks, filter: (u, splits) => splits} : {}), values: model.xFormat ? (u, ts) => ts.map(model.xFormat) :
+                {...axis, size: 22, gap: 4, labelSize: 0, labelGap: 0, ...(model.xTicks ? {splits: () => model.xTicks, filter: (u, splits) => splits} : {}), values: model.xFormat ? (u, ts) => ts.map(model.xFormat) :
                     (time ? (u, ts) => ts.map(t => fmtDay(new Date(t * 1000).toISOString().slice(0, 10), {day: 'numeric', month: 'short'})) : undefined)},
-                {...axis, size: 36, gap: 4, values: model.yFormat ? (u, ts) => ts.map(model.yFormat) : undefined},
-                ...(y2 ? [{...axis, scale: 'y2', side: 1, size: 34, gap: 4, grid: {show: false}, values: model.y2Format ? (u, ts) => ts.map(model.y2Format) : undefined}] : []),
+                {...axis, size: 32, gap: 4, labelSize: 0, labelGap: 0, values: model.yFormat ? (u, ts) => ts.map(model.yFormat) : undefined},
+                ...(y2 ? [{...axis, scale: 'y2', side: 1, size: 30, gap: 4, labelSize: 0, labelGap: 0, grid: {show: false}, values: model.y2Format ? (u, ts) => ts.map(model.y2Format) : undefined}] : []),
             ],
             cursor: {
                 drag: {x: model.zoom === true && !touchDevice(), y: false},
