@@ -1070,6 +1070,60 @@
                             </div>
                         </div>
                     </div> <!-- end open bike control settings -->
+
+                    <!-- gps settings -->
+                    <details class="device-card">
+                        <summary class="device-card--head">
+                            <connection-switch for="gps"
+                                            class="connection-icon-switch"
+                                            indicatorClass="connection-icon-switch--indicator"
+                                            role="button"
+                                            tabindex="0"
+                                            aria-label="Connect GPS">
+                                <svg class="connection-icon-switch--icon icon" viewBox="0 0 24 24" aria-hidden="true">
+                                    <path d="M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8zm8.94 3A8.99 8.99 0 0 0 13 3.06V1h-2v2.06A8.99 8.99 0 0 0 3.06 11H1v2h2.06A8.99 8.99 0 0 0 11 20.94V23h2v-2.06A8.99 8.99 0 0 0 20.94 13H23v-2h-2.06zM12 19a7 7 0 1 1 0-14 7 7 0 0 1 0 14z"/>
+                                </svg>
+                                <div class="connection-icon-switch--indicator off"></div>
+                            </connection-switch>
+                            <div class="device-card--info">
+                                <span class="device-card--title">GPS (Location)</span>
+                                <data-view class="data-view device-card--name" prop="gps:name">--</data-view>
+                            </div>
+                            <div class="device-card--meta">
+                                <svg class="device-card--chevron" viewBox="0 0 24 24" aria-hidden="true">
+                                    <path d="M7.41 8.59 12 13.17l4.59-4.58L18 10l-6 6-6-6z"/>
+                                </svg>
+                            </div>
+                        </summary>
+                        <div class="device-card--body">
+                            <div class="device-card--sources">
+                                <source-switch class="source-switch"
+                                               for="speed"
+                                               use="gps">
+                                    <div class="source-switch--info">
+                                        <span class="source-switch--label">Speed</span>
+                                        <speed-value class="data-view source-switch--value">--</speed-value>
+                                    </div>
+                                    <svg class="toggle--button" aria-hidden="true">
+                                        <use class="on" href="#icon--toggle--on"></use>
+                                        <use class="off" href="#icon--toggle--off"></use>
+                                    </svg>
+                                </source-switch>
+                                <div class="source-switch">
+                                    <div class="source-switch--info">
+                                        <span class="source-switch--label">Position</span>
+                                        <data-view class="data-view source-switch--value" prop="gps:coords">--</data-view>
+                                    </div>
+                                </div>
+                                <div class="source-switch">
+                                    <div class="source-switch--info">
+                                        <span class="source-switch--label">Accuracy</span>
+                                        <data-view class="data-view source-switch--value" prop="gps:accuracy">--</data-view>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </details> <!-- end gps settings -->
                     </section>
 
                     <!-- Ride & Trainer -->

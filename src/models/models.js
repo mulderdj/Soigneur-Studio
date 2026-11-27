@@ -929,13 +929,15 @@ function Session(args = {}) {
 
         db.elapsed = x;
 
-        const speed = equals(db.sources.virtualState, 'speed') ?
-                    db.speed :
-                    db.speedVirtual;
-
         const hasGps = Number.isFinite(db.position_lat) &&
                        Number.isFinite(db.position_long) &&
                        !(db.position_lat === 0 && db.position_long === 0);
+
+        const useRealSpeed = equals(db.sources.virtualState, 'speed') ||
+                             equals(db.sources.speed, 'gps') ||
+                             (hasGps && db.speed > 0 && !(db.speedVirtual > 0));
+        const speed = useRealSpeed ? db.speed : db.speedVirtual;
+
         const hasElevation = hasGps ||
                              exists(db.workout?.points) ||
                              equals(db.mode, ControlMode.sim) ||
@@ -1387,6 +1389,10 @@ class VirtualState extends MetaProp {
     }
     onUpdate(power, db) {
         if(!equals(this.source, this.prop)) return;
+        const hasGps = Number.isFinite(db.position_lat) &&
+                       Number.isFinite(db.position_long) &&
+                       !(db.position_lat === 0 && db.position_long === 0);
+        if(hasGps && equals(db.sources?.speed, 'gps')) return;
 
         // Take into acount the pauses
         const now = Date.now();
@@ -1414,8 +1420,10 @@ class VirtualState extends MetaProp {
         // xf.dispatch('speedVirtual', (speed * 3.6));
         xf.dispatch('speedVirtual', speed);
         xf.dispatch('distance', distance);
-        xf.dispatch('altitude', altitude);
-        xf.dispatch('ascent', ascent);
+        if(!hasGps) {
+            xf.dispatch('altitude', altitude);
+            xf.dispatch('ascent', ascent);
+        }
     }
 }
 
@@ -1439,6 +1447,10 @@ class SpeedState extends VirtualState {
     }
     onUpdate(speed, db) {
         if(!equals(this.source, this.prop)) return;
+        const hasGps = Number.isFinite(db.position_lat) &&
+                       Number.isFinite(db.position_long) &&
+                       !(db.position_lat === 0 && db.position_long === 0);
+        if(hasGps && equals(db.sources?.speed, 'gps')) return;
 
         const now = Date.now();
         const dt  = (now - this.lastUpdate) / 1000;
@@ -1460,8 +1472,10 @@ class SpeedState extends VirtualState {
         this.speedPrev = speed;
 
         xf.dispatch('distance', distance);
-        xf.dispatch('altitude', altitude);
-        xf.dispatch('ascent', ascent);
+        if(!hasGps) {
+            xf.dispatch('altitude', altitude);
+            xf.dispatch('ascent', ascent);
+        }
     }
 }
 
