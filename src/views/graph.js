@@ -1,187 +1,154 @@
 // @ts-check
-/*
- (c) 2017, Vladimir Agafonkin
- Simplify.js, a high-performance JS polyline simplification library
- mourner.github.io/simplify-js
-*/
 
-// to suit your point format, run search/replace for '.x' and '.y';
+const DEG_PER_RAD = 180 / Math.PI;
+const RAD_PER_DEG = Math.PI / 180;
 
-// square distance between 2 points
-function getSqDist(p1, p2) {
+/** @type {Array<[number, string]>} */
+const SLOPE_PALETTE = [
+    [-40, '#328AFF'],
+    [-17.5, '#3690EA'],
+    [-15, '#3B97D5'],
+    [-12.5, '#3F9EC0'],
+    [-10, '#44A5AB'],
+    [-7.5, '#48AB96'],
+    [-5, '#4DB281'],
+    [-2.5, '#52B96C'],
+    [0, '#57C057'],
+    [2.5, '#68AC4E'],
+    [5, '#799845'],
+    [7.5, '#8A843C'],
+    [10, '#9B7134'],
+    [12.5, '#B36129'],
+    [15, '#CC521F'],
+    [17.5, '#E54315'],
+    [40, '#FE340B'],
+];
 
-    var dx = p1.x - p2.x,
-        dy = p1.y - p2.y;
-
+function sqDist(a, b) {
+    const dx = a.x - b.x;
+    const dy = a.y - b.y;
     return dx * dx + dy * dy;
 }
 
-// square distance from a point to a segment
-function getSqSegDist(p, p1, p2) {
-
-    var x = p1.x,
-        y = p1.y,
-        dx = p2.x - x,
-        dy = p2.y - y;
+function sqSegmentDist(point, start, end) {
+    let x = start.x;
+    let y = start.y;
+    const dx = end.x - x;
+    const dy = end.y - y;
 
     if (dx !== 0 || dy !== 0) {
-
-        var t = ((p.x - x) * dx + (p.y - y) * dy) / (dx * dx + dy * dy);
-
-        if (t > 1) {
-            x = p2.x;
-            y = p2.y;
-
-        } else if (t > 0) {
-            x += dx * t;
-            y += dy * t;
+        const proj = ((point.x - x) * dx + (point.y - y) * dy) / (dx * dx + dy * dy);
+        if (proj > 1) {
+            x = end.x;
+            y = end.y;
+        } else if (proj > 0) {
+            x += dx * proj;
+            y += dy * proj;
         }
     }
 
-    dx = p.x - x;
-    dy = p.y - y;
-
-    return dx * dx + dy * dy;
+    const px = point.x - x;
+    const py = point.y - y;
+    return px * px + py * py;
 }
-// rest of the code doesn't care about point format
 
-// basic distance-based simplification
-function simplifyRadialDist(points, sqTolerance) {
+function filterByRadialDistance(points, sqTolerance) {
+    let anchor = points[0];
+    const filtered = [anchor];
+    let current = anchor;
 
-    var prevPoint = points[0],
-        newPoints = [prevPoint],
-        point;
-
-    for (var i = 1, len = points.length; i < len; i++) {
-        point = points[i];
-
-        if (getSqDist(point, prevPoint) > sqTolerance) {
-            newPoints.push(point);
-            prevPoint = point;
+    for (let i = 1; i < points.length; i++) {
+        current = points[i];
+        if (sqDist(current, anchor) > sqTolerance) {
+            filtered.push(current);
+            anchor = current;
         }
     }
 
-    if (prevPoint !== point) newPoints.push(point);
-
-    return newPoints;
+    if (anchor !== current) {
+        filtered.push(current);
+    }
+    return filtered;
 }
 
-function simplifyDPStep(points, first, last, sqTolerance, simplified) {
-    var maxSqDist = sqTolerance,
-        index;
+function rdpSubdivide(points, startIdx, endIdx, sqTolerance, out) {
+    let maxDistSq = sqTolerance;
+    let splitIdx = -1;
 
-    for (var i = first + 1; i < last; i++) {
-        var sqDist = getSqSegDist(points[i], points[first], points[last]);
-
-        if (sqDist > maxSqDist) {
-            index = i;
-            maxSqDist = sqDist;
+    for (let i = startIdx + 1; i < endIdx; i++) {
+        const distSq = sqSegmentDist(points[i], points[startIdx], points[endIdx]);
+        if (distSq > maxDistSq) {
+            maxDistSq = distSq;
+            splitIdx = i;
         }
     }
 
-    if (maxSqDist > sqTolerance) {
-        if (index - first > 1) simplifyDPStep(points, first, index, sqTolerance, simplified);
-        simplified.push(points[index]);
-        if (last - index > 1) simplifyDPStep(points, index, last, sqTolerance, simplified);
+    if (splitIdx !== -1 && maxDistSq > sqTolerance) {
+        if (splitIdx - startIdx > 1) {
+            rdpSubdivide(points, startIdx, splitIdx, sqTolerance, out);
+        }
+        out.push(points[splitIdx]);
+        if (endIdx - splitIdx > 1) {
+            rdpSubdivide(points, splitIdx, endIdx, sqTolerance, out);
+        }
     }
 }
 
-// simplification using Ramer-Douglas-Peucker algorithm
 function simplifyDouglasPeucker(points, sqTolerance) {
-    var last = points.length - 1;
-
-    var simplified = [points[0]];
-    simplifyDPStep(points, 0, last, sqTolerance, simplified);
-    simplified.push(points[last]);
-
-    return simplified;
+    const endIdx = points.length - 1;
+    const out = [points[0]];
+    rdpSubdivide(points, 0, endIdx, sqTolerance, out);
+    out.push(points[endIdx]);
+    return out;
 }
 
-// both algorithms combined for awesome performance
-function simplify(points, tolerance, highestQuality) {
-
-    if (points.length <= 2) return points;
-
-    var sqTolerance = tolerance !== undefined ? tolerance * tolerance : 1;
-
-    points = highestQuality ? points : simplifyRadialDist(points, sqTolerance);
-    points = simplifyDouglasPeucker(points, sqTolerance);
-
-    return points;
+function simplify(points, tolerance, highestQuality = false) {
+    if (!Array.isArray(points) || points.length <= 2) {
+        return points;
+    }
+    const sqTolerance = tolerance !== undefined ? tolerance * tolerance : 1;
+    const candidates = highestQuality ? points : filterByRadialDistance(points, sqTolerance);
+    return simplifyDouglasPeucker(candidates, sqTolerance);
 }
 
-
-//
 function slopeToColor(slope) {
-    // avg hex
-    const colors = new Map([
-        ['-40',   '#328AFF'],
-        ['-17.5', '#3690EA'],
-        ['-15',   '#3B97D5'],
-        ['-12.5', '#3F9EC0'],
-        ['-10',   '#44A5AB'],
-        ['-7.5',  '#48AB96'],
-        ['-5',    '#4DB281'],
-        ['-2.5',  '#52B96C'],
-        ['0',     '#57C057'],
-        ['2.5',   '#68AC4E'],
-        ['5',     '#799845'],
-        ['7.5',   '#8A843C'],
-        ['10',    '#9B7134'],
-        ['12.5',  '#B36129'],
-        ['15',    '#CC521F'],
-        ['17.5',  '#E54315'],
-        ['40',    '#FE340B'],
-    ]);
-
-    for(var [key, value] of colors) {
-        if(slope <= parseFloat(key)) {
-            return value;
+    for (const [threshold, hex] of SLOPE_PALETTE) {
+        if (slope <= threshold) {
+            return hex;
         }
     }
-    // end avg hex
-
-    // base hue
-    // const baseHue = 120;
-    // const hue = baseHue - (slope * 12);
-
-    // return `hsl(${hue}, 45%, 55%)`;
-    // end base hue
+    return SLOPE_PALETTE[SLOPE_PALETTE.length - 1][1];
 }
 
 function gradeToDeg(grade) {
-    // 10 % = 5.71 deg, 5% = 2.86
-    return 180/Math.PI * Math.atan(grade/100);
+    return DEG_PER_RAD * Math.atan(grade / 100);
 }
 
 function slopeToRise(slope, distance) {
-    return distance * Math.sin(Math.atan(slope/100));
+    return distance * Math.sin(Math.atan(slope / 100));
 }
 
 function slopeToRun(slope, distance) {
-    return distance * Math.cos(Math.atan(slope/100));
+    return distance * Math.cos(Math.atan(slope / 100));
 }
 
-function adjacent(deg, r) {
-    return r * Math.cos(Math.PI/180 * deg);
+function adjacent(deg, radius) {
+    return radius * Math.cos(RAD_PER_DEG * deg);
 }
 
-function opposite(deg, r) {
-    return r * Math.sin(Math.PI/180 * deg);
+function opposite(deg, radius) {
+    return radius * Math.sin(RAD_PER_DEG * deg);
 }
 
-
-
-const g = {
+const g = Object.freeze({
     simplifyDouglasPeucker,
     simplify,
-
     slopeToColor,
     gradeToDeg,
     slopeToRise,
     slopeToRun,
     adjacent,
     opposite,
-};
+});
 
 export { g };

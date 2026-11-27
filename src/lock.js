@@ -1,64 +1,66 @@
 // @ts-check
 import { xf } from './functions.js';
 
-class WakeLock {
-    constructor(args) {
-        this.lock = undefined;
+class ScreenWakeLock {
+    constructor() {
+        /** @type {any} */
+        this.sentinel = undefined;
         this.isLocked = false;
-        this.isLocable = false;
+        this.isLockable = false;
         this.isVisible = false;
         this.init();
     }
+
     init() {
-        let self = this;
-        self.isLocable = ('wakeLock' in navigator);
-        self.isVisible = self.checkVisibility();
+        if (typeof navigator === 'undefined' || typeof document === 'undefined') {
+            return;
+        }
 
-        self.lockScreen();
+        this.isLockable = 'wakeLock' in navigator;
+        this.isVisible = this.checkVisibility();
+        this.lockScreen();
 
-        document.addEventListener('visibilitychange', self.onVisibilityChange.bind(self));
+        document.addEventListener('visibilitychange', () => this.onVisibilityChange());
 
-        window.addEventListener('beforeunload', e => {
-            xf.dispatch('lock:beforeunload');
-        });
+        if (typeof window !== 'undefined') {
+            window.addEventListener('beforeunload', () => {
+                xf.dispatch('lock:beforeunload');
+            });
+        }
     }
+
     checkVisibility() {
-        let isVisible = false;
-        let visibilityState = document.visibilityState;
-
-        if(visibilityState === 'visible') {
-            isVisible = true;
-        } else {
-            isVisible = false;
-        }
-        return isVisible;
+        return typeof document !== 'undefined' && document.visibilityState === 'visible';
     }
-    onVisibilityChange () {
-        let self = this;
 
-        if(self.checkVisibility()) {
-            self.lockScreen();
+    onVisibilityChange() {
+        this.isVisible = this.checkVisibility();
+        if (this.isVisible) {
+            this.lockScreen();
         }
     }
+
     async lockScreen() {
-        let self = this;
-        if(self.isLocable && self.isVisible) {
-            try {
-                let lock = await navigator.wakeLock.request('screen');
-                self.isLocked = true;
+        if (!this.isLockable || !this.checkVisibility()) {
+            return;
+        }
 
-                lock.addEventListener('release', e => {
-                    self.isLocked = false;
-                    xf.dispatch('lock:release');
-                    console.log(`Wake lock released.`);
-                });
-            } catch(e) {
-                console.warn(`wake-lock: not-supported:`, e);
-            }
+        try {
+            const sentinel = await navigator.wakeLock.request('screen');
+            this.sentinel = sentinel;
+            this.isLocked = true;
+
+            sentinel.addEventListener('release', () => {
+                this.isLocked = false;
+                this.sentinel = undefined;
+                xf.dispatch('lock:release');
+            });
+        } catch {
+            this.isLocked = false;
         }
     }
 }
 
-const lock = new WakeLock();
+const lock = new ScreenWakeLock();
 
-export { lock };
+export { lock, ScreenWakeLock };

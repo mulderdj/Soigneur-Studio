@@ -1,20 +1,18 @@
 // @ts-check
-import { xf, exists, equals } from './functions.js';
+import { xf, equals } from './functions.js';
 import { models } from './models/models.js';
 import { Sound } from './sound.js';
-import { idb } from './storage/idb.js';
+import { idb, DEFAULT_STORES } from './storage/idb.js';
 import { riders } from './riders.js';
 import { cleanupLegacyPrefs } from './legacy-prefs.js';
-import { ControlMode, } from './ble/enums.js';
-import { TimerStatus, } from './activity/enums.js';
+import { ControlMode } from './ble/enums.js';
+import { TimerStatus } from './activity/enums.js';
 
-// import { trainerMock } from './simulation-scripts.js';
-
-let db = {
-    // Data Screen
+const db = {
+    // Live telemetry
     power: models.power.default,
     heartRate: models.heartRate.default,
-    rrInterval: [],
+    rrInterval: /** @type {number[]} */ ([]),
     cadence: models.cadence.default,
     speed: models.speed.default,
     sources: models.sources.default,
@@ -25,15 +23,18 @@ let db = {
     position_lat: 0,
     position_long: 0,
 
+    // Virtual physics & course progress
     speedVirtual: models.virtualState.speed,
     altitude: models.virtualState.altitude,
     distance: models.virtualState.distance,
     ascent: models.virtualState.ascent,
 
+    // Smoothed & zone power
     power1s: models.power1s.default,
     power3s: models.power3s.default,
     powerInZone: models.powerInZone.default,
 
+    // Accumulators & lap averages
     powerLap: models.powerLap.default,
     heartRateLap: models.heartRateLap.default,
     cadenceLap: models.cadenceLap.default,
@@ -49,10 +50,9 @@ let db = {
     powerAvgCount: models.powerAvg.count,
     cadenceAvgCount: models.cadenceAvg.count,
     heartRateAvgCount: models.heartRateAvg.count,
-
     heartRateMax: 0,
 
-    // Targets
+    // Trainer control targets
     powerTarget: models.powerTarget.default,
     resistanceTarget: models.resistanceTarget.default,
     slopeTarget: models.slopeTarget.default,
@@ -62,7 +62,7 @@ let db = {
     page: models.page.default,
     lock: false,
 
-    // Profile
+    // Rider profile & appearance preferences
     ftp: models.ftp.default,
     weight: models.weight.default,
     theme: models.theme.default,
@@ -74,27 +74,26 @@ let db = {
     measurement: models.measurement.default,
     volume: models.volume.default,
 
-    // UI options
+    // UI state
     powerSmoothing: 0,
     dataTileSwitch: models.dataTileSwitch.default,
     auth: ':login',
 
-    // Workouts
-    workouts: [],
+    // Workouts & activities
+    workouts: /** @type {any[]} */ ([]),
     workout: models.workout.default,
-    workoutTextEvent: "",
-
-    // Activities
+    workoutTextEvent: '',
     activity: models.activity.default,
 
-    // Recording
-    records: [],
-    lap: [],
-    laps: [],
-    events: [],
+    // Recording buffers
+    records: /** @type {any[]} */ ([]),
+    lap: /** @type {any[]} */ ([]),
+    laps: /** @type {any[]} */ ([]),
+    events: /** @type {any[]} */ ([]),
+    /** @type {number | false} */
     lapStartTime: false,
 
-    // Watch
+    // Session watch state
     elapsed: 0,
     lapTime: 0,
     stepTime: 0,
@@ -105,415 +104,386 @@ let db = {
     watchStatus: TimerStatus.stopped,
     workoutStatus: TimerStatus.stopped,
 
-    // Course
+    // Course state
     courseIndex: 0,
 
-    // Request ANT+ Device
-    antSearchList: [],
+    // ANT+ discovery state
+    antSearchList: /** @type {any[]} */ ([]),
     antDeviceId: {},
 
-    // Services
-    services: {strava: false, intervals: false, trainingPeaks: false},
-    account: {identifier: ''},
+    // Connected external services & account
+    services: { strava: false, intervals: false, trainingPeaks: false },
+    account: { identifier: '' },
 };
-
-
 
 xf.create(db);
 
-// Data Screen
-xf.reg(models.heartRate.prop, (heartRate, db) => {
-    db.heartRate = heartRate;
-    db.heartRateLap = models.heartRateLap.setState(heartRate);
-    db.heartRateAvg = models.heartRateAvg.setState(heartRate);
-    db.heartRateLapCount = models.heartRateLap.count;
-    db.heartRateAvgCount = models.heartRateAvg.count;
+// Telemetry handlers
+xf.reg(models.heartRate.prop, (heartRate, state) => {
+    state.heartRate = heartRate;
+    state.heartRateLap = models.heartRateLap.setState(heartRate);
+    state.heartRateAvg = models.heartRateAvg.setState(heartRate);
+    state.heartRateLapCount = models.heartRateLap.count;
+    state.heartRateAvgCount = models.heartRateAvg.count;
 
-    if(heartRate > db.heartRateMax) {
-        db.heartRateMax = heartRate;
+    if (heartRate > state.heartRateMax) {
+        state.heartRateMax = heartRate;
     }
 });
 
-xf.reg('rrInterval', (rrInterval, db) => {
-    db.rrInterval = rrInterval;
+xf.reg('rrInterval', (rrInterval, state) => {
+    state.rrInterval = rrInterval;
 });
 
-xf.reg(models.power.prop, (power, db) => {
-    db.power = power;
+xf.reg(models.power.prop, (power, state) => {
+    state.power = power;
 });
 
-xf.reg(models.cadence.prop, (cadence, db) => {
-    db.cadence = cadence;
-    db.cadenceLap = models.cadenceLap.setState(cadence);
-    db.cadenceAvg = models.cadenceAvg.setState(cadence);
-    db.cadenceLapCount = models.cadenceLap.count;
-    db.cadenceAvgCount = models.cadenceAvg.count;
+xf.reg(models.cadence.prop, (cadence, state) => {
+    state.cadence = cadence;
+    state.cadenceLap = models.cadenceLap.setState(cadence);
+    state.cadenceAvg = models.cadenceAvg.setState(cadence);
+    state.cadenceLapCount = models.cadenceLap.count;
+    state.cadenceAvgCount = models.cadenceAvg.count;
 });
 
-xf.reg(models.speed.prop, (speed, db) => {
-    db.speed = speed;
+xf.reg(models.speed.prop, (speed, state) => {
+    state.speed = speed;
 });
 
-xf.reg(models.smo2.prop, (smo2, db) => {
-    db.smo2 = smo2;
+xf.reg(models.smo2.prop, (smo2, state) => {
+    state.smo2 = smo2;
 });
 
-xf.reg(models.thb.prop, (thb, db) => {
-    db.thb = thb;
+xf.reg(models.thb.prop, (thb, state) => {
+    state.thb = thb;
 });
 
-xf.reg(`coreBodyTemperature`, (coreBodyTemperature, db) => {
-    db.coreBodyTemperature = coreBodyTemperature;
+xf.reg('coreBodyTemperature', (coreTemp, state) => {
+    state.coreBodyTemperature = coreTemp;
 });
 
-xf.reg(`skinTemperature`, (skinTemperature, db) => {
-    db.skinTemperature = skinTemperature;
+xf.reg('skinTemperature', (skinTemp, state) => {
+    state.skinTemperature = skinTemp;
 });
 
-xf.reg('ble:openBikeControl:buttonState', (messages, db) => {
-    db.virtualGear = models.virtualGear.apply(db.virtualGear, messages);
+xf.reg('ble:openBikeControl:buttonState', (messages, state) => {
+    state.virtualGear = models.virtualGear.apply(state.virtualGear, messages);
 });
 
-xf.reg(models.sources.prop, (sources, db) => {
-    db.sources = models.sources.set(db.sources, sources);
-    models.sources.backup(db.sources);
-    console.log(db.sources);
+xf.reg(models.sources.prop, (patch, state) => {
+    state.sources = models.sources.set(state.sources, patch);
+    models.sources.backup(state.sources);
 });
 
-xf.reg('power1s', (power, db) => {
-    db.power1s = power;
-
-    db.powerLap = models.powerLap.setState(power);
-    db.powerAvg = models.powerAvg.setState(power);
-    db.kcal = models.kcal.setState(power);
-
-    db.powerLapCount = models.powerLap.count;
-    db.powerAvgCount = models.powerAvg.count;
+xf.reg('power1s', (watts, state) => {
+    state.power1s = watts;
+    state.powerLap = models.powerLap.setState(watts);
+    state.powerAvg = models.powerAvg.setState(watts);
+    state.kcal = models.kcal.setState(watts);
+    state.powerLapCount = models.powerLap.count;
+    state.powerAvgCount = models.powerAvg.count;
 });
 
-xf.reg('power3s', (power, db) => {
-    db.power3s = power;
+xf.reg('power3s', (watts, state) => {
+    state.power3s = watts;
 });
 
-xf.reg('powerInZone', (powerInZone, db) => {
-    db.powerInZone = powerInZone;
+xf.reg('powerInZone', (distribution, state) => {
+    state.powerInZone = distribution;
 });
 
-xf.reg('speedVirtual', (speedVirtual, db) => {
-    db.speedVirtual = speedVirtual;
+xf.reg('speedVirtual', (speedVirtual, state) => {
+    state.speedVirtual = speedVirtual;
 });
 
-xf.reg('altitude', (altitude, db) => {
-    db.altitude = altitude;
+xf.reg('altitude', (altitude, state) => {
+    state.altitude = altitude;
 });
 
-xf.reg('ascent', (ascent, db) => {
-    db.ascent = ascent;
+xf.reg('ascent', (ascent, state) => {
+    state.ascent = ascent;
 });
 
-xf.reg('distance', (distance, db) => {
-    if(equals(db.watchStatus, 'started')) {
-        db.distance = distance;
-    };
-});
-
-// Pages
-xf.reg('ui:page-set', (page, db) => {
-    db.page = models.page.set(page);
-});
-
-// Modes
-xf.reg('ui:mode-set', (mode, db) => {
-    if(db.lock) return;
-
-    db.mode = models.mode.set(mode);
-
-    if(equals(mode, ControlMode.erg)) {
-        xf.dispatch(`ui:power-target-set`, db.powerTarget);
-    }
-    if(equals(mode, ControlMode.resistance)) {
-        xf.dispatch(`ui:resistance-target-set`, db.resistanceTarget);
-    }
-    if(equals(mode, ControlMode.sim)) {
-        xf.dispatch(`ui:slope-target-set`, db.slopeTarget);
+xf.reg('distance', (distance, state) => {
+    if (equals(state.watchStatus, TimerStatus.started)) {
+        state.distance = distance;
     }
 });
 
-xf.reg('ui:lock-set', (_, db) => {
-    db.lock = !db.lock;
+// Navigation & control modes
+xf.reg('ui:page-set', (page, state) => {
+    state.page = models.page.set(page);
 });
 
-xf.reg('ui:lock-toggle', (_, db) => {
-    db.lock = !db.lock;
+xf.reg('ui:mode-set', (mode, state) => {
+    if (state.lock) return;
+
+    state.mode = models.mode.set(mode);
+
+    if (equals(mode, ControlMode.erg)) {
+        xf.dispatch('ui:power-target-set', state.powerTarget);
+    } else if (equals(mode, ControlMode.resistance)) {
+        xf.dispatch('ui:resistance-target-set', state.resistanceTarget);
+    } else if (equals(mode, ControlMode.sim)) {
+        xf.dispatch('ui:slope-target-set', state.slopeTarget);
+    }
 });
 
-
-// UI options
-xf.reg('ui:data-tile-switch-set', (index, db) => {
-    db.dataTileSwitch = index;
-    models.dataTileSwitch.backup(db.dataTileSwitch);
+xf.reg('ui:lock-set', (_, state) => {
+    state.lock = !state.lock;
 });
 
-// Targets
-xf.reg('ui:power-target-set', (powerTarget, db) => {
-    db.powerTarget = models.powerTarget.set(powerTarget);
-});
-xf.reg('ui:power-target-inc', (_, db) => {
-    db.powerTarget = models.powerTarget.inc(db.powerTarget);
-});
-xf.reg(`ui:power-target-dec`, (_, db) => {
-    db.powerTarget = models.powerTarget.dec(db.powerTarget);
-});
-xf.reg('ui:cadence-target-set', (cadenceTarget, db) => {
-    db.cadenceTarget = models.cadenceTarget.set(cadenceTarget);
+xf.reg('ui:lock-toggle', (_, state) => {
+    state.lock = !state.lock;
 });
 
-xf.reg('ui:resistance-target-set', (resistanceTarget, db) => {
-    db.resistanceTarget = models.resistanceTarget.set(resistanceTarget);
-});
-xf.reg('ui:resistance-target-inc', (_, db) => {
-    db.resistanceTarget = models.resistanceTarget.inc(db.resistanceTarget);
-});
-xf.reg(`ui:resistance-target-dec`, (_, db) => {
-    db.resistanceTarget = models.resistanceTarget.dec(db.resistanceTarget);
+xf.reg('ui:data-tile-switch-set', (index, state) => {
+    state.dataTileSwitch = index;
+    models.dataTileSwitch.backup(state.dataTileSwitch);
 });
 
-xf.reg('ui:slope-target-set', (slopeTarget, db) => {
-    db.slopeTarget = models.slopeTarget.set(slopeTarget);
+// Trainer targets
+xf.reg('ui:power-target-set', (target, state) => {
+    state.powerTarget = models.powerTarget.set(target);
 });
-xf.reg('ui:slope-target-inc', (_, db) => {
-    db.slopeTarget = models.slopeTarget.inc(db.slopeTarget);
+xf.reg('ui:power-target-inc', (_, state) => {
+    state.powerTarget = models.powerTarget.inc(state.powerTarget);
 });
-xf.reg(`ui:slope-target-dec`, (_, db) => {
-    db.slopeTarget = models.slopeTarget.dec(db.slopeTarget);
-});
-
-// Profile
-xf.reg('ui:ftp-set', (ftp, db) => {
-    db.ftp = models.ftp.set(ftp);
-    models.ftp.backup(db.ftp);
-});
-xf.reg('ui:weight-set', (weight, db) => {
-    db.weight = models.weight.set(weight);
-    models.weight.backup(db.weight);
-});
-xf.reg('ui:theme-switch', (_, db) => {
-    db.theme = models.theme.switch(db.theme);
-    models.theme.backup(db.theme);
-});
-xf.reg('ui:palette-set', (palette, db) => {
-    db.palette = models.palette.set(palette);
-    models.palette.backup(db.palette);
-});
-xf.reg('ui:palette-switch', (_, db) => {
-    db.palette = models.palette.switch(db.palette);
-    models.palette.backup(db.palette);
-});
-xf.reg('ui:materialSeed-set', (seed, db) => {
-    db.materialSeed = models.materialSeed.set(seed);
-    models.materialSeed.backup(db.materialSeed);
-});
-xf.reg('ui:mapStyle-set', (style, db) => {
-    db.mapStyle = models.mapStyle.set(style);
-    models.mapStyle.backup(db.mapStyle);
-});
-xf.reg('ui:mapStyle-switch', (_, db) => {
-    db.mapStyle = models.mapStyle.switch(db.mapStyle);
-    models.mapStyle.backup(db.mapStyle);
-});
-xf.reg('ui:mapApiKey-set', (key, db) => {
-    db.mapApiKey = models.mapApiKey.set(key);
-    models.mapApiKey.backup(db.mapApiKey);
-});
-xf.reg('ui:mapTileUrl-set', (url, db) => {
-    db.mapTileUrl = models.mapTileUrl.set(url);
-    models.mapTileUrl.backup(db.mapTileUrl);
+xf.reg('ui:power-target-dec', (_, state) => {
+    state.powerTarget = models.powerTarget.dec(state.powerTarget);
 });
 
-xf.reg('ui:measurement-switch', (_, db) => {
-    db.measurement = models.measurement.switch(db.measurement);
-    models.measurement.backup(db.measurement);
+xf.reg('ui:cadence-target-set', (target, state) => {
+    state.cadenceTarget = models.cadenceTarget.set(target);
 });
 
-xf.reg('ui:volume-mute', (_, db) => {
-    db.volume = models.volume.mute();
-    models.volume.backup(db.volume);
+xf.reg('ui:resistance-target-set', (target, state) => {
+    state.resistanceTarget = models.resistanceTarget.set(target);
 });
-xf.reg('ui:volume-down', (_, db) => {
-    db.volume = models.volume.dec(db.volume);
-    models.volume.backup(db.volume);
+xf.reg('ui:resistance-target-inc', (_, state) => {
+    state.resistanceTarget = models.resistanceTarget.inc(state.resistanceTarget);
 });
-xf.reg(`ui:volume-up`, (_, db) => {
-    db.volume = models.volume.inc(db.volume);
-    models.volume.backup(db.volume);
+xf.reg('ui:resistance-target-dec', (_, state) => {
+    state.resistanceTarget = models.resistanceTarget.dec(state.resistanceTarget);
 });
 
-// Workouts
-xf.reg('workout', (workout, db) => {
-    db.workout = models.workout.set(workout);
+xf.reg('ui:slope-target-set', (target, state) => {
+    state.slopeTarget = models.slopeTarget.set(target);
 });
-xf.reg('ui:workout:select', (id, db) => {
-    db.workout = models.workouts.get(db.workouts, id);
+xf.reg('ui:slope-target-inc', (_, state) => {
+    state.slopeTarget = models.slopeTarget.inc(state.slopeTarget);
 });
-xf.reg('ui:workout:remove', (id, db) => {
-    db.workouts = models.workouts.remove(db.workouts, id);
+xf.reg('ui:slope-target-dec', (_, state) => {
+    state.slopeTarget = models.slopeTarget.dec(state.slopeTarget);
 });
-xf.reg('ui:workout:upload', async function(files, db) {
-    const failed = [];
-    for(let file of Object.values(files)) {
+
+// Rider profile & visual preferences
+xf.reg('ui:ftp-set', (ftp, state) => {
+    state.ftp = models.ftp.set(ftp);
+    models.ftp.backup(state.ftp);
+});
+
+xf.reg('ui:weight-set', (weight, state) => {
+    state.weight = models.weight.set(weight);
+    models.weight.backup(state.weight);
+});
+
+xf.reg('ui:theme-switch', (_, state) => {
+    state.theme = models.theme.switch(state.theme);
+    models.theme.backup(state.theme);
+});
+
+xf.reg('ui:palette-set', (palette, state) => {
+    state.palette = models.palette.set(palette);
+    models.palette.backup(state.palette);
+});
+
+xf.reg('ui:palette-switch', (_, state) => {
+    state.palette = models.palette.switch(state.palette);
+    models.palette.backup(state.palette);
+});
+
+xf.reg('ui:materialSeed-set', (seed, state) => {
+    state.materialSeed = models.materialSeed.set(seed);
+    models.materialSeed.backup(state.materialSeed);
+});
+
+xf.reg('ui:mapStyle-set', (style, state) => {
+    state.mapStyle = models.mapStyle.set(style);
+    models.mapStyle.backup(state.mapStyle);
+});
+
+xf.reg('ui:mapStyle-switch', (_, state) => {
+    state.mapStyle = models.mapStyle.switch(state.mapStyle);
+    models.mapStyle.backup(state.mapStyle);
+});
+
+xf.reg('ui:mapApiKey-set', (apiKey, state) => {
+    state.mapApiKey = models.mapApiKey.set(apiKey);
+    models.mapApiKey.backup(state.mapApiKey);
+});
+
+xf.reg('ui:mapTileUrl-set', (tileUrl, state) => {
+    state.mapTileUrl = models.mapTileUrl.set(tileUrl);
+    models.mapTileUrl.backup(state.mapTileUrl);
+});
+
+xf.reg('ui:measurement-switch', (_, state) => {
+    state.measurement = models.measurement.switch(state.measurement);
+    models.measurement.backup(state.measurement);
+});
+
+xf.reg('ui:volume-mute', (_, state) => {
+    state.volume = models.volume.mute();
+    models.volume.backup(state.volume);
+});
+
+xf.reg('ui:volume-down', (_, state) => {
+    state.volume = models.volume.dec(state.volume);
+    models.volume.backup(state.volume);
+});
+
+xf.reg('ui:volume-up', (_, state) => {
+    state.volume = models.volume.inc(state.volume);
+    models.volume.backup(state.volume);
+});
+
+// Workout library & upload handlers
+xf.reg('workout', (workout, state) => {
+    state.workout = models.workout.set(workout);
+});
+
+xf.reg('ui:workout:select', (id, state) => {
+    state.workout = models.workouts.get(state.workouts, id);
+});
+
+xf.reg('ui:workout:remove', (id, state) => {
+    state.workouts = models.workouts.remove(state.workouts, id);
+});
+
+xf.reg('ui:workout:upload', async (files, state) => {
+    const failures = [];
+    for (const file of Object.values(files)) {
         try {
             const { result, name } = await models.workout.readFromFile(file);
-            const workout = models.workout.parse(result, name);
-            models.workouts.add(db.workouts, workout);
-            xf.dispatch('db:workouts', db);
-        } catch(err) {
-            console.error(`:workout :upload :error ${file.name}`, err);
-            // our parsers throw "<file name>: <reason>"; anything else (e.g. a
-            // TypeError from a malformed .zwo) gets a readable message instead
-            const message = err?.message?.startsWith(file.name) ?
-                  err.message : `${file.name}: not a valid workout file.`;
-            failed.push(message.replace(/[&<>"]/g, c => `&#${c.charCodeAt(0)};`));
+            const parsed = models.workout.parse(result, name);
+            models.workouts.add(state.workouts, parsed);
+            xf.dispatch('db:workouts', state);
+        } catch (err) {
+            const rawMsg = err?.message?.startsWith(file.name)
+                ? err.message
+                : `${file.name}: not a valid workout file.`;
+            failures.push(rawMsg.replace(/[&<>"]/g, ch => `&#${ch.charCodeAt(0)};`));
         }
     }
-    if(failed.length > 0) {
-        xf.dispatch('ui:modal:error:open', failed.join('<br>'));
+    if (failures.length > 0) {
+        xf.dispatch('ui:modal:error:open', failures.join('<br>'));
     }
 });
-xf.reg('watch:stopped', (_, db) => {
+
+// Activity & session persistence
+xf.reg('watch:stopped', (_, state) => {
     try {
-        models.activity.createFromCurrent(db);
+        models.activity.createFromCurrent(state);
         xf.dispatch('activity:save:success');
     } catch (err) {
-        console.error(`Error on activity save: `, err);
+        console.error('Failed to save activity:', err);
         xf.dispatch('activity:save:fail');
     }
-
-});
-xf.reg('activity:save:success', (e, db) => {
-    models.session.reset(db);
-});
-xf.sub('ui:activity:upload:by:id', (id) => {
-    // @ts-expect-error -- Activity has no upload(); nothing dispatches this event any more
-    models.activity.upload(id);
-});
-// download the current activity as a .fit file
-xf.reg('ui:activity:save', (_, db) => {
-    xf.dispatch(`ui:page-set`, 'workouts');
 });
 
-xf.reg('course:index', (index, db) => {
-    db.courseIndex = index;
+xf.reg('activity:save:success', (_, state) => {
+    models.session.reset(state);
 });
 
-xf.reg('course:position', (position, db) => {
-    db.position_lat = position.position_lat;
-    db.position_long = position.position_long;
+xf.reg('ui:activity:save', () => {
+    xf.dispatch('ui:page-set', 'workouts');
 });
 
-// Wake Lock
-xf.reg('lock:beforeunload', (e, db) => {
-    // backup session
-    models.session.backup(db);
-});
-xf.reg('lock:release', (e, db) => {
-    // backup session
-    models.session.backup(db);
+// Course tracking
+xf.reg('course:index', (index, state) => {
+    state.courseIndex = index;
 });
 
-// Request ANT+ Device
-xf.reg('ui:ant:request:selected', (x, db) => {
-    db.antDeviceId = db.antSearchList.filter(d => {
-        return d.deviceNumber === parseInt(x);
-    })[0];
-});
-function includesDevice(devices, id) {
-    return devices.filter(d => d.deviceNumber === id.deviceNumber).length > 0;
-}
-xf.reg(`ant:search:device-found`, (x, db) => {
-    if(includesDevice(db.antSearchList, x)) return;
-    db.antSearchList.push(x);
-    db.antSearchList = db.antSearchList;
-});
-xf.reg(`ant:search:stopped`, (x, db) => {
-    db.antSearchList = [];
+xf.reg('course:position', (pos, state) => {
+    state.position_lat = pos.position_lat;
+    state.position_long = pos.position_long;
 });
 
-xf.reg('auth', (x, db) => {
-    // TODO: remove?
+// Wake lock session checkpoints
+xf.reg('lock:beforeunload', (_, state) => {
+    models.session.backup(state);
 });
 
-xf.reg('services', (x, db) => {
-    db.services = Object.assign(db.services, x);
+xf.reg('lock:release', (_, state) => {
+    models.session.backup(state);
 });
 
-//
-xf.reg('app:start', async function(_, db) {
+// ANT+ device pairing
+xf.reg('ui:ant:request:selected', (deviceNumberStr, state) => {
+    const targetNumber = parseInt(deviceNumberStr, 10);
+    state.antDeviceId = state.antSearchList.find(d => d.deviceNumber === targetNumber);
+});
 
-    // stored values of removed features (dock mode, planned list, ride report)
-    try { cleanupLegacyPrefs(localStorage, riders.key); } catch(e) {}
+xf.reg('ant:search:device-found', (device, state) => {
+    if (state.antSearchList.some(d => d.deviceNumber === device.deviceNumber)) {
+        return;
+    }
+    state.antSearchList.push(device);
+    state.antSearchList = state.antSearchList;
+});
 
-    db.ftp = models.ftp.set(models.ftp.restore());
-    db.weight = models.weight.set(models.weight.restore());
-    db.theme = models.theme.set(models.theme.restore());
-    db.palette = models.palette.set(models.palette.restore());
-    db.materialSeed = models.materialSeed.set(models.materialSeed.restore());
-    db.mapStyle = models.mapStyle.set(models.mapStyle.restore());
-    db.mapApiKey = models.mapApiKey.set(models.mapApiKey.restore());
-    db.mapTileUrl = models.mapTileUrl.set(models.mapTileUrl.restore());
-    db.measurement = models.measurement.set(models.measurement.restore());
-    db.volume = models.volume.set(models.volume.restore());
-    db.dataTileSwitch = models.dataTileSwitch.set(models.dataTileSwitch.restore()),
+xf.reg('ant:search:stopped', (_, state) => {
+    state.antSearchList = [];
+});
 
-    db.sources = models.sources.set(models.sources.restore());
+xf.reg('auth', () => {});
 
-    // IndexedDB Schema Version 6 (4 added the Training page's stores, 5 outside rides and
-    // hidden rides, 6 health data and ratings)
-    await idb.start(riders.dbName('store'), 6, ['session', 'workouts', 'activity', 'rideSummaries', 'plan', 'externalRides', 'hiddenRides', 'wellness', 'rideRatings']);
-    db.workouts = await models.workouts.restore();
-    db.activity = await models.activity.restore();
-    db.workout = models.workout.restore(db);
+xf.reg('services', (patch, state) => {
+    state.services = Object.assign(state.services, patch);
+});
 
-    await models.session.restore(db);
+// Application bootstrap
+xf.reg('app:start', async (_, state) => {
+    try {
+        cleanupLegacyPrefs(localStorage, riders.key);
+    } catch {}
+
+    state.ftp = models.ftp.set(models.ftp.restore());
+    state.weight = models.weight.set(models.weight.restore());
+    state.theme = models.theme.set(models.theme.restore());
+    state.palette = models.palette.set(models.palette.restore());
+    state.materialSeed = models.materialSeed.set(models.materialSeed.restore());
+    state.mapStyle = models.mapStyle.set(models.mapStyle.restore());
+    state.mapApiKey = models.mapApiKey.set(models.mapApiKey.restore());
+    state.mapTileUrl = models.mapTileUrl.set(models.mapTileUrl.restore());
+    state.measurement = models.measurement.set(models.measurement.restore());
+    state.volume = models.volume.set(models.volume.restore());
+    state.dataTileSwitch = models.dataTileSwitch.set(models.dataTileSwitch.restore());
+    state.sources = models.sources.set(models.sources.restore());
+
+    await idb.start(riders.dbName('store'), 6, DEFAULT_STORES);
+    state.workouts = await models.workouts.restore();
+    state.activity = await models.activity.restore();
+    state.workout = models.workout.restore(state);
+
+    await models.session.restore(state);
     xf.dispatch('workout:restore');
     xf.dispatch('activity:restore');
 
-    models.kcal.restore(db);
-    models.powerLap.restore(db);
-    models.powerAvg.restore(db);
-    models.cadenceLap.restore(db);
-    models.cadenceAvg.restore(db);
-    models.heartRateLap.restore(db);
-    models.heartRateAvg.restore(db);
+    models.kcal.restore(state);
+    models.powerLap.restore(state);
+    models.powerAvg.restore(state);
+    models.cadenceLap.restore(state);
+    models.cadenceAvg.restore(state);
+    models.heartRateLap.restore(state);
+    models.heartRateAvg.restore(state);
 
-    const sound = Sound({volume: db.volume});
+    const sound = Sound({ volume: state.volume });
     sound.start();
-
-    // TODO: remove
-    // xf.dispatch(`ui:page-set`, 'workouts');
-
-    // TRAINER MOCK
-    // trainerMock.init();
 });
 
-function start () {
-    console.log('start db');
-    xf.dispatch('db:start');
-
-    // UI test
-    // setInterval(function() {
-    //     xf.dispatch('watch:elapsed', 1);
-    //     xf.dispatch('power', 180);
-    //     xf.dispatch('cadence', 80);
-    //     xf.dispatch('heartRate', 140 + (Math.random() * 10));
-    //     xf.dispatch('smo2', 71.17); // + (Math.random() * 10));
-    //     xf.dispatch('thb', 11.14); // + (Math.random() / 2));
-    //     xf.dispatch('coreBodyTemperature', 38.12);
-    //     xf.dispatch('skinTemperature', 38.47);
-    // }, 1000);
-    // end UI test
-}
-
-start();
+xf.dispatch('db:start');
 
 export { db };
-

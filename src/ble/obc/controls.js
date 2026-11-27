@@ -1,110 +1,253 @@
-import { xf, isArray, equals } from '../../functions.js';
+// @ts-check
+//
+// OpenBikeControl (`d273f680-d548-419d-b9d1-fa0472345229` / `d273f681-...`)
+// Button State Decoder & Ride/Workout Action Dispatcher
+//
+
+import { xf as defaultXf } from '../../functions.js';
 import { ControlMode } from '../enums.js';
 
-function OpenBikeControl() {
+const OBC_MESSAGE_BUTTON_STATE = 0x01;
 
-    const upForMode = {
-        [ControlMode.erg]: 'ui:power-target-inc',
-        [ControlMode.resistance]: 'ui:resistance-target-inc',
-        [ControlMode.sim]: 'ui:slope-target-inc',
-    };
+const OBC_BUTTON_ACTIONS = Object.freeze({
+    0x01: 'shiftUp',
+    0x02: 'shiftDown',
+    0x03: 'gearSet',
+    0x04: 'chainringSet',
+    0x05: 'cassetteSet',
+    0x10: 'up',
+    0x11: 'down',
+    0x12: 'left',
+    0x13: 'right',
+    0x14: 'select',
+    0x15: 'back',
+    0x16: 'menu',
+    0x30: 'increaseDifficulty',
+    0x31: 'decreaseDifficulty',
+    0x32: 'skipInterval',
+    0x33: 'pause',
+    0x34: 'resume',
+    0x35: 'lap',
+    0x36: 'previousInterval',
+    0x37: 'uTurn',
+    0x38: 'changeMode',
+    0x39: 'takeBreak',
+});
 
-    const downForMode = {
-        [ControlMode.erg]: 'ui:power-target-dec',
-        [ControlMode.resistance]: 'ui:resistance-target-dec',
-        [ControlMode.sim]: 'ui:slope-target-dec',
-    };
+const ANALOG_SET_ACTIONS = new Set(['gearSet', 'chainringSet', 'cassetteSet']);
 
-    const nextMode = {
-        [ControlMode.erg]: ControlMode.resistance,
-        [ControlMode.resistance]: ControlMode.sim,
-        [ControlMode.sim]: ControlMode.erg,
-    };
-
-    function pushArrow(actions, seen, direction, mode) {
-        if(seen[direction]) return;
-        seen[direction] = true;
-
-        const table = equals(direction, 'up') ? upForMode : downForMode;
-        const event = table[mode];
-        if(event) actions.push({event});
+/**
+ * @param {DataView | ArrayBuffer | ArrayBufferView} input
+ * @returns {DataView}
+ */
+function toDataView(input) {
+    if (input instanceof DataView) return input;
+    if (ArrayBuffer.isView(input)) {
+        return new DataView(input.buffer, input.byteOffset, input.byteLength);
     }
+    return new DataView(input);
+}
 
-    // [Message], {mode, watchStatus} -> [{event, data?}]
-    function controlsFor(messages = [], context = {}) {
-        const list = isArray(messages) ? messages : [];
-        const mode = context.mode;
-        const watchStatus = context.watchStatus;
-        const actions = [];
-        const seen = {up: false, down: false};
+/**
+ * Decode an OpenBikeControl Button State (`d273f681-...`) characteristic notification.
+ *
+ * Format: `[0x01, buttonId_1, state_1, ..., buttonId_N, state_N]`
+ *  - For set-position controls (`gearSet`, `chainringSet`, `cassetteSet`):
+ *      0x00 -> `released`, 0x01 -> `noop`, 0x02..0xFF -> `value` (`raw - 1`, 1..254)
+ *  - For button controls:
+ *      0x00 -> `released`, >= 0x01 -> `pressed`
+ *
+ * @param {DataView | ArrayBuffer | ArrayBufferView} raw
+ * @returns {Array<{ id: number, action: string, state: string, value?: number }>}
+ */
+function decodeOpenBikeControlButtonState(raw) {
+    const view = toDataView(raw);
+    if (view.byteLength < 3) return [];
 
-        for(let i = 0; i < list.length; i++) {
-            const message = list[i];
-            if(!message || !equals(message.state, 'pressed')) continue;
+    const msgType = view.getUint8(0);
+    if (msgType !== OBC_MESSAGE_BUTTON_STATE) return [];
 
-            if(equals(message.action, 'shiftUp') || equals(message.action, 'increaseDifficulty')) {
-                pushArrow(actions, seen, 'up', mode);
-                continue;
-            }
-            if(equals(message.action, 'shiftDown') || equals(message.action, 'decreaseDifficulty')) {
-                pushArrow(actions, seen, 'down', mode);
-                continue;
-            }
-            if(equals(message.action, 'skipInterval') || equals(message.action, 'lap')) {
-                actions.push({event: 'ui:watchLap'});
-                continue;
-            }
-            if(equals(message.action, 'previousInterval')) {
-                actions.push({event: 'ui:watchBack'});
-                continue;
-            }
-            if(equals(message.action, 'pause')) {
-                if(equals(watchStatus, 'started')) actions.push({event: 'ui:watchPause'});
-                continue;
-            }
-            if(equals(message.action, 'resume')) {
-                if(equals(watchStatus, 'paused')) {
-                    actions.push({event: 'ui:watchResume'});
-                } else if(equals(watchStatus, 'stopped')) {
-                    actions.push({event: 'ui:watchStart'});
-                    actions.push({event: 'ui:workoutStart'});
-                }
-                continue;
-            }
-            if(equals(message.action, 'changeMode')) {
-                actions.push({event: 'ui:mode-set', data: nextMode[mode] || ControlMode.erg});
-            }
-        }
+    /** @type {Array<{ id: number, action: string, state: string, value?: number }>} */
+    const messages = [];
 
-        return actions;
-    }
+    for (let offset = 1; offset + 1 < view.byteLength; offset += 2) {
+        const id = view.getUint8(offset);
+        const stateByte = view.getUint8(offset + 1);
+        const action = OBC_BUTTON_ACTIONS[id] ?? `button_${id}`;
 
-    function dispatchActions(actions) {
-        for(let i = 0; i < actions.length; i++) {
-            const action = actions[i];
-            if('data' in action) {
-                xf.dispatch(action.event, action.data);
+        if (ANALOG_SET_ACTIONS.has(action)) {
+            if (stateByte === 0x00) {
+                messages.push({ id, action, state: 'released' });
+            } else if (stateByte === 0x01) {
+                messages.push({ id, action, state: 'noop' });
             } else {
-                xf.dispatch(action.event);
+                messages.push({ id, action, state: 'value', value: stateByte - 1 });
             }
+        } else {
+            messages.push({
+                id,
+                action,
+                state: stateByte === 0x00 ? 'released' : 'pressed',
+                ...(stateByte >= 0x02 ? { value: stateByte } : {}),
+            });
         }
     }
 
-    xf.reg('ble:openBikeControl:buttonState', (messages, db) => {
-        dispatchActions(controlsFor(messages, {
-            mode: db ? db.mode : '',
-            watchStatus: db ? db.watchStatus : '',
-        }));
-    });
+    return messages;
+}
+
+/**
+ * Cycle trainer control mode `erg -> resistance -> sim -> erg`.
+ *
+ * @param {string} currentMode
+ * @returns {string}
+ */
+function nextControlMode(currentMode) {
+    if (currentMode === ControlMode.erg) return ControlMode.resistance;
+    if (currentMode === ControlMode.resistance) return ControlMode.sim;
+    return ControlMode.erg;
+}
+
+/**
+ * Create an OpenBikeControl controller wired to `xf`.
+ *
+ * @param {{
+ *   xf?: typeof defaultXf,
+ *   mode?: string,
+ *   watchStatus?: string,
+ * }} [options]
+ */
+function OpenBikeControl(options = {}) {
+    const bus = options.xf ?? defaultXf;
+    const abortController = new AbortController();
+    const signal = { signal: abortController.signal };
+
+    let mode = options.mode ?? ControlMode.erg;
+    let watchStatus = options.watchStatus ?? 'stopped';
+
+    bus.sub('db:mode', next => {
+        if (typeof next === 'string') mode = next;
+    }, signal);
+
+    bus.sub('db:watchStatus', next => {
+        if (typeof next === 'string') watchStatus = next;
+    }, signal);
+
+    function dispatchTargetStep(direction) {
+        const suffix = direction > 0 ? 'inc' : 'dec';
+        if (mode === ControlMode.resistance) {
+            bus.dispatch(`ui:resistance-target-${suffix}`);
+        } else if (mode === ControlMode.sim) {
+            bus.dispatch(`ui:slope-target-${suffix}`);
+        } else {
+            bus.dispatch(`ui:power-target-${suffix}`);
+        }
+    }
+
+    /**
+     * @param {{ action?: string, state?: string }} message
+     */
+    function handleMessage(message) {
+        if (!message || message.state !== 'pressed') return;
+
+        switch (message.action) {
+            case 'increaseDifficulty':
+            case 'up':
+                dispatchTargetStep(1);
+                break;
+
+            case 'decreaseDifficulty':
+            case 'down':
+                dispatchTargetStep(-1);
+                break;
+
+            case 'lap':
+            case 'skipInterval':
+                bus.dispatch('ui:watchLap');
+                break;
+
+            case 'previousInterval':
+            case 'back':
+                bus.dispatch('ui:watchBack');
+                break;
+
+            case 'pause':
+            case 'takeBreak':
+                bus.dispatch('ui:watchPause');
+                break;
+
+            case 'resume':
+                if (watchStatus === 'stopped') {
+                    bus.dispatch('ui:watchStart');
+                    bus.dispatch('ui:workoutStart');
+                } else {
+                    bus.dispatch('ui:watchResume');
+                }
+                break;
+
+            case 'start':
+                bus.dispatch('ui:watchStart');
+                bus.dispatch('ui:workoutStart');
+                break;
+
+            case 'select':
+                if (watchStatus === 'stopped') {
+                    bus.dispatch('ui:watchStart');
+                    bus.dispatch('ui:workoutStart');
+                } else if (watchStatus === 'paused') {
+                    bus.dispatch('ui:watchResume');
+                } else {
+                    bus.dispatch('ui:watchPause');
+                }
+                break;
+
+            case 'changeMode':
+                bus.dispatch('ui:mode-set', nextControlMode(mode));
+                break;
+
+            default:
+                break;
+        }
+    }
+
+    /**
+     * Handle either an already-decoded message array or a raw DataView/TypedArray/ArrayBuffer.
+     *
+     * @param {any} payload
+     */
+    function onButtonState(payload) {
+        const list = Array.isArray(payload)
+            ? payload
+            : payload instanceof DataView || payload instanceof ArrayBuffer || ArrayBuffer.isView(payload)
+                ? decodeOpenBikeControlButtonState(payload)
+                : [];
+
+        for (const msg of list) {
+            handleMessage(msg);
+        }
+    }
+
+    bus.sub('ble:openBikeControl:buttonState', onButtonState, signal);
+
+    function stop() {
+        abortController.abort();
+    }
 
     return Object.freeze({
-        controlsFor,
+        stop,
+        handleMessage,
+        onButtonState,
+        decode: decodeOpenBikeControlButtonState,
     });
 }
 
 const openBikeControl = OpenBikeControl();
 
 export {
+    OBC_MESSAGE_BUTTON_STATE,
+    OBC_BUTTON_ACTIONS,
+    decodeOpenBikeControlButtonState,
+    nextControlMode,
     OpenBikeControl,
     openBikeControl,
 };

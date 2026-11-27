@@ -3,22 +3,16 @@
  */
 
 import {
-    // values
     equals,
-    isNull,
-    isUndefined,
-    isFunction,
     exists,
     existance,
+    expect as requireValue,
+    validate,
+    isNumber,
+    isString,
     isArray,
     isObject,
-    isString,
-    isCollection,
-    isNumber,
-    isAtomic,
-    validate,
-
-    // collections
+    isFunction,
     first,
     second,
     third,
@@ -27,605 +21,261 @@ import {
     map,
     traverse,
     getIn,
-    set,
     setIn,
     avg,
+    mavg,
     max,
     sum,
-    rand,
     capitalize,
+    escapeHtml,
     clamp,
-
-    // functions
     compose,
     pipe,
     repeat,
+    nth,
     curry2,
+    once,
     debounce,
-
-    // async
-    delay,
-
-    // events
     xf,
-
-    // format
-    toNumber,
-    toFixed,
     toBool,
-    escapeHtml,
+    toFixed,
+    formatDate,
     dataviewToArray,
     dataviewToString,
     stringToCharCodes,
-
-    // bits
     nthBit,
     nthBitToBool,
+    getBits,
+    setUint24LE,
+    getUint24LE,
     xor,
 } from '../src/functions.js';
 
-describe('exists', () => {
-    describe('does not exist', () => {
-        test('null does not exist', () => {
-            expect(exists(null)).toBe(false);
-        });
-
-        test('undefined does not exist', () => {
-            expect(exists(undefined)).toBe(false);
-        });
+describe('value predicates and guards', () => {
+    test('exists distinguishes null/undefined from defined values', () => {
+        expect(exists(null)).toBe(false);
+        expect(exists(undefined)).toBe(false);
+        expect(exists({})).toBe(true);
+        expect(exists([])).toBe(true);
+        expect(exists('')).toBe(true);
+        expect(exists(new Uint8Array([]))).toBe(true);
+        expect(exists(0)).toBe(true);
+        expect(exists(false)).toBe(true);
+        expect(exists(true)).toBe(true);
     });
 
-    describe('exists', () => {
-        test('empty Collections exist', () => {
-            expect(exists({})).toBe(true);
-            expect(exists([])).toBe(true);
-            expect(exists("")).toBe(true);
-            expect(exists(new Uint8Array([]))).toBe(true);
-        });
-
-        test('zero exists', () => {
-            expect(exists(0)).toBe(true);
-        });
-
-        test('Booleans exist', () => {
-            expect(exists(true)).toBe(true);
-            expect(exists(false)).toBe(true);
-        });
-    });
-});
-
-describe('existance check', () => {
-
-    describe('when the input value does not exist it returns the fallback value', () => {
-        test('with Null', () => {
-            expect(existance(null, 1)).toBe(1);
-        });
-
-        test('with Undefined', () => {
-            expect(existance(undefined, 1)).toBe(1);
-        });
+    test('existance returns value when defined and fallback otherwise', () => {
+        expect(existance(null, 42)).toBe(42);
+        expect(existance(undefined, 'fallback')).toBe('fallback');
+        expect(existance(0, 1)).toBe(0);
+        expect(existance('', 'x')).toBe('');
+        expect(existance(false, true)).toBe(false);
+        expect(existance({}, 1)).toStrictEqual({});
+        expect(() => existance(null)).toThrow();
     });
 
-    describe('when the input value exists it returns the input value', () => {
-        test('with Collection', () => {
-            expect(existance({}, 1)).toStrictEqual({});
-            expect(existance([], 1)).toStrictEqual([]);
-            expect(existance("", 1)).toBe("");
-            expect(existance(new Uint8Array([]))).toStrictEqual(new Uint8Array([]));
-        });
+    test('expect and validate enforce invariants', () => {
+        expect(requireValue('ok')).toBe('ok');
+        expect(() => requireValue(undefined, 'missing')).toThrow('missing');
+        expect(validate([isNumber, x => x > 0], 15, 0)).toBe(15);
+        expect(validate([isNumber, x => x > 0], -5, 0)).toBe(0);
+        expect(() => validate([isNumber], 'bad')).toThrow();
+    });
 
-        test('with Number', () => {
-            expect(existance(0, 1)).toBe(0);
-        });
-
-        test('with Boolean', () => {
-            expect(existance(true, 1)).toBe(true);
-            expect(existance(false, 1)).toBe(false);
-        });
+    test('type predicates handle NaN, null, arrays, and objects accurately', () => {
+        expect(equals(NaN, NaN)).toBe(true);
+        expect(isNumber(10)).toBe(true);
+        expect(isNumber(NaN)).toBe(false);
+        expect(isString('watt')).toBe(true);
+        expect(isArray([1, 2])).toBe(true);
+        expect(isObject({ a: 1 })).toBe(true);
+        expect(isObject(null)).toBe(false);
+        expect(isObject([1])).toBe(false);
+        expect(isFunction(() => {})).toBe(true);
     });
 });
 
-describe('empty check', () => {
-    describe('is empty', () => {
-        test('with empty Array', () => {
-            expect(empty([])).toBe(true);
-        });
-
-        test('with empty Object', () => {
-            expect(empty({})).toBe(true);
-        });
-
-        test('with empty String', () => {
-            expect(empty("")).toBe(true);
-        });
-
-        test('with undefined', () => {
-            expect(empty(undefined)).toBe(true);
-        });
+describe('collection utilities', () => {
+    test('empty handles arrays, objects, strings, undefined, and rejects non-collections', () => {
+        expect(empty([])).toBe(true);
+        expect(empty({})).toBe(true);
+        expect(empty('')).toBe(true);
+        expect(empty(undefined)).toBe(true);
+        expect(empty([0])).toBe(false);
+        expect(empty({ a: 0 })).toBe(false);
+        expect(empty('zero')).toBe(false);
+        expect(() => empty(null)).toThrow();
+        expect(() => empty(0)).toThrow();
     });
 
-    describe('is not empty', () => {
-        test('with Array', () => {
-            expect(empty([0])).toBe(false);
-        });
+    test('first, second, third, last, and nth index collections and strings', () => {
+        expect(first([10, 20, 30])).toBe(10);
+        expect(second([10, 20, 30])).toBe(20);
+        expect(third([10, 20, 30])).toBe(30);
+        expect(last([10, 20, 30])).toBe(30);
+        expect(first('ride')).toBe('r');
+        expect(second('ride')).toBe('i');
+        expect(last('ride')).toBe('e');
+        expect(nth(-1)([5, 6, 7])).toBe(7);
 
-        test('with Object', () => {
-            expect(empty({a: 0})).toBe(false);
-        });
+        expect(first([])).toBeUndefined();
+        expect(second([])).toBeUndefined();
+        expect(last('')).toBeUndefined();
+        expect(first(undefined)).toBeUndefined();
+        expect(second(undefined)).toBeUndefined();
+        expect(last(undefined)).toBeUndefined();
 
-        test('with String', () => {
-            expect(empty("zero")).toBe(false);
-        });
+        expect(() => first(0)).toThrow();
+        expect(() => first(null)).toThrow();
+        expect(() => second(0)).toThrow();
+        expect(() => last(null)).toThrow();
     });
 
-    describe('throws error', () => {
-        test('with null', () => {
-            expect(() => empty(null)).toThrow();
-        });
+    test('map and traverse process arrays, objects, and strings', () => {
+        const inc = n => n + 1;
+        expect(map([0, 1, 2], inc)).toStrictEqual([1, 2, 3]);
+        expect(map({ x: 0, y: 2 }, inc)).toStrictEqual({ x: 1, y: 3 });
+        expect(map('ab cd', ch => ch.toUpperCase())).toBe('AB CD');
 
-        test('with number', () => {
-            expect(() => empty(0)).toThrow();
-        });
-    });
-});
-
-describe('first element of collection', () => {
-    describe('takes first element', () => {
-        test('of Array', () => {
-            expect(first([0])).toBe(0);
-        });
-
-        test('of String', () => {
-            expect(first("zero")).toBe("z");
-        });
+        const tree = {
+            data: { file_id: true, event: { start: true, stop: false } },
+            crc: false,
+        };
+        const leaves = traverse(tree, (acc, _k, v) => {
+            acc.push(v);
+            return acc;
+        }, []);
+        expect(leaves).toEqual([true, true, false, false]);
     });
 
-    describe('empty is undefined', () => {
-        test('of Array', () => {
-            expect(first([])).toBe(undefined);
-        });
+    test('getIn and setIn access and update nested paths', () => {
+        const state = { rider: { profile: { ftp: 280 } } };
+        expect(getIn(state, 'rider', 'profile', 'ftp')).toBe(280);
+        expect(getIn(state, 'rider', 'missing')).toBeUndefined();
 
-        test('of String', () => {
-            expect(first("")).toBe(undefined);
-        });
+        const updated = setIn({}, ['a', 'b', 'c'], 99);
+        expect(updated).toEqual({ a: { b: { c: 99 } } });
     });
 
-    describe('first of undefined is undefined', () => {
-        test('with undefined', () => {
-            expect(first(undefined)).toBe(undefined);
-        });
-    });
-
-    describe('throws error', () => {
-        test('with number', () => {
-            expect(() => first(0)).toThrow();
-        });
-
-        test('with null', () => {
-            expect(() => first(null)).toThrow();
-        });
+    test('numeric reductions and clamping', () => {
+        expect(avg([0, 1, 2])).toBe(1);
+        expect(avg([{ x: 10 }, { x: 20 }, { x: 30 }], 'x')).toBe(20);
+        expect(mavg(300, 200, 2)).toBe(250);
+        expect(sum([1, 2, 3, 4])).toBe(10);
+        expect(sum([{ w: 100 }, { w: 150 }], 'w')).toBe(250);
+        expect(max([0, 3, 1])).toBe(3);
+        expect(max([{ x: 0 }, { x: 5 }, { x: 2 }], 'x')).toBe(5);
+        expect(clamp(50, 300, 20)).toBe(50);
+        expect(clamp(50, 300, 400)).toBe(300);
+        expect(clamp(50, 300, 180)).toBe(180);
+        expect(toFixed(3.14159, 2)).toBe(3.14);
+        expect(toFixed(NaN, 2, -1)).toBe(-1);
     });
 });
 
-describe('second element of collection', () => {
-    describe('takes second element', () => {
-        test('of Array', () => {
-            expect(second([0,1])).toBe(1);
-        });
+describe('function combinators', () => {
+    const inc = n => n + 1;
+    const dec = n => n - 1;
+    const sqr = n => n * n;
 
-        test('of String', () => {
-            expect(second("zero")).toBe("e");
-        });
-    });
-
-    describe('index out of bound is undefined', () => {
-        test('of Array', () => {
-            expect(second([])).toBe(undefined);
-        });
-
-        test('of String', () => {
-            expect(second("")).toBe(undefined);
-        });
-    });
-
-    describe('empty is undefined', () => {
-        test('of Array', () => {
-            expect(second([])).toBe(undefined);
-        });
-
-        test('of String', () => {
-            expect(second("")).toBe(undefined);
-        });
-    });
-
-    describe('second of undefined is undefined', () => {
-        test('with undefined', () => {
-            expect(second(undefined)).toBe(undefined);
-        });
-    });
-
-    describe('throws error', () => {
-        test('with number', () => {
-            expect(() => second(0)).toThrow();
-        });
-
-        test('with null', () => {
-            expect(() => second(null)).toThrow();
-        });
-    });
-});
-
-describe('last element of Collection or String', () => {
-    describe('works with non-empty Collection or String', () => {
-        test('with Array', () => {
-            expect(last([0])).toBe(0);
-            expect(last([0,2])).toBe(2);
-            expect(last([0,1,4])).toBe(4);
-        });
-
-        test('with String', () => {
-            expect(last('a')).toBe('a');
-            expect(last('ab')).toBe('b');
-            expect(last('abcd')).toBe('d');
-            expect(last('1')).toBe('1');
-        });
-    });
-
-    describe('with empty Collection or String it returns undefined', () => {
-        test('with Array', () => {
-            expect(last([])).toBe(undefined);
-        });
-
-        test('with String', () => {
-            expect(last('')).toBe(undefined);
-        });
-    });
-
-    describe('last of undefined is undefined', () => {
-        test('with undefined', () => {
-            expect(second(undefined)).toBe(undefined);
-        });
-    });
-
-    describe('throws error', () => {
-        test('with number', () => {
-            expect(() => last(0)).toThrow();
-        });
-
-        test('with null', () => {
-            expect(() => last(null)).toThrow();
-        });
-    });
-});
-
-describe('traverse nested object', () => {
-
-    function accumulate(acc, k, v, obj) {
-        acc.push(v);
-        return acc;
-    }
-
-    test('empty object', () => {
-        expect(traverse({})).toEqual([]);
-    });
-
-    test('one entry object', () => {
-        expect(traverse({crc: true}, accumulate, [])).toEqual([true]);
-    });
-
-    test('one level object', () => {
-        expect(traverse({activity: true, session: true}, accumulate, [])).toEqual([true, true]);
-    });
-
-    test('many levels', () => {
-        let obj = {data: {file_id: true,
-                          event: {start: true,
-                                  stop: false}},
-                   crc: false};
-        expect(traverse(obj, accumulate, [])).toEqual([true, true, false, false]);
-    });
-});
-
-describe('map', () => {
-    const inc = (n) => n + 1;
-
-    test('map an Array', () => {
-        expect(map([], inc)).toStrictEqual([]);
-        expect(map([0], inc)).toStrictEqual([1]);
-        expect(map([0,1,2,3], inc)).toStrictEqual([1,2,3,4]);
-    });
-
-    test('map an Object', () => {
-        expect(map({}, inc)).toStrictEqual({});
-        expect(map({x: 0}, inc)).toStrictEqual({x: 1});
-        expect(map({x: 0, y: 1, z: 2}, inc)).toStrictEqual({x: 1, y: 2, z: 3});
-    });
-
-    test('map a String', () => {
-        const toUpperCase = c => c.toUpperCase();
-
-        expect(map('', toUpperCase)).toStrictEqual('');
-        expect(map('ab cd', toUpperCase)).toStrictEqual('AB CD');
-    });
-});
-
-describe('avg', () => {
-    test('avg of array', () => {
-        expect(avg([0,1,2])).toBe(1);
-    });
-
-    test('avg of array of objects', () => {
-        expect(avg([{x: 0}, {x: 1}, {x: 2}], 'x')).toBe(1);
-    });
-});
-
-describe('sum', () => {
-    test('sum of array', () => {
-        expect(sum([0])).toBe(0);
-        expect(sum([0,1,2])).toBe(3);
-    });
-
-    test('sum of array of objects', () => {
-        expect(sum([{x: 0}, {x: 1}, {x: 2}], 'x')).toBe(3);
-    });
-});
-
-describe('max', () => {
-    test('max of array', () => {
-        expect(max([0])).toBe(0);
-        expect(max([0,3,1])).toBe(3);
-    });
-
-    test('max of array of objects', () => {
-        expect(max([{x: 0}], 'x')).toBe(0);
-        expect(max([{x: 0}, {x: 3}, {x: 1},], 'x')).toBe(3);
-    });
-});
-
-describe('getIn', () => {
-    const data = {x: {a: {one: 1, two: 2}, b: {three: 3}}, y: {}};
-
-    test('', () => {
-        expect(getIn(data, 'x')).toStrictEqual({a: {one: 1, two: 2}, b: {three: 3}});
-        expect(getIn(data, 'y')).toStrictEqual({});
-        expect(getIn(data, 'x', 'a')).toStrictEqual({one: 1, two: 2});
-        expect(getIn(data, 'x', 'a', 'one')).toBe(1);
-        expect(getIn(data, 'x', 'a', 'two')).toBe(2);
-        expect(getIn(data, 'x', 'b', 'three')).toBe(3);
-        expect(getIn(data, 'z')).toBe(undefined);
-    });
-});
-
-describe('compose', () => {
-    const inc = (n) => n + 1;
-    const dec = (n) => n - 1;
-    const sqr = (n) => Math.pow(n, 2);
-
-    test('inc . dec = identity', () => {
-        expect(compose(dec, inc)(1)).toBe(1);
-    });
-
-    test('sqr . inc', () => {
+    test('compose, pipe, repeat, curry2, once, and debounce', () => {
+        expect(compose(dec, inc)(5)).toBe(5);
         expect(compose(inc, sqr)(3)).toBe(10);
-    });
-
-    test('inc . sqr', () => {
-        expect(compose(sqr, inc)(3)).toBe(16);
-    });
-});
-
-describe('pipe', () => {
-    const inc = (n) => n + 1;
-    const dec = (n) => n - 1;
-    const sqr = (n) => Math.pow(n, 2);
-
-    test('inc | dec = identity', () => {
-        expect(pipe(dec, inc)(1)).toBe(1);
-    });
-
-    test('sqr . inc', () => {
         expect(pipe(sqr, inc)(3)).toBe(10);
-    });
-
-    test('inc . sqr', () => {
         expect(pipe(inc, sqr)(3)).toBe(16);
-    });
-});
-
-describe('repeat', () => {
-    const inc = (n) => n + 1;
-
-    test('inc 0 zero times', () => {
         expect(repeat(0)(inc)(0)).toBe(0);
-    });
-
-    test('inc 0 one time', () => {
-        expect(repeat(1)(inc)(0)).toBe(1);
-    });
-
-    test('inc 0 four times', () => {
         expect(repeat(4)(inc)(0)).toBe(4);
+
+        const add = curry2((a, b) => a + b);
+        expect(add(3, 4)).toBe(7);
+        expect(add(3)(4)).toBe(7);
+
+        let calls = 0;
+        const initOnce = once(() => ++calls);
+        expect(initOnce()).toBe(1);
+        expect(initOnce()).toBe(1);
+
+        jest.useFakeTimers();
+        const spy = jest.fn();
+        const debounced = debounce(spy, 100);
+        debounced('a');
+        debounced('b');
+        expect(debounced.pending()).toBe(true);
+        jest.advanceTimersByTime(100);
+        expect(spy).toHaveBeenCalledTimes(1);
+        expect(spy).toHaveBeenCalledWith('b');
+        jest.useRealTimers();
     });
 });
 
-describe('XF', () => {
+describe('xf reactive event bus', () => {
+    test('propagates store mutations, custom events, unsub, and AbortSignal cleanup', () => {
+        const controller = new AbortController();
+        const opts = { signal: controller.signal };
+        const store = { count: 0 };
+        xf.create(store);
 
-    describe('A counter', () => {
-        // setup
-        const abortController = new AbortController();
-        const options = { signal: abortController.signal };
+        xf.reg('test:count-set', (val, db) => { db.count = val; }, opts);
+        xf.reg('test:count-inc', (_, db) => { db.count += 1; }, opts);
+        const decHandler = xf.reg('test:count-dec', (_, db) => { db.count -= 1; }, opts);
 
-        const db = {count: 0};
-        xf.create(db);
+        let observed = 0;
+        const subHandler = xf.sub('db:count', val => { observed = val; }, opts);
 
-        xf.reg('count-set', (value, db) => {
-            db.count = value;
-        }, options);
-        xf.reg('count-inc', (_, db) => {
-            db.count += 1;
-        }, options);
-        const decSubId = xf.reg('count-dec', (_, db) => {
-            db.count -= 1;
-        }, options);
+        xf.dispatch('test:count-inc');
+        expect(observed).toBe(1);
+        expect(store.count).toBe(1);
 
-        // use
-        let count = 0;
+        xf.dispatch('test:count-set', 5);
+        expect(observed).toBe(5);
 
-        function countSub(value) {
-            count = value;
-        }
+        xf.unsub('db:count', subHandler);
+        xf.unsub('test:count-dec', decHandler);
 
-        const countSubId = xf.sub('db:count', countSub, options);
+        xf.dispatch('test:count-set', 2);
+        expect(observed).toBe(5);
+        expect(store.count).toBe(2);
 
-        test('init value', () => {
-            expect(count).toBe(0);
-            expect(db.count).toBe(0);
-        });
+        xf.dispatch('test:count-dec');
+        expect(store.count).toBe(2);
 
-        test('inc value', () => {
-            xf.dispatch('count-inc');
-            expect(count).toBe(1);
-            expect(db.count).toBe(1);
-        });
-
-        test('dec value', () => {
-            xf.dispatch('count-dec');
-            expect(count).toBe(0);
-            expect(db.count).toBe(0);
-        });
-
-        test('set value', () => {
-            xf.dispatch('count-set', 4);
-            expect(count).toBe(4);
-            expect(db.count).toBe(4);
-        });
-
-        test('unsub', () => {
-            xf.unsub('db:count', countSubId);
-            xf.unsub('count-dec', decSubId);
-
-            xf.dispatch('count-set', 2); // does not update local count
-            expect(count).toBe(4);
-            expect(db.count).toBe(2);
-
-            xf.dispatch('count-dec'); // does nothing
-            expect(count).toBe(4);
-            expect(db.count).toBe(2);
-        });
-
-        // subscribe again
-        test('re-sub', () => {
-            const countSubId2 = xf.sub('db:count', countSub);
-
-            expect(count).toBe(4);
-            expect(db.count).toBe(2);
-
-            xf.dispatch('count-set', 3); // now it can update local count again
-            expect(count).toBe(3);
-            expect(db.count).toBe(3);
-        });
-
-        // probably not yet supported for events in this env
-        // test('remove all subs', () => {
-        //     abortController.abort();
-
-        //     xf.dispatch('count-set', 4);
-        //     expect(count).toBe(3);
-        //     expect(db.count).toBe(3);
-        // });
+        controller.abort();
+        xf.dispatch('test:count-set', 99);
+        expect(store.count).toBe(2);
     });
 });
 
-describe('toBool', () => {
-    test('cast number to bool', () => {
-        expect(toBool(1)).toBe(true);
-        expect(toBool(0)).toBe(false);
-    });
-});
-
-describe('nthBit', () => {
-    test('get the nth bit from a bit field', () => {
-        expect(nthBit(0b00000001, 0)).toBe(1);
-        expect(nthBit(0b00000101, 2)).toBe(1);
-        expect(nthBit(0b00010101, 4)).toBe(1);
-        expect(nthBit(0b10010101, 6)).toBe(0);
-        expect(nthBit(0b10010101, 7)).toBe(1);
-    });
-});
-
-describe('nthBitToBool', () => {
-    test('get the nth bit from a bit field', () => {
-        expect(nthBitToBool(0b00000001, 0)).toBe(true);
-        expect(nthBitToBool(0b00000101, 2)).toBe(true);
-        expect(nthBitToBool(0b00010101, 4)).toBe(true);
-        expect(nthBitToBool(0b10010101, 6)).toBe(false);
-        expect(nthBitToBool(0b10010101, 7)).toBe(true);
-    });
-});
-
-describe('dataviewToArray', () => {
-    let uint8 = new Uint8Array([164, 3, 84, 0]);
-    let dataview = new DataView(uint8.buffer);
-
-    test('dataview to js array', () => {
-        expect(dataviewToArray(dataview)).toStrictEqual([164, 3, 84, 0]);
-    });
-});
-
-
-describe('stringToCharCodes', () => {
-    test('string to char codes', () => {
-        expect(stringToCharCodes('Functions')).toStrictEqual([70, 117, 110, 99, 116, 105, 111, 110, 115]);
-    });
-});
-
-//
-// TextDecoder is not available in Jest, but if it was that's the function usage:
-//
-// describe('dataviewToString', () => {
-//     let uint8 = new Uint8Array([70, 117, 110, 99, 116, 105, 111, 110, 115]);
-//     let dataview = new DataView(uint8.buffer);
-//
-//     test('dataview to string', () => {
-//         expect(dataviewToString(dataview)).toBe('Functions');
-//     });
-// });
-
-describe('xor', () => {
-    test('xor', () => {
-        let uint8 = new Uint8Array([70, 117, 110, 99, 116, 105, 111, 110, 115]);
-        let dataview = new DataView(uint8.buffer);
-
-        expect(xor(dataview)).toBe(81);
-    });
-});
-
-describe('escapeHtml', () => {
-    test('keeps a normal workout name', () => {
-        expect(escapeHtml('Dijon')).toBe('Dijon');
-    });
-
-    test('turns tags and quotes into text', () => {
-        expect(escapeHtml(`<img src=x onerror="alert(1)">`))
-            .toBe('&lt;img src=x onerror=&quot;alert(1)&quot;&gt;');
-    });
-
-    test('escapes an ampersand before the other characters', () => {
-        expect(escapeHtml(`Tom & Jerry`)).toBe('Tom &amp; Jerry');
-    });
-
-    test('turns a missing value into an empty string', () => {
+describe('string, binary, and bit helpers', () => {
+    test('escapes HTML entities safely', () => {
+        expect(escapeHtml('Col du Galibier')).toBe('Col du Galibier');
+        expect(escapeHtml('<img src=x onerror="alert(1)">')).toBe('&lt;img src=x onerror=&quot;alert(1)&quot;&gt;');
+        expect(escapeHtml("Rider's & Coach's")).toBe('Rider&#39;s &amp; Coach&#39;s');
         expect(escapeHtml(null)).toBe('');
         expect(escapeHtml(undefined)).toBe('');
+        expect(escapeHtml(90)).toBe('90');
+        expect(capitalize('  tempo ')).toBe('Tempo');
     });
 
-    test('turns a number into digits', () => {
-        expect(escapeHtml(90)).toBe('90');
+    test('formats dates and converts buffers and bitfields', () => {
+        expect(formatDate({ date: new Date(2026, 6, 4), separator: '-' })).toBe('04-07-2026');
+        expect(formatDate({ date: new Date(2026, 6, 4), year: false })).toBe('04/07');
+        expect(toBool(1)).toBe(true);
+        expect(toBool(0)).toBe(false);
+
+        expect(nthBit(0b10010101, 0)).toBe(1);
+        expect(nthBit(0b10010101, 6)).toBe(0);
+        expect(nthBitToBool(0b10010101, 7)).toBe(true);
+        expect(getBits(2, 5, 0b1101100)).toBe(0b011);
+
+        const raw = new Uint8Array([70, 117, 110, 99, 116, 105, 111, 110, 115]);
+        const view = new DataView(raw.buffer);
+        expect(dataviewToArray(view)).toEqual([70, 117, 110, 99, 116, 105, 111, 110, 115]);
+        expect(dataviewToString(view)).toBe('Functions');
+        expect(stringToCharCodes('Functions')).toEqual([70, 117, 110, 99, 116, 105, 111, 110, 115]);
+        expect(xor(view)).toBe(81);
+
+        const u24 = new DataView(new ArrayBuffer(3));
+        setUint24LE(u24, 0, 0x123456);
+        expect(getUint24LE(u24, 0)).toBe(0x123456);
     });
 });
-
-// describe('', () => {
-//     test('', () => {
-//         expect().toBe();
-//     });
-// });

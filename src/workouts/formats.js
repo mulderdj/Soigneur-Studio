@@ -1,293 +1,328 @@
 // @ts-check
-//
-// Workout file formats
-//
-// Every text format is converted to ZWO and then read by the existing ZWO
-// reader, so ramps, text cues, the editor and the workout graph all work the
-// same whatever the source file was.
-//
-//   .zwo  Zwift                       (native)
-//   .xml  ZWO saved with .xml         (native)
-//   .erg  absolute watts              (TrainerRoad, GoldenCheetah, PerfPRO, ...)
-//   .mrc  percent of FTP              (TrainerRoad, GoldenCheetah, PerfPRO, ...)
-//   .txt  intervals.icu workout text  ("- 10m ramp 50-75%", "5x", "90rpm", ...)
-//   .fit  course                      (binary, handled by fit/local-course.js)
-//
-// Power below 10 is read by the app as a fraction of FTP, anything above as
-// absolute watts (see models.ftp.toAbsolute), so absolute ERG files keep
-// working even without an FTP in their header.
-//
 
-const TEXT_EXTENSIONS   = ['zwo', 'xml', 'erg', 'mrc', 'txt'];
+const TEXT_EXTENSIONS = ['zwo', 'xml', 'erg', 'mrc', 'txt'];
 const BINARY_EXTENSIONS = ['fit'];
-const EXTENSIONS        = [...TEXT_EXTENSIONS, ...BINARY_EXTENSIONS];
-const ACCEPT            = EXTENSIONS.map(e => `.${e}`).join(',');
+const EXTENSIONS = [...TEXT_EXTENSIONS, ...BINARY_EXTENSIONS];
+const ACCEPT = EXTENSIONS.map(ext => `.${ext}`).join(',');
 
-function extensionOf(name = '') {
-    const parts = String(name).toLowerCase().split('.');
+const ZONE_MIDPOINTS = {
+    z1: 0.50,
+    z2: 0.65,
+    z3: 0.83,
+    z4: 0.98,
+    z5: 1.13,
+    z6: 1.35,
+    z7: 1.60,
+};
+
+function extensionOf(filename = '') {
+    const parts = String(filename).toLowerCase().split('.');
     return parts.length > 1 ? parts.pop() : '';
 }
 
-function baseName(name = '') {
-    return String(name).replace(/\.[^.]+$/, '').replace(/[_-]+/g, ' ').trim() || 'Workout';
+function workoutTitleFromFilename(filename = '') {
+    const stem = String(filename).replace(/\.[^.]+$/, '').replace(/[_-]+/g, ' ').trim();
+    return stem || 'Workout';
 }
 
-function escapeXml(s = '') {
-    return String(s)
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;');
+function escapeXmlAttr(value = '') {
+    return String(value)
+        .replaceAll('&', '&amp;')
+        .replaceAll('<', '&lt;')
+        .replaceAll('>', '&gt;')
+        .replaceAll('"', '&quot;');
 }
 
-function round(x, digits = 3) {
-    const k = Math.pow(10, digits);
-    return Math.round(x * k) / k;
+function roundPower(value, places = 3) {
+    const scale = 10 ** places;
+    return Math.round(value * scale) / scale;
 }
 
-// --- segments -> zwo -------------------------------------------------------
-//
-// segment: {duration: s, from: power, to: power, cadence?, messages?: [{offset, text}]}
-// power is either a fraction of FTP (< 10) or absolute watts
+function formatSegmentXml(segment) {
+    const duration = Math.round(segment.duration);
+    if (duration <= 0) return '';
 
-function segmentToZwo(seg) {
-    const d = Math.round(seg.duration);
-    if(d <= 0) return '';
-    const cad = seg.cadence > 0 ? ` Cadence="${Math.round(seg.cadence)}"` : '';
-    const events = (seg.messages ?? [])
-          .map(m => `<textevent timeoffset="${Math.max(0, Math.round(m.offset))}" message="${escapeXml(m.text)}"/>`)
-          .join('');
-    const close = events ? `>${events}</%TAG%>` : ' />';
-    if(seg.from === seg.to) {
-        return `<SteadyState Duration="${d}" Power="${round(seg.from)}"${cad}${close.replace('%TAG%', 'SteadyState')}`;
+    const cadenceAttr = segment.cadence > 0 ? ` Cadence="${Math.round(segment.cadence)}"` : '';
+    const cuesXml = (segment.messages ?? [])
+        .map(cue => `<textevent timeoffset="${Math.max(0, Math.round(cue.offset))}" message="${escapeXmlAttr(cue.text)}"/>`)
+        .join('');
+
+    if (segment.from === segment.to) {
+        const body = cuesXml ? `>${cuesXml}</SteadyState>` : ' />';
+        return `<SteadyState Duration="${duration}" Power="${roundPower(segment.from)}"${cadenceAttr}${body}`;
     }
-    return `<Ramp Duration="${d}" PowerLow="${round(seg.from)}" PowerHigh="${round(seg.to)}"${cad}${close.replace('%TAG%', 'Ramp')}`;
+
+    const body = cuesXml ? `>${cuesXml}</Ramp>` : ' />';
+    return `<Ramp Duration="${duration}" PowerLow="${roundPower(segment.from)}" PowerHigh="${roundPower(segment.to)}"${cadenceAttr}${body}`;
 }
 
-function segmentsToZwo(segments, meta = {}) {
-    const head = [
-        `<author>${escapeXml(meta.author ?? 'Imported')}</author>`,
-        `<name>${escapeXml(meta.name ?? 'Workout')}</name>`,
-        `<description>${escapeXml(meta.description ?? '')}</description>`,
-        `<category>${escapeXml(meta.category ?? 'Imported')}</category>`,
+function buildZwoDocument(segments, meta = {}) {
+    const headerXml = [
+        `<author>${escapeXmlAttr(meta.author ?? 'Imported')}</author>`,
+        `<name>${escapeXmlAttr(meta.name ?? 'Workout')}</name>`,
+        `<description>${escapeXmlAttr(meta.description ?? '')}</description>`,
+        `<category>${escapeXmlAttr(meta.category ?? 'Imported')}</category>`,
         `<sportType>bike</sportType>`,
     ].join('');
-    const body = segments.map(segmentToZwo).join('');
-    return `<workout_file>${head}<workout>${body}</workout></workout_file>`;
+    const bodyXml = segments.map(formatSegmentXml).join('');
+    return `<workout_file>${headerXml}<workout>${bodyXml}</workout></workout_file>`;
 }
 
-// --- ERG / MRC ------------------------------------------------------------
-//
-// [COURSE HEADER]
-// FTP = 250            (optional)
-// FILE NAME = ...      (optional)
-// DESCRIPTION = ...    (optional)
-// MINUTES WATTS        (erg)  or  MINUTES PERCENT (mrc)
-// [END COURSE HEADER]
-// [COURSE DATA]
-// 0.00	100
-// 10.00	150          a change in value at a new time is a ramp,
-// 10.00	250          the same time twice is a step
-// [END COURSE DATA]
-// [COURSE TEXT]        (optional)
-// 600	Go!	10         seconds, message, duration
-// [END COURSE TEXT]
-
-function section(text, name) {
-    const re = new RegExp(`\\[${name}\\]([\\s\\S]*?)\\[END ${name}\\]`, 'i');
-    const m = text.match(re);
-    return m ? m[1] : '';
+function extractSection(source, sectionTitle) {
+    const pattern = new RegExp(`\\[${sectionTitle}\\]([\\s\\S]*?)\\[END ${sectionTitle}\\]`, 'i');
+    const match = source.match(pattern);
+    return match ? match[1] : '';
 }
 
-function readHeader(headerText) {
-    const header = {};
-    headerText.split(/\r?\n/).forEach(line => {
-        const m = line.match(/^\s*([^=]+?)\s*=\s*(.*?)\s*$/);
-        if(m) header[m[1].toUpperCase()] = m[2];
-        else if(/MINUTES\s+WATTS/i.test(line)) header.UNITS = 'WATTS';
-        else if(/MINUTES\s+PERCENT/i.test(line)) header.UNITS = 'PERCENT';
-    });
-    return header;
+function parseCourseHeader(headerBlock) {
+    /** @type {Record<string, string>} */
+    const fields = {};
+    for (const line of headerBlock.split(/\r?\n/)) {
+        const kv = line.match(/^\s*([^=]+?)\s*=\s*(.*?)\s*$/);
+        if (kv) {
+            fields[kv[1].toUpperCase()] = kv[2];
+        } else if (/MINUTES\s+WATTS/i.test(line)) {
+            fields.UNITS = 'WATTS';
+        } else if (/MINUTES\s+PERCENT/i.test(line)) {
+            fields.UNITS = 'PERCENT';
+        }
+    }
+    return fields;
 }
 
-function readErgMrc(text, name, ext) {
-    const header = readHeader(section(text, 'COURSE HEADER'));
-    const units  = header.UNITS ?? (ext === 'mrc' ? 'PERCENT' : 'WATTS');
-    const ftp    = parseFloat(header.FTP);
+function readErgMrc(source, filename = '', ext = extensionOf(filename)) {
+    const header = parseCourseHeader(extractSection(source, 'COURSE HEADER'));
+    const units = header.UNITS ?? (ext === 'mrc' ? 'PERCENT' : 'WATTS');
+    const ftp = parseFloat(header.FTP);
 
-    const points = section(text, 'COURSE DATA')
-          .split(/\r?\n/)
-          .map(l => l.trim().split(/[\s,;]+/).map(Number))
-          .filter(p => p.length >= 2 && Number.isFinite(p[0]) && Number.isFinite(p[1]))
-          .map(([min, v]) => ({t: min * 60, v}));
+    const samples = extractSection(source, 'COURSE DATA')
+        .split(/\r?\n/)
+        .map(line => line.trim().split(/[\s,;]+/).map(Number))
+        .filter(cols => cols.length >= 2 && Number.isFinite(cols[0]) && Number.isFinite(cols[1]))
+        .map(([minutes, target]) => ({ timeS: minutes * 60, target }));
 
-    if(points.length < 2) {
-        throw new Error(`${name}: no [COURSE DATA] found`);
+    if (samples.length < 2) {
+        throw new Error(`${filename}: no [COURSE DATA] found`);
     }
 
-    const toPower = v => {
-        if(units === 'PERCENT') return v / 100;
-        return ftp > 0 ? v / ftp : v;     // absolute watts if FTP is unknown
+    const normalizePower = raw => {
+        if (units === 'PERCENT') return raw / 100;
+        return ftp > 0 ? raw / ftp : raw;
     };
 
-    const segments = [];
-    for(let i = 0; i < points.length - 1; i++) {
-        const a = points[i], b = points[i + 1];
-        const duration = b.t - a.t;
-        if(duration <= 0) continue;       // same time: a step
-        segments.push({start: a.t, duration, from: toPower(a.v), to: toPower(b.v)});
+    const rawSegments = [];
+    for (let i = 0; i < samples.length - 1; i++) {
+        const cur = samples[i];
+        const next = samples[i + 1];
+        const duration = next.timeS - cur.timeS;
+        if (duration <= 0) continue;
+        rawSegments.push({
+            start: cur.timeS,
+            duration,
+            from: normalizePower(cur.target),
+            to: normalizePower(next.target),
+        });
     }
 
-    // merge identical consecutive steady segments
+    /** @type {any[]} */
     const merged = [];
-    segments.forEach(s => {
-        const last = merged[merged.length - 1];
-        if(last && last.from === last.to && s.from === s.to && s.from === last.from) {
-            last.duration += s.duration;
+    for (const seg of rawSegments) {
+        const prev = merged[merged.length - 1];
+        if (prev && prev.from === prev.to && seg.from === seg.to && seg.from === prev.from) {
+            prev.duration += seg.duration;
         } else {
-            merged.push({...s});
+            merged.push({ ...seg });
         }
-    });
+    }
 
-    // [COURSE TEXT]: seconds <tab> message <tab> duration
-    section(text, 'COURSE TEXT').split(/\r?\n/).forEach(line => {
+    for (const line of extractSection(source, 'COURSE TEXT').split(/\r?\n/)) {
         const cols = line.split('\t');
-        const t = parseFloat(cols[0]);
-        const msg = (cols[1] ?? '').trim();
-        if(!Number.isFinite(t) || !msg || !merged.length) return;
-        const seg = merged.find(s => t >= s.start && t < s.start + s.duration) ?? merged[merged.length - 1];
-        (seg.messages ??= []).push({offset: t - seg.start, text: msg});
-    });
+        const cueTime = parseFloat(cols[0]);
+        const cueText = (cols[1] ?? '').trim();
+        if (!Number.isFinite(cueTime) || !cueText || merged.length === 0) continue;
 
-    return segmentsToZwo(merged, {
-        name: header['FILE NAME'] || baseName(name),
+        const hostSeg =
+            merged.find(seg => cueTime >= seg.start && cueTime < seg.start + seg.duration) ??
+            merged[merged.length - 1];
+        (hostSeg.messages ??= []).push({ offset: cueTime - hostSeg.start, text: cueText });
+    }
+
+    return buildZwoDocument(merged, {
+        name: header['FILE NAME'] || workoutTitleFromFilename(filename),
         description: header.DESCRIPTION ?? '',
     });
 }
 
-// --- intervals.icu text ---------------------------------------------------
-//
-// Warmup
-// - 10m ramp 50-75% 85rpm
-// Main set 5x
-// - 4m 105%
-// - 3m 55% easy spin
-// Cooldown
-// - 5m 50%
-//
-// Durations: 30s, 10m, 1h, 1m30s, 1:30 (mm:ss), 2'30". Power: 75%, 50-75%,
-// 200w, 150-250w, Z2, Z2-Z3. Text that is not a duration, power or cadence
-// becomes a cue shown when the step starts.
+function parseStepDuration(token) {
+    let match = token.match(/^(\d+):(\d{1,2})(?::(\d{1,2}))?$/);
+    if (match) {
+        return match[3] !== undefined
+            ? Number(match[1]) * 3600 + Number(match[2]) * 60 + Number(match[3])
+            : Number(match[1]) * 60 + Number(match[2]);
+    }
 
-const ICU_ZONES = {z1: 0.50, z2: 0.65, z3: 0.83, z4: 0.98, z5: 1.13, z6: 1.35, z7: 1.60};
+    match = token.match(/^(\d+)'(?:(\d+)(?:"|'')?)?$/);
+    if (match) {
+        return Number(match[1]) * 60 + Number(match[2] ?? 0);
+    }
 
-function parseDuration(tok) {
-    let m;
-    if((m = tok.match(/^(\d+):(\d{1,2})(?::(\d{1,2}))?$/))) {
-        return m[3] !== undefined ? (+m[1]) * 3600 + (+m[2]) * 60 + (+m[3]) : (+m[1]) * 60 + (+m[2]);
+    match = token.match(/^(?:(\d+(?:\.\d+)?)h)?(?:(\d+(?:\.\d+)?)(?:m|min))?(?:(\d+(?:\.\d+)?)(?:s|sec))?$/i);
+    if (match && (match[1] || match[2] || match[3])) {
+        return (
+            Number(match[1] ?? 0) * 3600 +
+            Number(match[2] ?? 0) * 60 +
+            Number(match[3] ?? 0)
+        );
     }
-    if((m = tok.match(/^(\d+)'(?:(\d+)(?:"|'')?)?$/))) {
-        return (+m[1]) * 60 + (+(m[2] ?? 0));
-    }
-    m = tok.match(/^(?:(\d+(?:\.\d+)?)h)?(?:(\d+(?:\.\d+)?)(?:m|min))?(?:(\d+(?:\.\d+)?)(?:s|sec))?$/i);
-    if(m && (m[1] || m[2] || m[3])) {
-        return (+(m[1] ?? 0)) * 3600 + (+(m[2] ?? 0)) * 60 + (+(m[3] ?? 0));
-    }
+
     return null;
 }
 
-function parsePower(tok) {
-    let m;
-    if((m = tok.match(/^(\d+(?:\.\d+)?)(?:-(\d+(?:\.\d+)?))?%(?:ftp)?$/i))) {
-        const a = +m[1] / 100, b = m[2] ? +m[2] / 100 : a;
-        return [a, b];
+function parseStepPower(token) {
+    let match = token.match(/^(\d+(?:\.\d+)?)(?:-(\d+(?:\.\d+)?))?%(?:ftp)?$/i);
+    if (match) {
+        const low = Number(match[1]) / 100;
+        const high = match[2] ? Number(match[2]) / 100 : low;
+        return [low, high];
     }
-    if((m = tok.match(/^(\d+)(?:-(\d+))?w$/i))) {
-        const a = +m[1], b = m[2] ? +m[2] : a;
-        return [a, b];
+
+    match = token.match(/^(\d+)(?:-(\d+))?w$/i);
+    if (match) {
+        const low = Number(match[1]);
+        const high = match[2] ? Number(match[2]) : low;
+        return [low, high];
     }
-    if((m = tok.match(/^(z[1-7])(?:-(z[1-7]))?$/i))) {
-        const a = ICU_ZONES[m[1].toLowerCase()];
-        const b = m[2] ? ICU_ZONES[m[2].toLowerCase()] : a;
-        return [a, b];
+
+    match = token.match(/^(z[1-7])(?:-(z[1-7]))?$/i);
+    if (match) {
+        const low = ZONE_MIDPOINTS[match[1].toLowerCase()];
+        const high = match[2] ? ZONE_MIDPOINTS[match[2].toLowerCase()] : low;
+        return [low, high];
     }
+
     return null;
 }
 
-function readIntervalsText(text, name) {
+function readIntervalsText(source, filename = '') {
+    /** @type {any[]} */
     const segments = [];
-    let block = null;   // {repeat, steps}
+    /** @type {{ repeat: number, steps: any[] } | null} */
+    let activeGroup = null;
 
-    const flush = () => {
-        if(!block) return;
-        for(let r = 0; r < block.repeat; r++) {
-            block.steps.forEach(s => segments.push({...s, messages: s.messages ? [...s.messages] : undefined}));
+    function flushGroup() {
+        if (!activeGroup) return;
+        for (let r = 0; r < activeGroup.repeat; r++) {
+            for (const step of activeGroup.steps) {
+                segments.push({
+                    ...step,
+                    messages: step.messages ? [...step.messages] : undefined,
+                });
+            }
         }
-        block = null;
-    };
+        activeGroup = null;
+    }
 
-    text.split(/\r?\n/).forEach(raw => {
-        const line = raw.trim();
-        if(!line) { flush(); return; }
-
-        if(!line.startsWith('-')) {
-            flush();
-            const rep = line.match(/(?:^|\s)(\d+)\s*x\s*$/i);
-            block = {repeat: rep ? Math.min(200, Math.max(1, +rep[1])) : 1, steps: []};
-            return;
+    for (const rawLine of source.split(/\r?\n/)) {
+        const line = rawLine.trim();
+        if (!line) {
+            flushGroup();
+            continue;
         }
 
-        if(!block) block = {repeat: 1, steps: []};
+        if (!line.startsWith('-')) {
+            flushGroup();
+            const repeatMatch = line.match(/(?:^|\s)(\d+)\s*x\s*$/i);
+            const count = repeatMatch ? Math.min(200, Math.max(1, Number(repeatMatch[1]))) : 1;
+            activeGroup = { repeat: count, steps: [] };
+            continue;
+        }
+
+        if (!activeGroup) {
+            activeGroup = { repeat: 1, steps: [] };
+        }
 
         const tokens = line.slice(1).trim().split(/\s+/);
-        let duration = null, power = null, cadence = 0, ramp = false;
-        const words = [];
-        tokens.forEach(tok => {
-            const t = tok.replace(/,$/, '');
-            let v;
-            if(duration === null && (v = parseDuration(t)) !== null) { duration = v; return; }
-            if(power === null && (v = parsePower(t))) { power = v; return; }
-            if(/^ramp$/i.test(t)) { ramp = true; return; }
-            if((v = t.match(/^(\d+)(?:-\d+)?rpm$/i))) { cadence = +v[1]; return; }
-            words.push(tok);
-        });
-        if(!duration) return;
-        const [from, to] = power ?? [0.5, 0.5];
-        const step = {duration, from, to: ramp || from !== to ? to : from, cadence};
-        if(words.length) step.messages = [{offset: 0, text: words.join(' ')}];
-        block.steps.push(step);
-    });
-    flush();
+        let duration = null;
+        let powerRange = null;
+        let cadence = 0;
+        let isRamp = false;
+        const cueTokens = [];
 
-    if(segments.length === 0) {
-        throw new Error(`${name}: no steps found. Steps start with "-", e.g. "- 10m 65%"`);
+        for (const rawToken of tokens) {
+            const clean = rawToken.replace(/,$/, '');
+            if (duration === null) {
+                const d = parseStepDuration(clean);
+                if (d !== null) {
+                    duration = d;
+                    continue;
+                }
+            }
+            if (powerRange === null) {
+                const p = parseStepPower(clean);
+                if (p !== null) {
+                    powerRange = p;
+                    continue;
+                }
+            }
+            if (/^ramp$/i.test(clean)) {
+                isRamp = true;
+                continue;
+            }
+            const cadMatch = clean.match(/^(\d+)(?:-\d+)?rpm$/i);
+            if (cadMatch) {
+                cadence = Number(cadMatch[1]);
+                continue;
+            }
+            cueTokens.push(rawToken);
+        }
+
+        if (!duration) continue;
+
+        const [from, to] = powerRange ?? [0.5, 0.5];
+        /** @type {any} */
+        const step = {
+            duration,
+            from,
+            to: isRamp || from !== to ? to : from,
+            cadence,
+        };
+        if (cueTokens.length > 0) {
+            step.messages = [{ offset: 0, text: cueTokens.join(' ') }];
+        }
+        activeGroup.steps.push(step);
     }
-    return segmentsToZwo(segments, {name: baseName(name)});
+
+    flushGroup();
+
+    if (segments.length === 0) {
+        throw new Error(`${filename}: no steps found. Steps start with "-", e.g. "- 10m 65%"`);
+    }
+
+    return buildZwoDocument(segments, { name: workoutTitleFromFilename(filename) });
 }
 
-// --- entry point ----------------------------------------------------------
-
-// returns ZWO text for any supported text format
-function toZwo(text, name = '') {
-    const ext = extensionOf(name);
+function toZwo(text, filename = '') {
+    const ext = extensionOf(filename);
     const trimmed = String(text).trim();
 
-    if(/^<\?xml|^<workout_file/i.test(trimmed)) return text;
-    if(ext === 'erg' || ext === 'mrc' || /\[COURSE HEADER\]/i.test(trimmed)) {
-        return readErgMrc(text, name, ext);
+    if (/^<\?xml|^<workout_file/i.test(trimmed)) {
+        return text;
     }
-    if(ext === 'txt' || /^\s*-\s*\d/m.test(trimmed)) {
-        return readIntervalsText(text, name);
+    if (ext === 'erg' || ext === 'mrc' || /\[COURSE HEADER\]/i.test(trimmed)) {
+        return readErgMrc(text, filename, ext);
+    }
+    if (ext === 'txt' || /^\s*-\s*\d/m.test(trimmed)) {
+        return readIntervalsText(text, filename);
     }
     return text;
 }
 
-function isSupported(name = '') {
-    return EXTENSIONS.includes(extensionOf(name));
+function isSupported(filename = '') {
+    return EXTENSIONS.includes(extensionOf(filename));
 }
 
-function isBinary(name = '') {
-    return BINARY_EXTENSIONS.includes(extensionOf(name));
+function isBinary(filename = '') {
+    return BINARY_EXTENSIONS.includes(extensionOf(filename));
 }
 
 export {

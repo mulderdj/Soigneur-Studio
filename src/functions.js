@@ -1,223 +1,228 @@
 // @ts-check
-//
-// A collection of common functions that makes JS more functional
-//
 
-// Values
 function equals(a, b) {
     return Object.is(a, b);
 }
 
-function isNull(x) {
-    return Object.is(x, null);
+function isNull(value) {
+    return value === null;
 }
 
-function isUndefined(x) {
-    return Object.is(x, undefined);
+function isUndefined(value) {
+    return value === undefined;
 }
 
-function isFunction(x) {
-    return equals(typeof x, 'function');
+function isFunction(value) {
+    return typeof value === 'function';
 }
 
-function isArray(x) {
-    return Array.isArray(x);
+function isArray(value) {
+    return Array.isArray(value);
 }
 
-function isArrayBuffer(x) {
-    return x instanceof ArrayBuffer;
+function isArrayBuffer(value) {
+    return value instanceof ArrayBuffer;
 }
 
-function isDataView(x) {
-    return x instanceof DataView;
+function isDataView(value) {
+    return value instanceof DataView;
 }
 
-function isObject(x) {
-    return equals(typeof x, 'object') && !(isArray(x));
+function isObject(value) {
+    return value !== null && typeof value === 'object' && !Array.isArray(value);
 }
 
-function isCollection(x) {
-    return isArray(x) || isObject(x);
+function isCollection(value) {
+    return isArray(value) || isObject(value);
 }
 
-function isString(x) {
-    return equals(typeof x, 'string');
+function isString(value) {
+    return typeof value === 'string';
 }
 
-function isNumber(x) {
-    if(isNaN(x)) return false;
-    return equals(typeof x, 'number');
+function isNumber(value) {
+    return typeof value === 'number' && !Number.isNaN(value);
 }
 
-function isAtomic(x) {
-    return isNumber(x) || isString(x);
+function isAtomic(value) {
+    return isNumber(value) || isString(value);
 }
 
-function exists(x) {
-    if(isNull(x) || isUndefined(x)) { return false; }
-    return true;
+function exists(value) {
+    return value !== null && value !== undefined;
 }
 
 function existance(value, fallback) {
-    if(exists(value))    return value;
-    if(exists(fallback)) return fallback;
-    throw new Error(`existance needs a fallback value `, value);
+    if (exists(value)) return value;
+    if (exists(fallback)) return fallback;
+    throw new Error('existance requires a fallback when value is null or undefined');
 }
 
-function expect(x, msg = 'expected value here') {
-    if(exists(x)) return x;
-    throw new Error(msg);
+function expect(value, message = 'Expected a defined value') {
+    if (exists(value)) return value;
+    throw new Error(message);
 }
 
 function validate(predicates = [], value, fallback = undefined) {
-    if(predicates.reduce((acc, p) => acc && p(value), true)) return value;
-    if(exists(fallback)) return fallback;
-    throw new Error(`validate needs a fallback value with `, value);
-}
-
-// Collections
-// undefined is empty; objects, arrays and strings by their size; anything
-// else (null, numbers) is a mistake and throws
-function empty(x) {
-    if(x === undefined) return true;
-    if(isObject(x)) return (Object.keys(x).length === 0);
-    if(typeof x?.length !== 'number') throw new TypeError(`empty: not a collection: ${x}`);
-    return x.length === 0;
-};
-
-const nth = curry2(function(offset, xs) {
-    let i = (offset < 0) ? (xs.length + offset) : (offset);
-    if(isString(xs)) {
-        return xs.charAt(i);
+    if (predicates.every(predicate => predicate(value))) {
+        return value;
     }
-    return xs[i];
-});
-
-// undefined has no elements: undefined; null or a number still throws
-function first(xs) {
-    return xs === undefined ? undefined : xs.at(0);
+    if (exists(fallback)) {
+        return fallback;
+    }
+    throw new Error('Validation failed and no fallback was provided');
 }
 
-function second(xs) {
-    return xs === undefined ? undefined : xs.at(1);
+function empty(collection) {
+    if (collection === undefined) return true;
+    if (isObject(collection)) return Object.keys(collection).length === 0;
+    if (typeof collection?.length !== 'number') {
+        throw new TypeError(`empty expects an array, string, or object; received: ${collection}`);
+    }
+    return collection.length === 0;
 }
 
-function third(xs) {
-    return xs === undefined ? undefined : xs.at(2);
-}
-
-function last(xs) {
-    return xs === undefined ? undefined : xs.at(-1);
-}
-
-const prop = curry2(function(p, x) {
-    if(!exists(x)) return;
-    return Number.isInteger(p) ? nth(p, x) : x[p];
-});
-
-function map(coll, fn) {
-    if(isArray(coll)) return coll.map(fn);
-    if(isObject(coll)) {
-        for (let prop in coll) {
-            coll[prop] = fn(coll[prop]);
+function curry2(fn) {
+    return function curried(firstArg, secondArg) {
+        if (exists(secondArg)) {
+            return fn(firstArg, secondArg);
         }
-        return coll;
-    }
-    if(isString(coll)) {
-        return coll.split('').map(fn).join('');
-    }
-    throw new Error(`map called with unkown collection `, coll);
+        return nextArg => fn(firstArg, nextArg);
+    };
 }
 
+const nth = curry2((offset, items) => {
+    const idx = offset < 0 ? items.length + offset : offset;
+    return isString(items) ? items.charAt(idx) : items[idx];
+});
 
-function traverse(obj, fn = ((x) => x), acc = []) {
+function first(items) {
+    return items === undefined ? undefined : items.at(0);
+}
 
-    function recur(fn, obj, keys, acc) {
-        if(empty(keys)) {
-            return acc;
-        } else {
-            let [k, ...ks] = keys;
-            let v = obj[k];
+function second(items) {
+    return items === undefined ? undefined : items.at(1);
+}
 
-            if(isObject(v)) {
-                acc = recur(fn, v, Object.keys(v), acc);
-                return recur(fn, obj, ks, acc);
+function third(items) {
+    return items === undefined ? undefined : items.at(2);
+}
+
+function last(items) {
+    return items === undefined ? undefined : items.at(-1);
+}
+
+function map(collection, mapper) {
+    if (isArray(collection)) {
+        return collection.map(mapper);
+    }
+    if (isObject(collection)) {
+        for (const key of Object.keys(collection)) {
+            collection[key] = mapper(collection[key]);
+        }
+        return collection;
+    }
+    if (isString(collection)) {
+        return Array.from(collection, ch => mapper(ch)).join('');
+    }
+    throw new TypeError('map expects an array, plain object, or string');
+}
+
+function traverse(root, visitor = x => x, initial = []) {
+    let acc = initial;
+    function walk(node) {
+        for (const key of Object.keys(node)) {
+            const val = node[key];
+            if (isObject(val)) {
+                walk(val);
             } else {
-                acc = fn(acc, k, v, obj);
-                return recur(fn, obj, ks, acc);
+                acc = visitor(acc, key, val, node);
             }
         }
     }
-    return recur(fn, obj, Object.keys(obj), acc);
+    if (isObject(root)) {
+        walk(root);
+    }
+    return acc;
 }
 
-function getIn(...args) {
-    let [collection, ...path] = args;
-    return path.reduce((acc, key) => {
-        if(exists(acc[key])) return acc[key];
-        return undefined;
-    }, collection);
+function getIn(root, ...path) {
+    let cursor = root;
+    for (const key of path) {
+        if (!exists(cursor) || !exists(cursor[key])) {
+            return undefined;
+        }
+        cursor = cursor[key];
+    }
+    return cursor;
 }
 
-function set(coll, k, v) {
-    coll = (coll || {});
-    coll[k] = v;
-    return coll;
+function set(target, key, value) {
+    const out = target || {};
+    out[key] = value;
+    return out;
 }
 
 /**
- * @param {any} coll
+ * @param {any} target
  * @param {any[]} path
- * @param {any} v
+ * @param {any} value
  * @returns {any}
  */
-function setIn(coll={}, [k, ...keys], v) {
-    return keys.length ? set(coll, k, setIn(coll[k], keys, v)) : set(coll, k, v);
+function setIn(target = {}, [head, ...rest], value) {
+    return rest.length > 0
+        ? set(target, head, setIn(target[head], rest, value))
+        : set(target, head, value);
 }
 
-
-/** @param {any[]} xs @param {string|number|false} [prop] */
-function avg(xs, prop = false) {
-    if(prop !== false) {
-        return xs.reduce( (acc,v,i) => acc+(v[prop]-acc)/(i+1), 0);
-    } else {
-        return xs.reduce( (acc,v,i) => acc+(v-acc)/(i+1), 0);
+/**
+ * @param {any[]} items
+ * @param {string|number|false} [prop]
+ */
+function avg(items, prop = false) {
+    if (prop !== false) {
+        return items.reduce((mean, item, idx) => mean + (item[prop] - mean) / (idx + 1), 0);
     }
+    return items.reduce((mean, item, idx) => mean + (item - mean) / (idx + 1), 0);
 }
 
-function mavg(value_c, value_p, count_c, count_p = count_c-1) {
-    return (value_c + ((count_p) * value_p)) / count_c;
+function mavg(currentValue, prevMean, currentCount, prevCount = currentCount - 1) {
+    return (currentValue + prevCount * prevMean) / currentCount;
 }
 
-/** @param {any[]} xs @param {string|number|false} [prop] */
-function max(xs, prop = false) {
-    if(prop !== false) {
-        return xs.reduce( (acc,v,i) => v[prop] > acc ? v[prop] : acc, 0);
-    } else {
-        return Math.max(...xs);
+/**
+ * @param {any[]} items
+ * @param {string|number|false} [prop]
+ */
+function max(items, prop = false) {
+    if (prop !== false) {
+        return items.reduce((best, item) => (item[prop] > best ? item[prop] : best), 0);
     }
-};
+    return Math.max(...items);
+}
 
-/** @param {any[]} xs @param {string|number|false} [path] */
-function sum(xs, path = false) {
-    if(path !== false) {
-        return xs.reduce( (acc,v,i) => acc + v[path], 0);
-    } else {
-        return xs.reduce( (acc,v,i) => acc + v, 0);
+/**
+ * @param {any[]} items
+ * @param {string|number|false} [prop]
+ */
+function sum(items, prop = false) {
+    if (prop !== false) {
+        return items.reduce((total, item) => total + item[prop], 0);
     }
-};
+    return items.reduce((total, item) => total + item, 0);
+}
 
-function rand(min = 0, max = 10) {
-    return Math.floor(Math.random() * (max - min + 1) + min);
+function rand(min = 0, maxVal = 10) {
+    return Math.floor(Math.random() * (maxVal - min + 1) + min);
 }
 
 function capitalize(str) {
-    return str.trim().replace(/^\w/, (c) => c.toUpperCase());
+    return str.trim().replace(/^\w/, ch => ch.toUpperCase());
 }
 
 function escapeHtml(value) {
-    const text = exists(value) ? String(value) : '';
-    return text
+    if (!exists(value)) return '';
+    return String(value)
         .replaceAll('&', '&amp;')
         .replaceAll('<', '&lt;')
         .replaceAll('>', '&gt;')
@@ -226,307 +231,219 @@ function escapeHtml(value) {
 }
 
 function clamp(lower, upper, value) {
-    if(value >= upper) {
-        return upper;
-    } else if(value < lower) {
-        return lower;
-    } else {
-        return value;
-    }
+    if (value >= upper) return upper;
+    if (value < lower) return lower;
+    return value;
 }
 
-// Functions
 function compose2(f, g) {
-    return function(...args) {
-        return f(g(...args));
-    };
+    return (...args) => f(g(...args));
 }
 
 function compose(...fns) {
     return fns.reduce(compose2);
 }
 
+const comp = compose;
+
 function pipe(...fns) {
     return fns.reduceRight(compose2);
 }
 
-function repeat(n) {
-    return function(f) {
-        return function(x) {
-            if (n > 0) {
-                return repeat(n - 1)(f)(f(x));
-            } else {
-                return x;
-            }
-        };
-    };
-};
-
-function curry2(fn) {
-    return function (arg1, arg2) {
-        if(exists(arg2)) {
-            return fn(arg1, arg2);
-        } else {
-            return function(arg2) {
-                return fn(arg1, arg2);
-            };
+function repeat(count) {
+    return fn => initial => {
+        let result = initial;
+        for (let i = 0; i < count; i++) {
+            result = fn(result);
         }
+        return result;
     };
 }
 
 function once(fn, context) {
-    let result;
-    return /** @this {any} */ function() {
-        if(fn) {
-            result = fn.apply(context || this, arguments);
-            fn = null;
+    let pending = fn;
+    let cached;
+    return /** @this {any} */ function runOnce(...args) {
+        if (pending) {
+            cached = pending.apply(context || this, args);
+            pending = null;
         }
-        return result;
+        return cached;
     };
 }
 
-//
-// Copied from lodash.js
-//
-function debounce(func, wait, options = {}) {
-    const root = window;
-    let lastArgs,
-        lastThis,
-        maxWait,
-        result,
-        timerId,
-        lastCallTime;
-
-    let lastInvokeTime = 0;
-    let leading = false;
-    let maxing = false;
-    let trailing = true;
-
-    // Bypass `requestAnimationFrame` by explicitly setting `wait=0`.
-    const useRAF = (!wait && wait !== 0 && typeof root.requestAnimationFrame === 'function');
-
-    if(!isFunction(func)) { // edit
-        throw new TypeError('debounce expectes a function');
+function debounce(fn, waitMs, options = {}) {
+    if (!isFunction(fn)) {
+        throw new TypeError('debounce expects a function');
     }
 
-    wait = existance(toNumber(wait), 0); // edit
+    const host = typeof window !== 'undefined' ? window : globalThis;
+    const useFrame = !waitMs && waitMs !== 0 && typeof host.requestAnimationFrame === 'function';
+    const delayMs = existance(toNumber(waitMs), 0);
+    const leading = toBool(options.leading);
+    const trailing = exists(options.trailing) ? toBool(options.trailing) : true;
+    const hasMaxWait = exists(options.maxWait);
+    const maxWaitMs = hasMaxWait ? Math.max(existance(toNumber(options.maxWait), 0), delayMs) : 0;
 
-    // if (isObject(options)) {
-    leading = toBool(options.leading);
-    maxing = exists(options.maxWait);
-    maxWait = maxing ? Math.max(existance(toNumber(options.maxWait), 0), wait) : maxWait;
-    trailing = exists(options.trailing) ? toBool(options.trailing) : trailing;
-    // }
+    let timerId;
+    let lastArgs;
+    let lastThis;
+    let lastCallAt;
+    let lastInvokeAt = 0;
+    let lastResult;
 
-    function invokeFunc(time) {
+    function schedule(callback, ms) {
+        if (useFrame) {
+            if (timerId !== undefined) host.cancelAnimationFrame(timerId);
+            return host.requestAnimationFrame(callback);
+        }
+        return setTimeout(callback, ms);
+    }
+
+    function clearScheduled(id) {
+        if (useFrame) {
+            host.cancelAnimationFrame(id);
+        } else {
+            clearTimeout(id);
+        }
+    }
+
+    function invoke(at) {
         const args = lastArgs;
-        const thisArg = lastThis;
-
-        lastArgs = lastThis = undefined;
-        lastInvokeTime = time;
-        result = func.apply(thisArg, args);
-        return result;
+        const ctx = lastThis;
+        lastArgs = undefined;
+        lastThis = undefined;
+        lastInvokeAt = at;
+        lastResult = fn.apply(ctx, args);
+        return lastResult;
     }
 
-    function startTimer(pendingFunc, wait) {
-        if (useRAF) {
-            root.cancelAnimationFrame(timerId);
-            return root.requestAnimationFrame(pendingFunc);
-        }
-        return setTimeout(pendingFunc, wait);
+    function canInvoke(at) {
+        if (lastCallAt === undefined) return true;
+        const sinceCall = at - lastCallAt;
+        const sinceInvoke = at - lastInvokeAt;
+        return sinceCall >= delayMs || sinceCall < 0 || (hasMaxWait && sinceInvoke >= maxWaitMs);
     }
 
-    function cancelTimer(id) {
-        if (useRAF) {
-            return root.cancelAnimationFrame(id);
-        }
-        return clearTimeout(id); // edit
+    function remainingMs(at) {
+        const untilTrailing = delayMs - (at - lastCallAt);
+        return hasMaxWait ? Math.min(untilTrailing, maxWaitMs - (at - lastInvokeAt)) : untilTrailing;
     }
 
-    function leadingEdge(time) {
-        // Reset any `maxWait` timer.
-        lastInvokeTime = time;
-        // Start the timer for the trailing edge.
-        timerId = startTimer(timerExpired, wait);
-        // Invoke the leading edge.
-        return leading ? invokeFunc(time) : result;
-    }
-
-    function remainingWait(time) {
-        const timeSinceLastCall = time - lastCallTime;
-        const timeSinceLastInvoke = time - lastInvokeTime;
-        const timeWaiting = wait - timeSinceLastCall;
-
-        return maxing
-            ? Math.min(timeWaiting, maxWait - timeSinceLastInvoke)
-            : timeWaiting;
-    }
-
-    function shouldInvoke(time) {
-        const timeSinceLastCall = time - lastCallTime;
-        const timeSinceLastInvoke = time - lastInvokeTime;
-
-        // Either this is the first call, activity has stopped and we're at the
-        // trailing edge, the system time has gone backwards and we're treating
-        // it as the trailing edge, or we've hit the `maxWait` limit.
-        return (lastCallTime === undefined || (timeSinceLastCall >= wait) ||
-               (timeSinceLastCall < 0) || (maxing && timeSinceLastInvoke >= maxWait));
-    }
-
-    function timerExpired() {
-        const time = Date.now();
-        if (shouldInvoke(time)) {
-            return trailingEdge(time);
-        }
-        // Restart the timer.
-        timerId = startTimer(timerExpired, remainingWait(time));
-        return timerId; // edit
-    }
-
-    function trailingEdge(time) {
+    function finishTrailing(at) {
         timerId = undefined;
-
-        // Only invoke if we have `lastArgs` which means `func` has been
-        // debounced at least once.
         if (trailing && lastArgs) {
-            return invokeFunc(time);
+            return invoke(at);
         }
-        lastArgs = lastThis = undefined;
-        return result;
+        lastArgs = undefined;
+        lastThis = undefined;
+        return lastResult;
     }
 
-    function cancel() {
-        if (timerId !== undefined) {
-            cancelTimer(timerId);
+    function onTimer() {
+        const now = Date.now();
+        if (canInvoke(now)) {
+            return finishTrailing(now);
         }
-        lastInvokeTime = 0;
-        lastArgs = lastCallTime = lastThis = timerId = undefined;
-    }
-
-    function flush() {
-        return isUndefined(timerId) ? result : trailingEdge(Date.now());
-    }
-
-    function pending() {
-        return !isUndefined(timerId);
+        timerId = schedule(onTimer, remainingMs(now));
+        return timerId;
     }
 
     /** @this {any} */
     function debounced(...args) {
-        const time = Date.now();
-        const isInvoking = shouldInvoke(time);
+        const now = Date.now();
+        const ready = canInvoke(now);
 
         lastArgs = args;
         lastThis = this;
-        lastCallTime = time;
+        lastCallAt = now;
 
-        if(isInvoking) {
-            if(isUndefined(timerId)) {
-                return leadingEdge(lastCallTime);
+        if (ready) {
+            if (timerId === undefined) {
+                lastInvokeAt = now;
+                timerId = schedule(onTimer, delayMs);
+                return leading ? invoke(now) : lastResult;
             }
-            if(maxing) {
-                // Handle invocations in a tight loop.
-                timerId = startTimer(timerExpired, wait);
-                return invokeFunc(lastCallTime);
+            if (hasMaxWait) {
+                timerId = schedule(onTimer, delayMs);
+                return invoke(now);
             }
         }
-        if(isUndefined(timerId)) {
-            timerId = startTimer(timerExpired, wait);
+
+        if (timerId === undefined) {
+            timerId = schedule(onTimer, delayMs);
         }
-        return result;
+        return lastResult;
     }
 
-    debounced.cancel = cancel;
-    debounced.flush = flush;
-    debounced.pending = pending;
+    debounced.cancel = () => {
+        if (timerId !== undefined) {
+            clearScheduled(timerId);
+        }
+        lastInvokeAt = 0;
+        lastArgs = undefined;
+        lastCallAt = undefined;
+        lastThis = undefined;
+        timerId = undefined;
+    };
+
+    debounced.flush = () => (timerId === undefined ? lastResult : finishTrailing(Date.now()));
+    debounced.pending = () => timerId !== undefined;
+
     return debounced;
 }
-// end copied from lodash.js
 
-// Async
-async function delay(ms) {
-    return await new Promise(res => setTimeout(res, ms));
+function delay(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
 }
 
-async function wait(ms) {
-    return await new Promise(res => setTimeout(res, ms));
-}
+const wait = delay;
 
-// XF (Events)
-function XF(args = {}) {
-    let data = {};
-    let name = args.name || 'db';
+function createEventBus(options = {}) {
+    const namespace = options.name || 'db';
+    const bus = typeof window !== 'undefined' ? window : new EventTarget();
+    let store = {};
 
-    function create(obj) {
-        data = proxify(obj);
-    }
-
-    function proxify(obj) {
-        let handler = {
-            set: (target, key, value) => {
+    function create(initialState) {
+        store = new Proxy(initialState, {
+            set(target, prop, value) {
+                const key = String(prop);
                 target[key] = value;
-                dispatch(`${name}:${key}`, target);
+                dispatch(`${namespace}:${key}`, target);
                 return true;
-            }
-        };
-        return new Proxy(obj, handler);
+            },
+        });
     }
 
-    function dispatch(eventType, value) {
-        window.dispatchEvent(evt(eventType)(value));
+    function dispatch(eventType, payload) {
+        bus.dispatchEvent(new CustomEvent(eventType, { detail: { data: payload } }));
     }
 
-    function sub(eventType, handler, options = {}) {
+    function sub(eventType, handler, listenerOptions = {}) {
+        const [prefix, prop] = eventType.split(':');
+        const fromStore = prefix === namespace;
 
-        function handlerWraper(e) {
-            if(isStoreSource(eventType)) {
-                handler(e.detail.data[evtProp(eventType)]);
-            } else {
-                handler(e.detail.data);
-            }
+        function listener(event) {
+            const detailData = /** @type {CustomEvent} */ (event).detail?.data;
+            handler(fromStore ? detailData?.[prop] : detailData);
         }
 
-        window.addEventListener(
-            eventType, handlerWraper, Object.assign({capture: false}, options)
-        );
-
-        return handlerWraper;
+        bus.addEventListener(eventType, listener, { capture: false, ...listenerOptions });
+        return listener;
     }
 
-    function reg(eventType, handler, options = {}) {
-
-        function handlerWraper(e) {
-            return handler(e.detail.data, data);
+    function reg(eventType, handler, listenerOptions = {}) {
+        function listener(event) {
+            const detailData = /** @type {CustomEvent} */ (event).detail?.data;
+            return handler(detailData, store);
         }
 
-        window.addEventListener(
-            eventType, handlerWraper, Object.assign({capture: false}, options)
-        );
-
-        return handlerWraper;
+        bus.addEventListener(eventType, listener, { capture: false, ...listenerOptions });
+        return listener;
     }
 
-    function unsub(eventType, handler, options = {}) {
-        // console.log(`unsub ${eventType}`, handler); // rmv
-        window.removeEventListener(eventType, handler, Object.assign({capture: false}, options));
-    }
-
-    function isStoreSource(eventType) {
-        return equals(evtSource(eventType), name);
-    }
-
-    function evt(eventType) {
-        return function(value) {
-            return new CustomEvent(eventType, {detail: {data: value}});
-        };
-    }
-
-    function evtProp(eventType) {
-        return second(eventType.split(':'));
-    }
-
-    function evtSource(eventType) {
-        return first(eventType.split(':'));
+    function unsub(eventType, listener, listenerOptions = {}) {
+        bus.removeEventListener(eventType, listener, { capture: false, ...listenerOptions });
     }
 
     return Object.freeze({
@@ -534,15 +451,14 @@ function XF(args = {}) {
         reg,
         sub,
         dispatch,
-        unsub
+        unsub,
     });
 }
 
-const xf = XF();
+const xf = createEventBus();
 
-// format
 function hex(n) {
-    return '0x' + parseInt(n).toString(16).toUpperCase().padStart(2, '0');
+    return '0x' + Math.trunc(Number(n)).toString(16).toUpperCase().padStart(2, '0');
 }
 
 function toNumber(value) {
@@ -550,22 +466,22 @@ function toNumber(value) {
 }
 
 function toBool(value) {
-    return !!(value);
-};
-
-function toFixed(x, points = 2, fallback = 0) {
-    if(!isNumber(x)) return fallback;
-    const precision = 10**points;
-    return Math.round(x * precision) / precision;
+    return Boolean(value);
 }
 
-function dataviewToArray(dataview) {
-    return Array.from(new Uint8Array(dataview.buffer));
+function toFixed(value, decimals = 2, fallback = 0) {
+    if (!isNumber(value)) return fallback;
+    const factor = 10 ** decimals;
+    return Math.round(value * factor) / factor;
 }
 
-function dataviewToString(dataview) {
-    let utf8decoder = new TextDecoder('utf-8');
-    return utf8decoder.decode(dataview.buffer);
+function dataviewToArray(view) {
+    return Array.from(new Uint8Array(view.buffer, view.byteOffset, view.byteLength));
+}
+
+function dataviewToString(view) {
+    const bytes = new Uint8Array(view.buffer, view.byteOffset, view.byteLength);
+    return new TextDecoder('utf-8').decode(bytes);
 }
 
 function arrayBufferToArray(buffer) {
@@ -573,44 +489,40 @@ function arrayBufferToArray(buffer) {
 }
 
 function stringToCharCodes(str) {
-    return str.split('').map(c => c.charCodeAt(0));
+    return Array.from(str, ch => ch.charCodeAt(0));
 }
 
 function stringToDataview(str) {
-    let charCodes = stringToCharCodes(str);
-    let uint8 = new Uint8Array(charCodes);
-    let dataview = new DataView(uint8.buffer);
-
-    return dataview;
+    const bytes = Uint8Array.from(str, ch => ch.charCodeAt(0));
+    return new DataView(bytes.buffer);
 }
 
 function time() {
-    const d = new Date();
-    const mm = (d.getMinutes()).toString().padStart(2, '0');
-    const ss = (d.getSeconds()).toString().padStart(2, '0');
-    const mmmm = (d.getMilliseconds()).toString().padStart(4, '0');
-    return `${mm}:${ss}:${mmmm}`;
+    const now = new Date();
+    const mm = String(now.getMinutes()).padStart(2, '0');
+    const ss = String(now.getSeconds()).padStart(2, '0');
+    const ms = String(now.getMilliseconds()).padStart(4, '0');
+    return `${mm}:${ss}:${ms}`;
 }
 
-function formatDate(args = {}) {
-    const date = args.date ?? new Date();
-    const s = args.separator ?? '/';
-    const showYear = args.year ?? true;
+function formatDate(options = {}) {
+    const date = options.date ?? new Date();
+    const sep = options.separator ?? '/';
+    const includeYear = options.year ?? true;
 
-    const day    = (date.getDate()).toString().padStart(2, '0');
-    const month  = (date.getMonth()+1).toString().padStart(2, '0');
-    const year   = date.getFullYear().toString();
+    const day = String(date.getDate()).padStart(2, '0');
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const year = String(date.getFullYear());
 
-    return `${day}${s}${month}${showYear ? s : ''}${showYear ? year : ''}`;
+    return includeYear ? `${day}${sep}${month}${sep}${year}` : `${day}${sep}${month}`;
 }
 
-// Bits
 function nthBit(field, bit) {
     return (field >> bit) & 1;
-};
+}
 
-function setBit(i, n) {
-    return n |= (1 << i);
+function setBit(bit, field) {
+    return field | (1 << bit);
 }
 
 function getBits(start, end, value) {
@@ -618,51 +530,48 @@ function getBits(start, end, value) {
 }
 
 function nthBitToBool(field, bit) {
-    return toBool(nthBit(field, bit));
+    return Boolean(nthBit(field, bit));
 }
 
 function xor(view, start = 0, end = view.byteLength) {
-    let cs = 0;
-    const length = (end < 0) ? (view.byteLength + end) : end;
-    for (let i=start; i < length; i++) {
-        cs ^= view.getUint8(i);
+    let checksum = 0;
+    const stop = end < 0 ? view.byteLength + end : end;
+    for (let i = start; i < stop; i++) {
+        checksum ^= view.getUint8(i);
     }
-    return cs;
+    return checksum;
 }
 
-function setUint24LE(dataview, index, value) {
-    dataview.setUint8(index,    value        & 0xFF, true); // LSB
-    dataview.setUint8(index+1, (value >> 8 ) & 0xFF, true);
-    dataview.setUint8(index+2,  value >> 16        , true); // MSB
-    return dataview;
+function setUint24LE(view, byteOffset, value) {
+    view.setUint8(byteOffset, value & 0xff);
+    view.setUint8(byteOffset + 1, (value >> 8) & 0xff);
+    view.setUint8(byteOffset + 2, (value >> 16) & 0xff);
+    return view;
 }
 
-function getUint24LE(dataview, index = 0) {
-    const LSB = dataview.getUint8(index,   true); // LSB
-    const MB  = dataview.getUint8(index+1, true);
-    const MSB = dataview.getUint8(index+2, true); // MSB
-
-    return (MSB << 16) + (MB << 8) + LSB;
+function getUint24LE(view, byteOffset = 0) {
+    const b0 = view.getUint8(byteOffset);
+    const b1 = view.getUint8(byteOffset + 1);
+    const b2 = view.getUint8(byteOffset + 2);
+    return (b2 << 16) + (b1 << 8) + b0;
 }
 
-function Spec(args = {}) {
-    const definitions = expect(args.definitions);
+function Spec(options = {}) {
+    const definitions = expect(options.definitions);
 
-    const applyResolution = curry2((prop, value) => {
-        return value / definitions[prop].resolution;
-    });
-
-    const removeResolution = curry2((prop, value) => {
-        return value * definitions[prop].resolution;
-    });
+    const applyResolution = curry2((prop, value) => value / definitions[prop].resolution);
+    const removeResolution = curry2((prop, value) => value * definitions[prop].resolution);
 
     function encodeField(prop, input, transform = applyResolution(prop)) {
-        const fallback = definitions[prop].default;
-        const min      = applyResolution(definitions[prop].min);
-        const max      = applyResolution(definitions[prop].max);
-        const value    = input ?? fallback;
-
-        return Math.floor(clamp(min, max, transform(value)));
+        const def = definitions[prop];
+        const value = input ?? def.default;
+        const encoded = transform(value);
+        if (isNumber(def.min) && isNumber(def.max)) {
+            const minScaled = applyResolution(prop, def.min);
+            const maxScaled = applyResolution(prop, def.max);
+            return Math.floor(clamp(minScaled, maxScaled, encoded));
+        }
+        return Math.floor(encoded);
     }
 
     function decodeField(prop, input, transform = removeResolution) {
@@ -678,62 +587,34 @@ function Spec(args = {}) {
     };
 }
 
-// print
-function Print() {
-    if(!exists(process)) {
-        var process = {env: {NODE_ENV: "development"}};
-    }
-
-    // NB: equivalent to the former `(NODE_ENV ?? "development" == "development") ?? false`,
-    // which (by operator precedence) is truthy whenever NODE_ENV is set to a non-empty string
-    let printLog = process?.env?.NODE_ENV ?? true;
-    let printWarn = true;
-
-    console.log(`:env ${process?.env?.NODE_ENV} :print ${printLog}`);
+function createLogger() {
+    const env = typeof process !== 'undefined' ? process?.env?.NODE_ENV : 'development';
+    const verbose = env !== 'production' && env !== 'test';
 
     function log(msg) {
-        if(printLog) {
+        if (verbose) {
             console.log(`[${time()}] ${msg}`);
         }
     }
 
     function warn(msg) {
-        if(printWarn) {
-            console.warn(`[${time()}] ${msg}`);
-        }
+        console.warn(`[${time()}] ${msg}`);
     }
 
-    function callKarenFromHR() {
-        console.warn(`calling Karen from HR ...`);
-    }
-
-    function makeCoffee() {
-        console.warn(`making coffee ...`);
-        console.warn(`
-      )  (
-     (   ) )
-      ) ( (
-    _______)_
- .-'---------|
-( C|=========|
- '-./_/_/_/_/|
-   '_________'
-    '-------'
-`);
-    }
+    function noop() {}
 
     return {
         log,
         warn,
-        makeCoffee,
-        callKarenFromHR,
+        makeCoffee: noop,
+        callKarenFromHR: noop,
     };
 }
 
-const print = Print();
+const print = createLogger();
+const log = print.log;
 
 export {
-    // values
     equals,
     isNull,
     isUndefined,
@@ -750,8 +631,6 @@ export {
     isNumber,
     isAtomic,
     validate,
-
-    // collections
     first,
     second,
     third,
@@ -770,8 +649,7 @@ export {
     capitalize,
     escapeHtml,
     clamp,
-
-    // functions
+    comp,
     compose,
     compose2,
     pipe,
@@ -780,15 +658,10 @@ export {
     curry2,
     once,
     debounce,
-
-    // async
     delay,
     wait,
-
-    // events
     xf,
-
-    // format
+    createEventBus,
     hex,
     toNumber,
     toFixed,
@@ -797,12 +670,12 @@ export {
     dataviewToString,
     arrayBufferToArray,
     stringToCharCodes,
+    stringToDataview,
     time,
     formatDate,
     print,
+    log,
     Spec,
-
-    // bits
     nthBit,
     setBit,
     getBits,
@@ -811,4 +684,3 @@ export {
     setUint24LE,
     getUint24LE,
 };
-

@@ -1,28 +1,31 @@
 /** @jest-environment jsdom */
-import { toZwo, extensionOf, isSupported } from '../src/workouts/formats.js';
+import { toZwo, extensionOf, isSupported, isBinary } from '../src/workouts/formats.js';
 import { zwo } from '../src/workouts/zwo.js';
 
-const read = (text, name) => zwo.readToInterval(toZwo(text, name));
-const powers = w => w.intervals.flatMap(i => i.steps.map(s => s.power));
+const parseWorkout = (text, name) => zwo.readToInterval(toZwo(text, name));
+const stepPowers = workout => workout.intervals.flatMap(iv => iv.steps.map(step => step.power));
 
-describe('workout formats', () => {
-    test('extensions are case-insensitive', () => {
-        expect(extensionOf('My Workout.ERG')).toBe('erg');
-        expect(isSupported('a.MRC')).toBe(true);
-        expect(isSupported('a.gpx')).toBe(false);
+describe('workout format converters', () => {
+    test('identifies supported text and binary extensions case-insensitively', () => {
+        expect(extensionOf('Threshold_Session.ERG')).toBe('erg');
+        expect(isSupported('block.MRC')).toBe(true);
+        expect(isSupported('course.FIT')).toBe(true);
+        expect(isBinary('course.FIT')).toBe(true);
+        expect(isBinary('workout.zwo')).toBe(false);
+        expect(isSupported('track.gpx')).toBe(false);
     });
 
-    test('zwo passes through unchanged', () => {
-        const x = '<workout_file><name>A</name><workout><SteadyState Duration="60" Power="0.5"/></workout></workout_file>';
-        expect(toZwo(x, 'a.zwo')).toBe(x);
-        expect(toZwo(x, 'a.xml')).toBe(x);
+    test('passes native ZWO XML through untouched', () => {
+        const xml = '<workout_file><name>Spin</name><workout><SteadyState Duration="60" Power="0.5"/></workout></workout_file>';
+        expect(toZwo(xml, 'spin.zwo')).toBe(xml);
+        expect(toZwo(xml, 'spin.xml')).toBe(xml);
     });
 
-    test('mrc: steps, ramps, text cues', () => {
+    test('converts MRC percent-based files including ramps, steps, and text cues', () => {
         const mrc = `[COURSE HEADER]
 VERSION = 2
 UNITS = ENGLISH
-DESCRIPTION = Test set
+DESCRIPTION = Lactate clearance set
 FILE NAME = Over Unders
 MINUTES PERCENT
 [END COURSE HEADER]
@@ -35,21 +38,23 @@ MINUTES PERCENT
 12.00\t55
 [END COURSE DATA]
 [COURSE TEXT]
-330\tHold it!\t10
+330\tHold smooth cadence!\t10
 [END COURSE TEXT]`;
-        const w = read(mrc, 'over-unders.mrc');
-        expect(w.meta.name).toBe('Over Unders');
-        expect(w.meta.duration).toBe(720);
-        expect(w.intervals.length).toBe(3);
-        expect(w.intervals[0].steps.length).toBeGreaterThan(1);          // ramp 50 -> 75
-        expect(w.intervals[1].steps[0].power).toBeCloseTo(1.0);
-        expect(w.intervals[2].steps[0].power).toBeCloseTo(0.55);
-        const msgs = w.intervals[1].steps.flatMap(s => s.messages ?? []);
-        expect(msgs[0].message).toBe('Hold it!');
+
+        const parsed = parseWorkout(mrc, 'over-unders.mrc');
+        expect(parsed.meta.name).toBe('Over Unders');
+        expect(parsed.meta.duration).toBe(720);
+        expect(parsed.intervals).toHaveLength(3);
+        expect(parsed.intervals[0].steps.length).toBeGreaterThan(1);
+        expect(parsed.intervals[1].steps[0].power).toBeCloseTo(1.0);
+        expect(parsed.intervals[2].steps[0].power).toBeCloseTo(0.55);
+
+        const cues = parsed.intervals[1].steps.flatMap(s => s.messages ?? []);
+        expect(cues[0].message).toBe('Hold smooth cadence!');
     });
 
-    test('erg with FTP converts to fraction of FTP', () => {
-        const erg = `[COURSE HEADER]
+    test('converts ERG watt files relative to header FTP or keeps absolute watts when FTP is absent', () => {
+        const ergWithFtp = `[COURSE HEADER]
 FTP = 250
 MINUTES WATTS
 [END COURSE HEADER]
@@ -59,18 +64,16 @@ MINUTES WATTS
 10\t300
 14\t300
 [END COURSE DATA]`;
-        const w = read(erg, 'vo2.erg');
-        expect(w.meta.name).toBe('vo2');
-        expect(powers(w)).toEqual([0.5, 1.2]);
+        const rel = parseWorkout(ergWithFtp, 'vo2.erg');
+        expect(rel.meta.name).toBe('vo2');
+        expect(stepPowers(rel)).toEqual([0.5, 1.2]);
+
+        const ergAbs = `[COURSE HEADER]\nMINUTES WATTS\n[END COURSE HEADER]\n[COURSE DATA]\n0 200\n10 200\n[END COURSE DATA]`;
+        expect(stepPowers(parseWorkout(ergAbs, 'abs.erg'))).toEqual([200]);
     });
 
-    test('erg without FTP keeps absolute watts', () => {
-        const erg = `[COURSE HEADER]\nMINUTES WATTS\n[END COURSE HEADER]\n[COURSE DATA]\n0 200\n10 200\n[END COURSE DATA]`;
-        expect(powers(read(erg, 'abs.erg'))).toEqual([200]);
-    });
-
-    test('intervals.icu text with repeats, ramps, watts, zones, cadence and cues', () => {
-        const txt = `Warmup
+    test('parses intervals.icu workout text with repeats, ramps, watts, zones, cadence, and coaching cues', () => {
+        const text = `Warmup
 - 10m ramp 50-75% 85rpm
 
 Main set 3x
@@ -80,19 +83,21 @@ Main set 3x
 - 1m30s 300w
 Cooldown
 - 5m 50%`;
-        const w = read(txt, 'threshold.txt');
-        expect(w.meta.name).toBe('threshold');
-        expect(w.meta.duration).toBe(600 + 3 * 420 + 90 + 300);
-        const flat = w.intervals.map(i => i.steps[0]);
-        expect(flat[0].power).toBeCloseTo(0.5);
-        expect(flat[0].cadence).toBe(85);
-        expect(flat[1].power).toBeCloseTo(1.05);
-        expect(flat[1].messages[0].message).toBe('stay seated');
-        expect(flat[2].power).toBeCloseTo(0.5);
-        expect(flat[7].power).toBe(300);
+
+        const parsed = parseWorkout(text, 'threshold.txt');
+        expect(parsed.meta.name).toBe('threshold');
+        expect(parsed.meta.duration).toBe(600 + 3 * 420 + 90 + 300);
+
+        const firstSteps = parsed.intervals.map(iv => iv.steps[0]);
+        expect(firstSteps[0].power).toBeCloseTo(0.5);
+        expect(firstSteps[0].cadence).toBe(85);
+        expect(firstSteps[1].power).toBeCloseTo(1.05);
+        expect(firstSteps[1].messages[0].message).toBe('stay seated');
+        expect(firstSteps[2].power).toBeCloseTo(0.5);
+        expect(firstSteps[7].power).toBe(300);
     });
 
-    test('helpful errors', () => {
+    test('surfaces descriptive parse errors for invalid ERG/MRC and text files', () => {
         expect(() => toZwo('hello', 'x.txt')).toThrow(/no steps found/);
         expect(() => toZwo('[COURSE HEADER]\n[END COURSE HEADER]', 'x.erg')).toThrow(/COURSE DATA/);
     });

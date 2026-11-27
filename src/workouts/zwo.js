@@ -1,300 +1,267 @@
 // @ts-check
-import { equals, existance, exists,
-         empty, first, last, repeat,
-         capitalize, toFixed } from '../functions.js';
+import {
+    equals, existance, exists, empty, first, last, repeat, toFixed,
+} from '../functions.js';
 
-function readAttribute(args = {}) {
-    const el       = args.el;
-    const name     = args.name;
-    const decode   = existance(args.decode, ((x) => x));
+const RAMP_SLICE_SECONDS = 10;
 
-    if(el.hasAttribute(name)) {
-        return decode(el.getAttribute(name));
-    } else {
-        return undefined;
-    }
+function escapeXml(value) {
+    return String(value ?? '')
+        .replaceAll('&', '&amp;')
+        .replaceAll('<', '&lt;')
+        .replaceAll('>', '&gt;')
+        .replaceAll('"', '&quot;');
 }
 
-function writeAttribute(args = {}) {
-    const encode = existance(args.encode, ((x) => x));
-    const name   = existance(args.name);
-    const value  = existance(args.value);
+function readAttribute(options = {}) {
+    const { el, name } = options;
+    const decode = existance(options.decode, x => x);
+    return el.hasAttribute(name) ? decode(el.getAttribute(name)) : undefined;
+}
 
+function writeAttribute(options = {}) {
+    const encode = existance(options.encode, x => x);
+    const name = existance(options.name);
+    const value = existance(options.value);
     return `${name}="${encode(value)}"`;
 }
 
-function Attribute(args = {}) {
-    const defaults = {
-        name:      '',
-        decode:    ((x) => x),
-    };
-
-    const name   = existance(args.name, defaults.name);
-    const decode = existance(args.decode, defaults.decode);
-    const encode = existance(args.encode, decode);
-
-    function getName() {
-        return name;
-    }
-
-    function read(args = {}) {
-        const el = existance(args.el);
-        return readAttribute({el, name, decode});
-    }
-
-    function write(args = {}) {
-        const value = existance(args.value);
-        return writeAttribute({name, value, encode});
-    }
+function Attribute(options = {}) {
+    const name = existance(options.name, '');
+    const decode = existance(options.decode, x => x);
+    const encode = existance(options.encode, decode);
 
     return Object.freeze({
-        getName,
-        read,
-        write,
+        getName: () => name,
+        read: (args = {}) => readAttribute({ el: existance(args.el), name, decode }),
+        write: (args = {}) => writeAttribute({ name, value: existance(args.value), encode }),
     });
 }
 
-function attributesToStep(args = {}) {
-    const tag    = existance(args.element);
-    const filter = existance(args.filter, ((_) => true));
-    const toName = existance(args.toName, ((x) => x));
+function attributesToStep(options = {}) {
+    const tagObj = existance(options.element);
+    const keepKey = existance(options.filter, () => true);
+    const mapKey = existance(options.toName, x => x);
 
-    return Object.keys(tag).reduce(function(acc, key) {
-        if(filter(key) && exists(tag[key])) {
-            const name  = toName(key);
-            const value = tag[key];
-            acc[name] = value;
+    /** @type {Record<string, any>} */
+    const step = {};
+    for (const key of Object.keys(tagObj)) {
+        if (keepKey(key) && exists(tagObj[key])) {
+            step[mapKey(key)] = tagObj[key];
         }
-        return acc;
-    }, {});
+    }
+    return step;
 }
 
 function Step(element) {
-    const spec = {
-        element: element,
-        filter:  (key) => !equals(key, 'element') && !equals(key, 'children'),
-        toName:  (key) => key.toLowerCase(),
-    };
-
-    return attributesToStep(spec);
+    return attributesToStep({
+        element,
+        filter: key => !equals(key, 'element') && !equals(key, 'children'),
+        toName: key => key.toLowerCase(),
+    });
 }
 
 function OnStep(element) {
-    const spec = {
-        element:    element,
-        filter: (key) => key.startsWith('On') || equals(key, 'Cadence'),
-        toName: (key) => key.replace(/On/g,'').toLocaleLowerCase(),
-    };
-
-    return attributesToStep(spec);
+    return attributesToStep({
+        element,
+        filter: key => key.startsWith('On') || equals(key, 'Cadence'),
+        toName: key => key.replace(/On/g, '').toLowerCase(),
+    });
 }
 
 function OffStep(element) {
-    const spec = {
-        element:    element,
-        filter: (key) => key.startsWith('Off') || key.endsWith('Resting'),
-        toName: (key) => key.replace(/On|Off|Resting/g,'').toLocaleLowerCase(),
-    };
-
-    return attributesToStep(spec);
+    return attributesToStep({
+        element,
+        filter: key => key.startsWith('Off') || key.endsWith('Resting'),
+        toName: key => key.replace(/On|Off|Resting/g, '').toLowerCase(),
+    });
 }
 
-function isTextEventTag(name) {
-    return equals(String(name).toLowerCase(), 'textevent');
+function isTextEventTagName(tagName) {
+    return equals(String(tagName).toLowerCase(), 'textevent');
 }
 
-function readTextEvents(el) {
-    const nodes = el.children || [];
-    const acc   = [];
-
-    for(let i = 0; i < nodes.length; i++) {
-        const child = nodes[i];
-        if(isTextEventTag(child.tagName)) {
-            acc.push(Elements.TextEvent.read({el: child}));
+function readChildTextEvents(el) {
+    const children = el.children || [];
+    const events = [];
+    for (let i = 0; i < children.length; i++) {
+        if (isTextEventTagName(children[i].tagName)) {
+            events.push(Elements.TextEvent.read({ el: children[i] }));
         }
     }
-
-    return acc;
+    return events;
 }
 
-// timeoffset counts from the start of the whole block.
-// offset counts from the start of the slice that block was cut into.
-function toMessage(event, offset) {
-    const message = {};
-
-    if(exists(event.duration)) message.duration = event.duration;
-    message.offset  = offset;
-    message.message = event.message;
-
-    return message;
-}
-
-function assignMessages(intervals, children) {
-    if(!exists(children) || empty(children)) return intervals;
+function attachTextEvents(intervals, textEvents) {
+    if (!exists(textEvents) || empty(textEvents)) {
+        return intervals;
+    }
 
     let cursor = 0;
-    const acc  = [];
+    return intervals.map(interval => {
+        const nextSteps = interval.steps.map(step => {
+            if (!exists(step.duration)) return step;
 
-    for(let i = 0; i < intervals.length; i++) {
-        const interval  = intervals[i];
-        const steps     = interval.steps;
-        const nextSteps = [];
-
-        for(let s = 0; s < steps.length; s++) {
-            const step = steps[s];
-
-            if(!exists(step.duration)) {
-                nextSteps.push(step);
-                continue;
-            }
-
-            const start    = cursor;
-            const end      = start + step.duration;
-            const messages = [];
-
-            for(let c = 0; c < children.length; c++) {
-                const event      = children[c];
-                const timeoffset = event.timeoffset;
-
-                if(!equals(event.element, 'TextEvent')) continue;
-                if(!exists(timeoffset)) continue;
-                if(timeoffset < start || timeoffset >= end) continue;
-
-                messages.push(toMessage(event, timeoffset - start));
-            }
-
+            const start = cursor;
+            const end = start + step.duration;
             cursor = end;
 
-            if(empty(messages)) {
-                nextSteps.push(step);
-            } else {
-                nextSteps.push(Object.assign({}, step, {messages}));
+            const messages = [];
+            for (const ev of textEvents) {
+                if (!equals(ev.element, 'TextEvent') || !exists(ev.timeoffset)) continue;
+                if (ev.timeoffset >= start && ev.timeoffset < end) {
+                    /** @type {Record<string, any>} */
+                    const cue = {
+                        offset: ev.timeoffset - start,
+                        message: ev.message,
+                    };
+                    if (exists(ev.duration)) {
+                        cue.duration = ev.duration;
+                    }
+                    messages.push(cue);
+                }
             }
-        }
 
-        acc.push(Object.assign({}, interval, {steps: nextSteps}));
-    }
+            return empty(messages) ? step : { ...step, messages };
+        });
 
-    return acc;
+        return { ...interval, steps: nextSteps };
+    });
 }
 
-function Element(args = {}) {
-    const defaults = {
-        name:     'Unknown',
-        tagOpen:  '<Unknown',
-        tagClose: ' />',
-        content:  '',
-    };
+function decodeNumberList(raw) {
+    return String(raw)
+        .split(',')
+        .map(part => parseFloat(part))
+        .filter(n => !Number.isNaN(n));
+}
 
-    const name         = existance(args.name, defaults.name);
-    const tagOpen      = existance(args.tagOpen, defaults.tagOpen);
-    const tagClose     = existance(args.tagClose, defaults.tagClose);
-    const toInterval   = existance(args.toInterval, defaultToInterval);
-    const fromInterval = existance(args.fromInterval, defaultFromInterval);
-    const calcDuration = existance(args.calcDuration, defaultCalcDuration);
+function encodeNumberList(values) {
+    return values.join(',');
+}
 
-    function getName() {
-        return name;
+const Attrs = {
+    Duration: Attribute({ name: 'Duration', decode: val => parseInt(val, 10) }),
+    OnDuration: Attribute({ name: 'OnDuration', decode: val => parseInt(val, 10) }),
+    OffDuration: Attribute({ name: 'OffDuration', decode: val => parseInt(val, 10) }),
+
+    Power: Attribute({ name: 'Power', decode: parseFloat }),
+    OnPower: Attribute({ name: 'OnPower', decode: parseFloat }),
+    OffPower: Attribute({ name: 'OffPower', decode: parseFloat }),
+    PowerLow: Attribute({ name: 'PowerLow', decode: parseFloat }),
+    PowerHigh: Attribute({ name: 'PowerHigh', decode: parseFloat }),
+
+    Cadence: Attribute({ name: 'Cadence', decode: val => parseInt(val, 10) }),
+    CadenceLow: Attribute({ name: 'CadenceLow', decode: val => parseInt(val, 10) }),
+    CadenceHigh: Attribute({ name: 'CadenceHigh', decode: val => parseInt(val, 10) }),
+    CadenceResting: Attribute({ name: 'CadenceResting', decode: val => parseInt(val, 10) }),
+
+    Slope: Attribute({ name: 'Slope', decode: parseFloat }),
+    OnSlope: Attribute({ name: 'OnSlope', decode: parseFloat }),
+    OffSlope: Attribute({ name: 'OffSlope', decode: parseFloat }),
+    SlopeLow: Attribute({ name: 'SlopeLow', decode: parseFloat }),
+    SlopeHigh: Attribute({ name: 'SlopeHigh', decode: parseFloat }),
+
+    Distance: Attribute({ name: 'Distance', decode: val => parseInt(val, 10) }),
+
+    Sim: Attribute({ name: 'Sim', decode: decodeNumberList, encode: encodeNumberList }),
+    Track: Attribute({ name: 'Track', decode: decodeNumberList, encode: encodeNumberList }),
+    Repeat: Attribute({ name: 'Repeat', decode: val => parseInt(val, 10) }),
+
+    duration: Attribute({ name: 'duration', decode: val => parseInt(val, 10) }),
+    timeoffset: Attribute({ name: 'timeoffset', decode: val => parseInt(val, 10) }),
+    message: Attribute({ name: 'message' }),
+    TimeOffset: Attribute({ name: 'TimeOffset', decode: val => parseInt(val, 10) }),
+    Message: Attribute({ name: 'Message' }),
+};
+
+function Element(options = {}) {
+    const name = existance(options.name, 'Unknown');
+    const tagOpen = existance(options.tagOpen, '<Unknown');
+    const tagClose = existance(options.tagClose, ' />');
+    const defaultContent = existance(options.content, '');
+
+    function defaultCalcDuration(parsedEl) {
+        return parsedEl.Duration;
     }
 
-    function readContent(el) {
-        if(exists(el)) {
-            let value = el.textContent;
-            if(empty(value)) {
-                return undefined;
-            } else {
-                return value;
-            }
-        }
+    const calcDuration = existance(options.calcDuration, defaultCalcDuration);
 
-        return undefined;
-    }
-
-    function read(args = {}) {
-        const el            = existance(args.el);
-        const attrsNodeList = el.attributes || [];
-        const length        = attrsNodeList.length;
-
-        let acc = {element: name};
-
-        for(let i = 0; i < length; i++) {
-            const name   = attrsNodeList[i].name;
-            const attrFn = Attrs[name];
-            const key    = name;
-            let value    = attrsNodeList[i].value;
-
-            if(exists(attrFn)) {
-                value = attrFn.read({el});
-            }
-
-            acc[key] = value;
-        }
-
-        if(!equals(name, 'TextEvent')) {
-            const children = readTextEvents(el);
-            if(children.length > 0) {
-                acc.children = children;
-            }
-        }
-
-        return acc;
-    }
-
-    const xmlEsc = s => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-
-    function write(args = {}) {
-        let { content, ...attributes } = args;
-
-        content = existance(args.content, defaults.content);
-        const safeContent = content !== '' && !String(content).trimStart().startsWith('<') ? xmlEsc(content) : content;
-
-        const attrsString = Object.keys(attributes).reduce((acc, key) => {
-            acc += ` ${key}="${xmlEsc(args[key])}"`;
-            return acc;
-        }, '');
-
-        return `${tagOpen + attrsString}${safeContent}${tagClose}`;
-    }
-
-    function defaultCalcDuration(element) {
-        const duration = element.Duration;
-        return duration;
-    }
-
-    function defaultToInterval(element) {
-        const duration = calcDuration(element);
-        const step = Step(element);
-
+    function defaultToInterval(parsedEl) {
         return {
-            duration: duration,
-            steps:    [step],
+            duration: calcDuration(parsedEl),
+            steps: [Step(parsedEl)],
         };
     }
 
     function defaultFromInterval(interval) {
-        const res = {
+        /** @type {Record<string, any>} */
+        const out = {
             element: name,
             Duration: interval.duration,
         };
         const step = first(interval.steps);
-
-        if(exists(step.power)) res.Power = step.power;
-        if(exists(step.cadence)) res.Cadence = step.cadence;
-        if(exists(step.slope)) res.Slope = step.slope;
-
-        return res;
+        if (exists(step?.power)) out.Power = step.power;
+        if (exists(step?.cadence)) out.Cadence = step.cadence;
+        if (exists(step?.slope)) out.Slope = step.slope;
+        return out;
     }
 
-    function readToInterval(args = {}) {
-        return toInterval(read(args));
+    const toInterval = existance(options.toInterval, defaultToInterval);
+    const fromInterval = existance(options.fromInterval, defaultFromInterval);
+
+    function readContent(el) {
+        if (!exists(el)) return undefined;
+        const text = el.textContent;
+        return empty(text) ? undefined : text;
     }
 
-    function writeFromInterval(args = {}) {
-        return write(fromInterval(args));
+    function read(args = {}) {
+        const el = existance(args.el);
+        const rawAttrs = el.attributes || [];
+        /** @type {Record<string, any>} */
+        const parsed = { element: name };
+
+        for (let i = 0; i < rawAttrs.length; i++) {
+            const attrName = rawAttrs[i].name;
+            const attrSpec = Attrs[attrName];
+            let value = exists(attrSpec) ? attrSpec.read({ el }) : rawAttrs[i].value;
+            if (equals(name, 'TextEvent') && equals(attrName, 'TimeOffset')) {
+                parsed.timeoffset = value;
+            } else if (equals(name, 'TextEvent') && equals(attrName, 'Message')) {
+                parsed.message = value;
+            } else {
+                parsed[attrName] = value;
+            }
+        }
+
+        if (!equals(name, 'TextEvent')) {
+            const children = readChildTextEvents(el);
+            if (children.length > 0) {
+                parsed.children = children;
+            }
+        }
+
+        return parsed;
+    }
+
+    function write(args = {}) {
+        const { content: rawContent, ...attributes } = args;
+        const content = existance(rawContent, defaultContent);
+        const safeContent =
+            content !== '' && !String(content).trimStart().startsWith('<')
+                ? escapeXml(content)
+                : content;
+
+        const attrStr = Object.keys(attributes)
+            .map(key => ` ${key}="${escapeXml(attributes[key])}"`)
+            .join('');
+
+        return `${tagOpen}${attrStr}${safeContent}${tagClose}`;
     }
 
     return Object.freeze({
-        getName,
+        getName: () => name,
         readContent,
         read,
         write,
@@ -303,653 +270,392 @@ function Element(args = {}) {
         calcDuration,
         defaultCalcDuration,
         defaultToInterval,
-        readToInterval,
+        readToInterval: (args = {}) => toInterval(read(args)),
         defaultFromInterval,
-        writeFromInterval,
+        writeFromInterval: (args = {}) => write(fromInterval(args)),
     });
 }
 
-function IntervalsT(args = {}) {
-    const spec = {
-        name:         'IntervalsT',
-        tagOpen:      '<IntervalsT',
-        tagClose:     ' />',
-        toInterval:   toInterval,
-        calcDuration: calcDuration,
-    };
+function buildRampInterval(element, startPower, endPower, sliceDuration = RAMP_SLICE_SECONDS) {
+    const duration = element.Duration;
+    const cadence = element.Cadence;
+    const cadenceLow = element.CadenceLow;
+    const cadenceHigh = element.CadenceHigh;
 
-    function calcDuration(element) {
-        return element.Repeat * (element.OnDuration + element.OffDuration);
+    const sliceCount = Math.max(1, Math.floor(duration / sliceDuration));
+    const baseDur = sliceCount === 1 ? duration : sliceDuration;
+    const remainder = sliceCount === 1 ? 0 : duration - sliceCount * sliceDuration;
+
+    const steps = [];
+    for (let i = 0; i < sliceCount; i++) {
+        const ratio = sliceCount > 1 ? i / (sliceCount - 1) : 0;
+        const power = toFixed(startPower + (endPower - startPower) * ratio, 2);
+        const stepDur = i === sliceCount - 1 ? baseDur + remainder : baseDur;
+        /** @type {Record<string, any>} */
+        const step = { duration: stepDur, power };
+
+        if (exists(cadenceLow) && exists(cadenceHigh)) {
+            step.cadence = Math.round(cadenceLow + (cadenceHigh - cadenceLow) * ratio);
+        } else if (exists(cadence)) {
+            step.cadence = cadence;
+        }
+        steps.push(step);
     }
 
-    function toInterval(element) {
-        const duration   = calcDuration(element);
-        const stepsCount = existance(element.Repeat, 1);
-
-        /** @type {any} */
-        const onStep  = OnStep(element);
-        /** @type {any} */
-        const offStep = OffStep(element);
-        const steps   = repeat(stepsCount)(function(acc) {
-            acc.push({duration: onStep.duration, steps: [onStep]});
-            acc.push({duration: offStep.duration, steps: [offStep]});
-            return acc;
-        })([]);
-
-        return assignMessages(steps, element.children);
-    }
-
-    return Element(spec);
+    return first(attachTextEvents([{ duration, steps }], element.children));
 }
 
-function Unknown(args = {}) {
-    const spec = {
-        name:     'Unknown',
-        tagOpen:  '<Unknown',
+function serializeRampInterval(tagName, interval) {
+    /** @type {Record<string, any>} */
+    const out = {
+        element: tagName,
+        Duration: interval.duration,
+    };
+    const startStep = first(interval.steps);
+    const endStep = last(interval.steps);
+    if (exists(startStep?.power)) out.PowerLow = startStep.power;
+    if (exists(endStep?.power)) out.PowerHigh = endStep.power;
+    if (exists(startStep?.cadence)) out.Cadence = startStep.cadence;
+    return out;
+}
+
+function createWarmupElement(options = {}) {
+    const sliceDuration = existance(options.timeDx, RAMP_SLICE_SECONDS);
+    const tagName = options.spec?.name ?? 'Warmup';
+
+    return Element({
+        name: tagName,
+        tagOpen: `<${tagName}`,
         tagClose: ' />',
-    };
-
-    // console.warn(`Unknown Element in .zwo workout: ${args.el}`);
-
-    return Element(spec);
+        toInterval(element) {
+            const low = element.PowerLow ?? element.Power ?? 0;
+            const high = element.PowerHigh ?? element.Power ?? 0;
+            return buildRampInterval(element, low, high, sliceDuration);
+        },
+        fromInterval(interval) {
+            return serializeRampInterval(tagName, interval);
+        },
+        ...options.spec,
+    });
 }
 
-function FreeRide(args = {}) {
-    const spec = {
-        name:     'FreeRide',
-        tagOpen:  '<FreeRide',
+function createCooldownElement(options = {}) {
+    const sliceDuration = existance(options.timeDx, RAMP_SLICE_SECONDS);
+
+    return Element({
+        name: 'Cooldown',
+        tagOpen: '<Cooldown',
         tagClose: ' />',
-        toInterval: toInterval,
-    };
+        toInterval(element) {
+            // In ZWO XML, Cooldown specifies starting power in PowerLow and ending power in PowerHigh
+            const startPower = element.PowerLow ?? element.Power ?? 0;
+            const endPower = element.PowerHigh ?? element.Power ?? 0;
+            return buildRampInterval(element, startPower, endPower, sliceDuration);
+        },
+        fromInterval(interval) {
+            return serializeRampInterval('Cooldown', interval);
+        },
+    });
+}
 
-    function toInterval(element) {
-        let duration   = existance(element.Duration, 1);
-        const sim      = element.Sim;
-        const track    = element.Track;
-        const power    = 0;
-        const slope    = 0;
-        const steps    = [];
+function createSteadyStateElement(options = {}) {
+    return Element({
+        name: 'SteadyState',
+        tagOpen: '<SteadyState',
+        tagClose: ' />',
+        toInterval(element) {
+            const copy = { ...element };
 
-        let simDuration   = 0;
-        let trackDistance = 0;
-
-        if(exists(sim)) {
-            for(let i=0; i< sim.length; i+=2) {
-                simDuration += sim[i+1];
-                steps.push({duration: sim[i+1], slope: sim[i], power});
+            if (!exists(copy.Cadence) && (exists(copy.CadenceLow) || exists(copy.CadenceHigh))) {
+                const cadParts = [copy.CadenceLow, copy.CadenceHigh].filter(exists);
+                copy.Cadence = Math.round(cadParts.reduce((sum, v) => sum + v, 0) / cadParts.length);
+                copy.CadenceLow = undefined;
+                copy.CadenceHigh = undefined;
             }
-            if(simDuration < duration) {
-                steps.push({duration: (duration - simDuration), slope, power});
+
+            if (!exists(copy.Power)) {
+                if (exists(copy.PowerLow) || exists(copy.PowerHigh)) {
+                    const pParts = [copy.PowerLow, copy.PowerHigh].filter(exists);
+                    copy.Power = pParts.reduce((sum, v) => sum + v, 0) / pParts.length;
+                    copy.PowerLow = undefined;
+                    copy.PowerHigh = undefined;
+                } else {
+                    copy.Power = 0;
+                    if (!exists(copy.Slope)) copy.Slope = 0;
+                }
             }
-            if(simDuration > duration) {
-                duration = simDuration;
+
+            const step = Step(copy);
+            return first(attachTextEvents([{ duration: copy.Duration, steps: [step] }], copy.children));
+        },
+        ...options.spec,
+    });
+}
+
+function createIntervalsTElement() {
+    return Element({
+        name: 'IntervalsT',
+        tagOpen: '<IntervalsT',
+        tagClose: ' />',
+        calcDuration: element => element.Repeat * (element.OnDuration + element.OffDuration),
+        toInterval(element) {
+            const count = existance(element.Repeat, 1);
+            const onStep = OnStep(element);
+            const offStep = OffStep(element);
+            const expanded = repeat(count)(acc => {
+                acc.push({ duration: onStep.duration, steps: [{ ...onStep }] });
+                if (exists(offStep.duration) && offStep.duration > 0) {
+                    acc.push({ duration: offStep.duration, steps: [{ ...offStep }] });
+                }
+                return acc;
+            })([]);
+            return attachTextEvents(expanded, element.children);
+        },
+    });
+}
+
+function createFreeRideElement() {
+    return Element({
+        name: 'FreeRide',
+        tagOpen: '<FreeRide',
+        tagClose: ' />',
+        toInterval(element) {
+            let duration = existance(element.Duration, 1);
+            const sim = element.Sim;
+            const track = element.Track;
+            const steps = [];
+
+            if (exists(sim)) {
+                let simTotal = 0;
+                for (let i = 0; i < sim.length; i += 2) {
+                    simTotal += sim[i + 1];
+                    steps.push({ duration: sim[i + 1], slope: sim[i], power: 0 });
+                }
+                if (simTotal < duration) {
+                    steps.push({ duration: duration - simTotal, slope: 0, power: 0 });
+                } else if (simTotal > duration) {
+                    duration = simTotal;
+                }
+                if (exists(element.Cadence)) {
+                    steps.forEach(s => { s.cadence = element.Cadence; });
+                }
+                return first(attachTextEvents([{ duration, steps }], element.children));
             }
-        } else if(exists(track)) {
-            for(let i=0; i< track.length; i+=2) {
-                trackDistance += track[i+1];
-                steps.push({distance: track[i+1], slope: track[i], power});
+
+            if (exists(track)) {
+                let trackDistance = 0;
+                for (let i = 0; i < track.length; i += 2) {
+                    trackDistance += track[i + 1];
+                    steps.push({ distance: track[i + 1], slope: track[i], power: 0 });
+                }
+                return first(attachTextEvents([{ distance: trackDistance, steps }], element.children));
             }
-        } else {
-            steps.push({duration, slope, power});
-        }
 
-        let interval = {};
-
-        if(exists(track)) {
-            interval = {distance: trackDistance, steps: steps};
-        } else {
-            interval = {
-                duration: duration,
-                steps: steps,
-            };
-        }
-
-        return first(assignMessages([interval], element.children));
-    }
-
-    return Element(spec);
+            /** @type {Record<string, any>} */
+            const step = { duration, slope: 0, power: 0 };
+            if (exists(element.Cadence)) step.cadence = element.Cadence;
+            return first(attachTextEvents([{ duration, steps: [step] }], element.children));
+        },
+    });
 }
 
-function Warmup(args = {}) {
-    const defaults = {
-        timeDx: 10,
-    };
-
-    const timeDx = existance(args.timeDx, defaults.timeDx);
-
-    const spec = Object.assign({
-        name:         'Warmup',
-        tagOpen:      '<Warmup',
-        tagClose:     ' />',
-        toInterval:   toInterval,
-        fromInterval: fromInterval,
-    }, args.spec);
-
-    function toInterval(element) {
-        const duration    = element.Duration;
-        const powerLow    = element.PowerLow ?? element.Power;
-        const powerHigh   = element.PowerHigh ?? element.Power;
-        const cadence     = element.Cadence;
-        const cadenceLow  = element.CadenceLow;
-        const cadenceHigh = element.CadenceHigh;
-
-        const stepsCount = Math.max(1, parseInt(String(duration / timeDx)));
-        const stepDur    = stepsCount === 1 ? duration : timeDx;
-        const powerDx    = stepsCount > 1 ? (powerHigh - powerLow) / (stepsCount - 1) : 0;
-        const cadenceDx  = stepsCount > 1 ? (cadenceHigh - cadenceLow) / (stepsCount - 1) : 0;
-
-        let steps       = [];
-        let stepPower   = powerLow;
-        let stepCadence = cadenceLow;
-
-        for(let i = 0; i < stepsCount; i++) {
-            if(exists(cadenceLow) && exists(cadenceHigh)) {
-                steps.push({duration: stepDur, power: stepPower, cadence: Math.round(stepCadence),});
-                stepCadence = (stepCadence + cadenceDx);
-            } else if(exists(cadence)) {
-                steps.push({duration: stepDur, power: stepPower, cadence,});
-            } else {
-                steps.push({duration: stepDur, power: stepPower});
-            }
-            stepPower = (stepPower + powerDx);
-        }
-
-        const fixedSteps = steps.map((step) => {
-            step.power = toFixed(step.power, 2);
-            return step;
-        });
-
-        return first(assignMessages([{
-            duration: duration,
-            steps: fixedSteps,
-        }], element.children));
-    }
-
-    function fromInterval(interval) {
-        const res = {
-            element:  spec.name,
-            Duration: interval.duration,
-        };
-        const start = first(interval.steps);
-        const end   = last(interval.steps);
-
-        if(exists(start.power)) res.PowerLow = start.power;
-        if(exists(end.power))   res.PowerHigh = end.power;
-
-        return res;
-    }
-
-    return Element(spec);
+function createTextEventElement() {
+    return Element({
+        name: 'TextEvent',
+        tagOpen: '<textevent',
+        tagClose: ' />',
+        toInterval: () => [],
+    });
 }
 
-function Cooldown(args = {}) {
-    const defaults = {
-        timeDx: 10,
-    };
+const Elements = {
+    Warmup: createWarmupElement(),
+    SteadyState: createSteadyStateElement(),
+    TextEvent: createTextEventElement(),
+    IntervalsT: createIntervalsTElement(),
+    FreeRide: createFreeRideElement(),
+    Ramp: createWarmupElement({ spec: { name: 'Ramp', tagOpen: '<Ramp', tagClose: ' />' } }),
+    Cooldown: createCooldownElement(),
+    Unknown: Element({ name: 'Unknown', tagOpen: '<Unknown', tagClose: ' />' }),
+    Author: Element({ name: 'author', tagOpen: '<author>', tagClose: '</author>' }),
+    Name: Element({ name: 'name', tagOpen: '<name>', tagClose: '</name>' }),
+    Category: Element({ name: 'category', tagOpen: '<category>', tagClose: '</category>' }),
+    SubCategory: Element({ name: 'subcategory', tagOpen: '<subcategory>', tagClose: '</subcategory>' }),
+    Description: Element({ name: 'description', tagOpen: '<description>', tagClose: '</description>' }),
+    SportType: Element({ name: 'sporttype', tagOpen: '<sporttype>', tagClose: '</sporttype>' }),
+    Tags: Element({ name: 'tags', tagOpen: '<tags>', tagClose: '</tags>' }),
+};
 
-    const timeDx = existance(args.timeDx, defaults.timeDx);
-
-    const spec = {
-        name:         'Cooldown',
-        tagOpen:      '<Cooldown',
-        tagClose:     ' />',
-        toInterval:   toInterval,
-        fromInterval: fromInterval,
-    };
-
-    function toInterval(element) {
-        const duration  = element.Duration;
-        const powerLow  = element.PowerHigh;
-        const powerHigh = element.PowerLow;
-
-        const stepsCount = Math.max(1, parseInt(String(duration / timeDx)));
-        const stepDur    = stepsCount === 1 ? duration : timeDx;
-        const powerDx    = stepsCount > 1 ? (powerHigh - powerLow) / (stepsCount - 1) : 0;
-
-        let steps     = [];
-        let stepPower = powerHigh;
-
-        for(let i = 0; i < stepsCount; i++) {
-            steps.push({duration: stepDur, power: stepPower});
-            stepPower = (stepPower - powerDx);
-        }
-
-        const fixedSteps = steps.map((step) => {
-            step.power = toFixed(step.power, 2);
-            return step;
-        });
-
-        return first(assignMessages([{
-            duration: duration,
-            steps: fixedSteps,
-        }], element.children));
-    }
-
-    function fromInterval(interval) {
-        const res = {
-            element:  spec.name,
-            Duration: interval.duration,
-        };
-        const start = first(interval.steps);
-        const end   = last(interval.steps);
-
-        if(exists(start.power)) res.PowerLow = start.power;
-        if(exists(end.power))   res.PowerHigh  = end.power;
-
-        return res;
-    }
-
-    return Element(spec);
-}
-
-function Ramp(args = {}) {
-    const spec = {
-        name:       'Ramp',
-        tagOpen:    '<Ramp',
-        tagClose:   ' />',
-    };
-
-    return Warmup({spec});
-}
-
-function SteadyState(args = {}) {
-
-    const spec = Object.assign({
-        name:         'SteadyState',
-        tagOpen:      '<SteadyState',
-        tagClose:     ' />',
-        toInterval:   toInterval,
-    }, args.spec);
-
-    function toInterval(element) {
-        const duration  = element.Duration;
-        const power     = element.Power;
-        const powerLow  = element.PowerLow;
-        const powerHigh = element.PowerHigh;
-        const cadence     = element.Cadence;
-        const cadenceLow  = element.CadenceLow;
-        const cadenceHigh = element.CadenceHigh;
-
-        if(!exists(cadence) && (exists(cadenceLow) || exists(cadenceHigh))) {
-            const avgCadence = [cadenceLow, cadenceHigh]
-                .filter(exists)
-                .reduce((acc, x, _, { length }) => acc + x / length, 0);
-            element.Cadence = Math.round(avgCadence);
-            element.CadenceLow = undefined;
-            element.CadenceHigh = undefined;
-        }
-
-        let step = {};
-
-        if(exists(power)) {
-            step = Step(element);
-        }
-        else if(exists(powerLow) || exists(powerHigh)) {
-            element.Power = [powerLow, powerHigh]
-                .filter(exists)
-                .reduce((acc, x, _, { length }) => acc + x / length, 0);
-            element.PowerLow = undefined;
-            element.PowerHigh = undefined;
-            step = Step(element);
-        }
-        else {
-            element.Power = 0;
-            element.Slope = 0;
-            step = Step(element);
-        }
-
-        return first(assignMessages([{
-            duration: duration,
-            steps: [step],
-        }], element.children));
-    }
-
-    return Element(spec);
-}
-
-function TextEvent(args = {}) {
-
-    const spec = Object.assign({
-        name:       'TextEvent',
-        tagOpen:    '<textevent',
-        tagClose:   ' />',
-        toInterval: toInterval,
-    }, args.spec);
-
-    // A TextEvent is not an effort, flatMap drops the empty list.
-    function toInterval() {
-        return [];
-    }
-
-    return Element(spec);
-}
-
-function readContent(el) {
-    if(exists(el)) {
-        let value = el.textContent;
-        if(empty(value)) {
-            return undefined;
-        } else {
-            return value;
+function queryMetaText(doc, ...tagCandidates) {
+    if (!doc) return undefined;
+    for (const selector of tagCandidates) {
+        const node = doc.querySelector(selector);
+        if (exists(node)) {
+            const text = node.textContent;
+            if (!empty(text)) return text;
         }
     }
     return undefined;
 }
 
-function Head(args = {}) {
+function createHeadCodec() {
     const defaults = {
-        author:      'Unknown',
-        name:        'Custom',
+        author: 'Unknown',
+        name: 'Custom',
         description: 'Custom',
-        category:    'Custom',
+        category: 'Custom',
         subcategory: '',
-        sportType:   'bike',
-        tags:        '',
+        sportType: 'bike',
+        tags: '',
     };
 
     function read(args = {}) {
         const doc = existance(args.doc);
-
-        const author      = readContent(doc.querySelector('author'));
-        const name        = readContent(doc.querySelector('name'));
-        const description = readContent(doc.querySelector('description'));
-        const category    = readContent(doc.querySelector('category'));
-        const subcategory = readContent(doc.querySelector('subcategory'));
-        const sportType   = readContent(doc.querySelector('sportType'));
-        const tags        = readContent(doc.querySelector('tags'));
-
         return {
-            author:      existance(author, defaults.author),
-            name:        existance(name, defaults.name),
-            description: existance(description, defaults.description),
-            category:    existance(category, defaults.category),
-            subcategory: existance(subcategory, defaults.subcategory),
-            sportType:   existance(sportType, defaults.sportType),
-            tags:        existance(tags, defaults.tags),
+            author: existance(queryMetaText(doc, 'author', 'Author'), defaults.author),
+            name: existance(queryMetaText(doc, 'name', 'Name'), defaults.name),
+            description: existance(queryMetaText(doc, 'description', 'Description'), defaults.description),
+            category: existance(queryMetaText(doc, 'category', 'Category'), defaults.category),
+            subcategory: existance(queryMetaText(doc, 'subcategory', 'SubCategory'), defaults.subcategory),
+            sportType: existance(queryMetaText(doc, 'sportType', 'sporttype', 'SportType'), defaults.sportType),
+            tags: existance(queryMetaText(doc, 'tags', 'Tags'), defaults.tags),
         };
     }
 
     function write(args = {}) {
-        const author      = existance(args.author, defaults.author);
-        const name        = existance(args.name, defaults.name);
-        const description = existance(args.description, defaults.description);
-        const sportType   = existance(args.sportType, defaults.sportType);
-        const category    = existance(args.category, defaults.category);
-        const subcategory = existance(args.subcategory, defaults.subcategory);
-        const tags        = existance(args.tags, defaults.tags);
-
-        const elements = [
-            Elements.Author.write({content: author}),
-            Elements.Name.write({content: name}),
-            Elements.Category.write({content: category}),
-            Elements.SubCategory.write({content: subcategory}),
-            Elements.Description.write({content: description}),
-            Elements.SportType.write({content: sportType}),
-            Elements.Tags.write({content: tags}),
+        const lines = [
+            Elements.Author.write({ content: existance(args.author, defaults.author) }),
+            Elements.Name.write({ content: existance(args.name, defaults.name) }),
+            Elements.Category.write({ content: existance(args.category, defaults.category) }),
+            Elements.SubCategory.write({ content: existance(args.subcategory, defaults.subcategory) }),
+            Elements.Description.write({ content: existance(args.description, defaults.description) }),
+            Elements.SportType.write({ content: existance(args.sportType, defaults.sportType) }),
+            Elements.Tags.write({ content: existance(args.tags, defaults.tags) }),
         ];
-
-        return elements.reduce((acc, el) => acc + el.padStart(el.length+4, ' ') + '\n', '\n');
+        return '\n' + lines.map(line => `    ${line}\n`).join('');
     }
 
-    function fromInterval(intervals) {
+    function fromInterval(workout) {
+        const meta = workout.meta ?? {};
         return {
-            author: intervals.meta.author,
-            name: intervals.meta.name,
-            category: intervals.meta.category,
-            subcategory: intervals.meta.subcategory,
-            sportType: intervals.meta.sportType,
-            description: intervals.meta.description,
-            tags: intervals.meta.tags,
+            author: meta.author,
+            name: meta.name,
+            category: meta.category,
+            subcategory: meta.subcategory,
+            sportType: meta.sportType,
+            description: meta.description,
+            tags: meta.tags,
         };
     }
 
-    return Object.freeze({
-        read,
-        write,
-        fromInterval,
-    });
+    return Object.freeze({ read, write, fromInterval });
 }
 
-function Body() {
-    const defaults = {
-        parent: 'workout',
-    };
-
-    const parent = defaults.parent;
-
-    function apply(el, method = 'read') {
-        const name = el.tagName;
-
-        if(isTextEventTag(name)) {
-            return Elements.TextEvent[method]({el});
-        }
-
-        if(exists(Elements[name])) {
-            return Elements[name][method]({el});
-        }
-
-        return Elements.Unknown[method]({el});
+function createBodyCodec() {
+    function workoutChildElements(doc) {
+        if (!doc || doc.querySelector('parsererror')) return [];
+        const container = doc.querySelector('workout');
+        return container ? Array.from(container.children) : [];
     }
 
-    function queryElements(doc) {
-        if(!doc || doc.querySelector('parsererror')) return [];
-        const workoutEl = doc.querySelector(parent);
-        if(!workoutEl) return [];
-        const elements  = Array.from(workoutEl.children);
-        return elements;
+    function resolveCodec(tagName) {
+        if (isTextEventTagName(tagName)) return Elements.TextEvent;
+        return Elements[tagName] ?? Elements.Unknown;
     }
 
     function read(args = {}) {
         const doc = existance(args.doc);
-        const elements = queryElements(doc);
-        return elements.map((el) => apply(el, 'read'), []);
+        return workoutChildElements(doc).map(el => resolveCodec(el.tagName).read({ el }));
     }
 
     function readToInterval(args = {}) {
         const doc = existance(args.doc);
-        const elements = queryElements(doc);
-        return elements.flatMap((el) => apply(el, 'readToInterval'), []);
+        return workoutChildElements(doc).flatMap(el => resolveCodec(el.tagName).readToInterval({ el }));
     }
 
-    function writeElement(args = {}) {
-        const { element, ...spec } = args;
-
-        if(exists(Elements[element])) {
-            return Elements[element].write(spec);
-        }
-
-        return Elements.Unknown.write(spec);
-    }
-
-    function isRamp(steps) {
-        return steps.length > 1;
-    }
-    function isRampUp(steps) {
-        return first(steps).power < last(steps).power;
-    }
-    function isRampDown(steps) {
-        return first(steps).power > last(steps).power;
-    }
-
-    function fromInterval(value) {
-        const intervals = value.intervals;
-        const acc = [];
-
-        for(var i = 0; i < intervals.length; i++) {
-            var interval = intervals[i];
-            var steps = intervals[i].steps;
-            var node = {};
-
-            if(isRamp(steps)) {
-                if(isRampUp(steps)) {
-                    node = Elements.Warmup.fromInterval(interval);
-                } else if(isRampDown(steps)) {
-                    node = Elements.Cooldown.fromInterval(interval);
-                } else {
-                    node = Elements.SteadyState.fromInterval(interval);
-                }
-            } else {
-                node = Elements.SteadyState.fromInterval(interval);
+    function fromInterval(workout) {
+        return (workout.intervals ?? []).map(interval => {
+            const steps = interval.steps ?? [];
+            if (steps.length > 1) {
+                const pStart = first(steps)?.power;
+                const pEnd = last(steps)?.power;
+                if (pStart < pEnd) return Elements.Warmup.fromInterval(interval);
+                if (pStart > pEnd) return Elements.Cooldown.fromInterval(interval);
             }
-
-            acc.push(node);
-        }
-
-        return acc;
+            return Elements.SteadyState.fromInterval(interval);
+        });
     }
 
-    function writeElements(elements) {
-        return elements.reduce((acc, element) => {
-            const row = writeElement(element);
-            acc += row.padStart(row.length+8, ' ') + '\n';
-            return acc;
-        }, '');
+    function write(nodes = []) {
+        const rows = nodes
+            .map(node => {
+                const { element, ...spec } = node;
+                const codec = Elements[element] ?? Elements.Unknown;
+                return `        ${codec.write(spec)}\n`;
+            })
+            .join('');
+        return `<workout>\n${rows}    </workout>`;
     }
 
-    function write(args = {}) {
-        return `<workout>\n${writeElements(args)}    </workout>`;
-    }
-
-    return Object.freeze({
-        read,
-        readToInterval,
-        fromInterval,
-        write,
-    });
+    return Object.freeze({ read, readToInterval, fromInterval, write });
 }
 
-function encodeSim(arr) {
-    return arr.join(',');
+const head = createHeadCodec();
+const body = createBodyCodec();
+
+function parseXmlDocument(xmlString) {
+    const parser = new DOMParser();
+    return parser.parseFromString(xmlString, 'text/xml');
 }
 
-function decodeSim(str) {
-    return str.split(',').reduce((acc, x) => {
-        const n = parseFloat(x);
-        if(!isNaN(n)) acc.push(n);
-        return acc;
-    }, []);
-}
-
-const Attrs = {
-    Duration:    Attribute({name: 'Duration', decode: parseInt}),
-    OnDuration:  Attribute({name: 'OnDuration', decode: parseInt}),
-    OffDuration: Attribute({name: 'OffDuration', decode: parseInt}),
-    Power:     Attribute({name: 'Power', decode: parseFloat}),
-    OnPower:   Attribute({name: 'OnPower', decode: parseFloat}),
-    OffPower:  Attribute({name: 'OffPower', decode: parseFloat}),
-    PowerLow:  Attribute({name: 'PowerLow', decode: parseFloat}),
-    PowerHigh: Attribute({name: 'PowerHigh', decode: parseFloat}),
-
-    Cadence:        Attribute({name: 'Cadence', decode: parseInt}),
-    CadenceLow:     Attribute({name: 'CadenceLow', decode: parseInt}),
-    CadenceHigh:    Attribute({name: 'CadenceHigh', decode: parseInt}),
-    CadenceResting: Attribute({name: 'CadenceResting', decode: parseInt}),
-
-    Slope:     Attribute({name: 'Slope', decode: parseFloat}),
-    OnSlope:   Attribute({name: 'OnSlope', decode: parseFloat}),
-    OffSlope:  Attribute({name: 'OffSlope', decode: parseFloat}),
-    SlopeLow:  Attribute({name: 'SlopeLow', decode: parseFloat}),
-    SlopeHigh: Attribute({name: 'SlopeHigh', decode: parseFloat}),
-
-    Distance: Attribute({name: 'Distance', decode: parseInt}),
-
-    Sim:   Attribute({name: 'Sim', decode: decodeSim, encode: encodeSim}),
-    Track: Attribute({name: 'Track', decode: decodeSim, encode: encodeSim}),
-
-    Repeat: Attribute({name: 'Repeat', decode: parseInt}),
-
-    duration:   Attribute({name: 'duration', decode: parseInt}),
-    timeoffset: Attribute({name: 'timeoffset', decode: parseInt}),
-    message:    Attribute({name: 'message'}),
-
-    TimeOffset: Attribute({name: 'TimeOffset', decode: parseInt}),
-    Message:    Attribute({name: 'Message'}),
-};
-
-const Elements = {
-    Warmup:      Warmup(),
-    // SteadyState: Element({name: 'SteadyState', tagOpen: '<SteadyState', tagClose: ' />'}),
-    SteadyState: SteadyState(),
-    TextEvent:   TextEvent(),
-    IntervalsT:  IntervalsT(),
-    FreeRide:    FreeRide(),
-    Ramp:        Ramp(),
-    Cooldown:    Cooldown(),
-    Unknown:     Unknown(),
-    Author:      Element({name: 'author', tagOpen: '<author>', tagClose: '</author>'}),
-    Name:        Element({name: 'name', tagOpen: '<name>', tagClose: '</name>'}),
-    Category:    Element({name: 'category', tagOpen:  '<category>', tagClose: '</category>'}),
-    SubCategory: Element({name: 'subcategory', tagOpen:  '<subcategory>', tagClose: '</subcategory>'}),
-    Description: Element({name: 'description', tagOpen: '<description>', tagClose: '</description>'}),
-    SportType:   Element({name: 'sporttype', tagOpen:  '<sporttype>', tagClose: '</sporttype>'}),
-    Tags:        Element({name: 'tags', tagOpen: '<tags>', tagClose: '</tags>'}),
-};
-
-const head = Head();
-const body = Body();
-
-const parser    = new DOMParser();
-
-function readToInterval(zwo) {
-    const doc       = parser.parseFromString(zwo, 'text/xml');
-    const meta      = head.read({doc});
-    const intervals = body.readToInterval({doc});
-    const duration  = intervals.reduce((acc, i) => acc + i.duration, 0);
+function readToInterval(xmlString) {
+    const doc = parseXmlDocument(xmlString);
+    const meta = head.read({ doc });
+    const intervals = body.readToInterval({ doc });
+    const duration = intervals.reduce((total, iv) => total + (iv.duration ?? 0), 0);
 
     return {
-        meta:      Object.assign(meta, {duration}),
-        intervals: intervals,
+        meta: { ...meta, duration },
+        intervals,
     };
 }
 
-function read(zwo) {
-    const doc          = parser.parseFromString(zwo, 'text/xml');
-    const headElements = head.read({doc});
-    const bodyElements = body.read({doc});
-
+function read(xmlString) {
+    const doc = parseXmlDocument(xmlString);
     return {
-        head: headElements,
-        body: bodyElements,
+        head: head.read({ doc }),
+        body: body.read({ doc }),
     };
 }
 
-function fromInterval(intervals) {
-    const res = {
-        head: head.fromInterval(intervals),
-        body: body.fromInterval(intervals),
+function fromInterval(workout) {
+    return {
+        head: head.fromInterval(workout),
+        body: body.fromInterval(workout),
     };
-
-    return res;
 }
 
-function write(args = {}) {
-    const headElements = head.write(args.head);
-    const bodyElements = body.write(args.body);
-
-    return `<workout_file>${headElements}    ${bodyElements}\n</workout_file>`;
+function write(documentSpec = {}) {
+    return `<workout_file>${head.write(documentSpec.head)}    ${body.write(documentSpec.body)}\n</workout_file>`;
 }
 
-const zwo = {
+const zwo = Object.freeze({
     readAttribute,
     writeAttribute,
     Attribute,
     Attrs,
     Element,
     Elements,
-
     attributesToStep,
     Step,
     OnStep,
     OffStep,
-
     head,
     body,
     readToInterval,
     read,
     fromInterval,
     write,
-
-};
+});
 
 export { zwo };
-
