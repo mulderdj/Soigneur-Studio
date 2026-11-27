@@ -236,7 +236,8 @@ function heightFor(item, kind = 'ride') {
     if(Number.isInteger(item?.h) && item.h >= 1 && item.h <= MAX_ROW_SPAN) return item.h;
     if(kind === 'training') return 1;
     const id = item?.id;
-    if(id === 'chart' || id === 'map' || id === 'stats') return 3;
+    if(id === 'stats') return 4;
+    if(id === 'chart' || id === 'map') return 3;
     if(id === 'workout' || (typeof id === 'string' && id.startsWith('ind-'))) return 2;
     if(id === 'power' && item?.size === 'large') return 2;
     return 1;

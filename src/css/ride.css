@@ -399,8 +399,17 @@
     line-height: 0.9;
 }
 
-body.white-theme .ride .tile--hero .tile__value {
+power-value.tile__value {
+    color: #F8C73A;
+}
+
+body.white-theme .ride .tile--hero .tile__value,
+body.white-theme power-value.tile__value {
     color: var(--ink);
+}
+
+@media (prefers-color-scheme: light) {
+    body.auto-theme power-value.tile__value { color: var(--ink); }
 }
 
 .hero-meta {
@@ -600,23 +609,40 @@ ride-screens {
 }
 
 /* tile sizes: numbers scale smoothly to BOTH width (cqi) and height (cqb) of the grid slot */
-.ride .tile {
+.ride .tile:not(.tile--hero) {
     min-height: 0;
     padding: var(--space-1) var(--space-2);
     gap: 2px;
 }
 
+.ride .tile--hero {
+    min-height: 0;
+    padding: var(--space-1) var(--space-2) var(--space-1) calc(var(--space-2) + var(--space-3));
+    gap: 2px;
+}
+
 .ride .tile__label {
+    flex-shrink: 0;
     font-size: var(--text-xs);
 }
 
+.ride .hero-meta {
+    flex-shrink: 0;
+}
+
 .rs-slot .tile__value {
-    font-size: clamp(18px, min(26cqi, 52cqb), 140px);
+    font-size: clamp(18px, min(26cqi, 50cqb), 140px);
     line-height: 1;
 }
 
 .rs-slot .tile--hero .tile__value {
-    font-size: clamp(22px, min(28cqi, 58cqb), 180px);
+    font-size: clamp(22px, min(28cqi, 44cqb), 180px);
+}
+
+/* a short (1-row) hero tile: the zone line says it is power, the label steps aside */
+@container (max-height: 80px) {
+    .tile--hero .tile__label { display: none; }
+    .tile--hero .tile__value { font-size: clamp(20px, min(26cqi, 50cqb), 120px); }
 }
 
 .rs-slot #data-tile--elapsed-time .tile__value,
@@ -1860,9 +1886,12 @@ mode-lock-toggle .mode-lock--toggle--icon {
     .ride__stats {
         display: grid;
         grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+        align-content: start;
         gap: var(--space-3);
-        overflow: visible;
+        overflow-x: hidden;
+        overflow-y: auto;
         scroll-snap-type: none;
+        scrollbar-width: thin;
     }
 
     .ride__stats > .panel {

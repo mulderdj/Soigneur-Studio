@@ -322,7 +322,7 @@ class RideChart extends HTMLElement {
 
             const opts = {
                 ...sizes[paneIdx],
-                padding: [2, right ? 2 : (anyRight ? rightSize + 2 : 4), 0, 0],
+                padding: [8, right ? 2 : (anyRight ? rightSize + 2 : 4), spec.showX ? 0 : 6, 0],
                 legend: {show: false},
                 scales,
                 series: [{}, ...spec.series.map(s => ({

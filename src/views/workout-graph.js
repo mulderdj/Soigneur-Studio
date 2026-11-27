@@ -60,8 +60,12 @@ function Interval(acc, interval, width, ftp, powerMax, viewPort) {
 function intervalsToGraph(workout, ftp, viewPort) {
     const totalWidth    = viewPort.width;
     const intervals     = workout.intervals;
-    const totalDuration = workout.meta.duration;
+    // planned / generated workouts may come without meta.duration: sum the intervals
+    const summed        = intervals.reduce((s, i) => s + (Number(i?.duration) || 0), 0);
+    const metaDuration  = Number(workout.meta?.duration);
+    const totalDuration = metaDuration > 0 ? metaDuration : summed;
     const maxPower      = intervalsToMaxPower(intervals, ftp);
+    if(!(totalDuration > 0)) return '<div class="graph--info--cont"></div>';
 
     return intervals.reduce((acc, interval) => {
         let width = 1;
@@ -143,9 +147,22 @@ class WorkoutGraph extends HTMLElement {
         this.addEventListener('mouseout', this.onMouseOut.bind(this), this.signal);
         // window.addEventListener('resize', this.debounced.onWindowResize.bind(this), this.signal);
         window.addEventListener('resize', this.onWindowResize.bind(this), this.signal);
+        // the graph moves between the hidden pool and grid slots of any size:
+        // draw again whenever its box changes (a 0-height first render leaves no bars)
+        if(typeof ResizeObserver === 'function') {
+            this.resizeObserver = new ResizeObserver(() => {
+                const vp = this.getViewPort();
+                if(!(vp.width > 0 && vp.height > 0)) return;
+                if(vp.width === this.viewPort?.width && vp.height === this.viewPort?.height) return;
+                this.viewPort = vp;
+                this.render();
+            });
+            this.resizeObserver.observe(this.$graphCont);
+        }
     }
     disconnectedCallback() {
         this.abortController.abort();
+        this.resizeObserver?.disconnect();
     }
     getViewPort() {
         // const rect = this.getBoundingClientRect();

@@ -103,7 +103,7 @@ function start({xf, hz = 4} = {}) {
     const badge = document.createElement('div');
     badge.textContent = 'Simulated rider';
     badge.title = 'Power, cadence, speed and heart rate are simulated (?simulate in the address).';
-    badge.style.cssText = 'position:fixed;top:8px;right:8px;z-index:9999;padding:4px 10px;' +
+    badge.style.cssText = 'position:fixed;left:8px;bottom:calc(var(--app-bar-h, 64px) + env(safe-area-inset-bottom, 0px) + 8px);z-index:9999;padding:4px 10px;' +
         'border-radius:999px;background:#b45309;color:#fff;font:600 12px/1.4 sans-serif;pointer-events:none;';
     document.body.append(badge);
 

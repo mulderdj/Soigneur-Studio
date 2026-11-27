@@ -917,7 +917,6 @@ class PowerValue extends DataView {
         xf.sub(`${this.prop}`, this.onUpdate.bind(this), this.signal);
     }
     transform(state) {
-        this.style = 'color: #F8C73A';
         return Math.round(state);
     }
 }
