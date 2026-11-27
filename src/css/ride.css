@@ -104,17 +104,18 @@
     border-radius: var(--radius-m);
     background-color: var(--surface-2);
     box-shadow: var(--shadow);
-    transform: translate(-50%, -50%);
+    transform: translate(-50%, calc(-50% + 6px)) scale(0.95);
     visibility: hidden;
     opacity: 0;
     pointer-events: none;
-    transition: opacity 0.2s, visibility 0s 0.2s;
+    transition: opacity 0.45s ease-out, transform 0.45s ease-out, visibility 0s 0.45s;
 }
 
 .ride__hint.is-showing {
+    transform: translate(-50%, -50%) scale(1);
     visibility: visible;
     opacity: 1;
-    transition: opacity 0.15s;
+    transition: opacity 0.28s ease-out, transform 0.28s cubic-bezier(0.22, 1, 0.36, 1), visibility 0s;
 }
 
 .ride__hint-name {

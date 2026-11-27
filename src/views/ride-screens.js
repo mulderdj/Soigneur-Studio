@@ -202,18 +202,23 @@ class RideScreens extends HTMLElement {
         if(changed) { xf.dispatch('ride:screen', i); this.hint(); }
     }
 
-    // the screen indicator is hidden while riding; it shows the screen's name
-    // and the dots for a moment when the screen changes (and on opening the
-    // Ride page), and stays while editing
-    hint() {
+    // the screen indicator is hidden while riding; it gently pops up while
+    // sliding between screens (updating live) and fades out after release.
+    hint({hold = false, index = this.screen} = {}) {
         const slot = this.$dots.closest('[data-rs-dots-slot]');
         const screens = this.screens();
         if(!slot || screens.length < 2) return;
+        const clamped = Math.max(0, Math.min(index, screens.length - 1));
         const name = slot.querySelector('[data-rs-hint-name]');
-        if(name) name.textContent = screens[this.screen]?.name ?? '';
+        if(name) name.textContent = screens[clamped]?.name ?? '';
+        this.$dots.querySelectorAll('[data-dot]').forEach((d, k) => {
+            d.setAttribute('aria-current', String(k === clamped));
+        });
         slot.classList.add('is-showing');
         clearTimeout(this.hintTimer);
-        this.hintTimer = setTimeout(() => slot.classList.remove('is-showing'), HINT_MS);
+        if(!hold) {
+            this.hintTimer = setTimeout(() => slot.classList.remove('is-showing'), HINT_MS);
+        }
     }
 
     scrollTo(smooth) {
@@ -237,11 +242,18 @@ class RideScreens extends HTMLElement {
         if(!(w > 0)) return;
         const i = Math.round(this.$track.scrollLeft / w);
         if(i !== this.screen) this.show(i, {scroll: false});
+        else this.hint({hold: false, index: this.screen});
     }
 
-    // a swipe ends: the screen that snapped into view
+    // while sliding: show the indicator live and update it as screens pass,
+    // then let it fade out smoothly once the swipe settles / releases
     onScroll() {
         if(this.scrolling) return;
+        const w = this.$track.clientWidth;
+        if(w > 0) {
+            const preview = Math.round(this.$track.scrollLeft / w);
+            this.hint({hold: true, index: preview});
+        }
         clearTimeout(this.settle);
         this.settle = setTimeout(() => this.scrolled(), 120);
     }
