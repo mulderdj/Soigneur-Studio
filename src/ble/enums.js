@@ -1,69 +1,60 @@
-const Status = {
-    disconnected: "disconnected",
-    connected: "connected",
-    connecting: "connecting",
-    disconnecting: "disconnecting",
-};
+// @ts-check
 
-const Device = {
-    controllable: 'controllable',
-    speedCadenceSensor: 'speedCadenceSensor',
-    powerMeter: 'powerMeter',
-    heartRateMonitor: 'heartRateMonitor',
-    raceController: 'raceController',
-    smo2: 'smo2',
-    coreTemp: 'coreTemp',
-    openBikeControl: 'openBikeControl',
-    generic: 'generic',
-};
+const Status = Object.freeze({
+    disconnected: 'disconnected',
+    connecting: 'connecting',
+    connected: 'connected',
+    disconnecting: 'disconnecting',
+});
 
-const Metric = {
+const Device = Object.freeze({
+    controllable: 'ble:controllable',
+    powerMeter: 'ble:powerMeter',
+    speedCadenceSensor: 'ble:speedCadenceSensor',
+    heartRateMonitor: 'ble:heartRateMonitor',
+    smo2: 'ble:smo2',
+    coreTemp: 'ble:coreTemp',
+    openBikeControl: 'ble:openBikeControl',
+    antHrm: 'ant:hrm',
+    antControllable: 'ant:controllable',
+});
+
+const Metric = Object.freeze({
     power: 'power',
     cadence: 'cadence',
+    speed: 'speed',
+    heartRate: 'heartRate',
+    rrInterval: 'rrInterval',
+    smo2: 'smo2',
+    thb: 'thb',
+    coreBodyTemperature: 'coreBodyTemperature',
+    skinTemperature: 'skinTemperature',
+    batteryLevel: 'batteryLevel',
+});
+
+const Responsibility = Object.freeze({
+    control: 'control',
+    power: 'power',
+    cadence: 'cadence',
+    speed: 'speed',
     heartRate: 'heartRate',
     smo2: 'smo2',
     thb: 'thb',
     coreBodyTemperature: 'coreBodyTemperature',
     skinTemperature: 'skinTemperature',
-};
+});
 
-const Responsibility = {
-    controllable: [Metric.power, Metric.cadence, Metric.heartRate],
-    powerMeter: [Metric.power, Metric.cadence],
-    speedCadenceSensor: [Metric.cadence],
-    heartRateMonitor: [Metric.heartRate, Metric.cadence],
-    smo2: [Metric.smo2, Metric.thb],
-};
+const Priority = Object.freeze({
+    primary: 1,
+    secondary: 2,
+    fallback: 3,
+});
 
-const Priority = {
-    power: [
-        Device.powerMeter,
-        Device.controllable,
-    ],
-    cadence: [
-        Device.speedCadenceSensor,
-        Device.powerMeter,
-        Device.controllable,
-        Device.heartRateMonitor,
-    ],
-    heartRate: [
-        Device.heartRateMonitor,
-        Device.controllable,
-    ],
-    smo2: [
-        Device.smo2,
-    ],
-    coreTemp: [
-        Device.coreTemp,
-    ]
-};
-
-const ControlMode = {
+const ControlMode = Object.freeze({
     erg: 'erg',
     sim: 'sim',
     resistance: 'resistance',
-    virtualGear: 'virtualGear',
-};
+});
 
 export {
     Status,
@@ -73,4 +64,3 @@ export {
     Priority,
     ControlMode,
 };
-
