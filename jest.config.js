@@ -1,4 +1,5 @@
 module.exports = {
+    "globalSetup": "<rootDir>/test/jest-global-setup.js",
     "setupFiles": [
         "<rootDir>/test/jest-setup.js"
     ],
