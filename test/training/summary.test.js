@@ -1,7 +1,7 @@
 /**
  * @jest-environment jsdom
  */
-import { rideSummary, SUMMARY_VERSION, DURATIONS, bestPowers } from '../../src/training/summary.js';
+import { rideSummary, SUMMARY_VERSION, DURATIONS, bestPowers, decouplingOf, durabilityPowers } from '../../src/training/summary.js';
 import { fitToSamples } from '../../src/training/fit-records.js';
 import { localDay } from '../../src/training/dates.js';
 import { fit } from '../../src/fit/fit.js';
@@ -54,9 +54,9 @@ describe('ride summary', () => {
 });
 
 describe('best power at every duration the rider model uses', () => {
-    test('22 durations, 1 s to 2 h (incl. 12 min for the 3+12 CP test); version 3', () => {
+    test('22 durations, 1 s to 2 h (incl. 12 min for the 3+12 CP test); version 4', () => {
         expect(DURATIONS).toEqual([1, 2, 5, 10, 15, 20, 30, 60, 120, 180, 240, 300, 420, 600, 720, 900, 1200, 1800, 2700, 3600, 5400, 7200]);
-        expect(SUMMARY_VERSION).toBe(3);
+        expect(SUMMARY_VERSION).toBe(4);
     });
     test('rolling best averages', () => {
         const powers = [...Array(540).fill(200), ...Array(60).fill(400), ...Array(600).fill(150)];
@@ -73,6 +73,41 @@ describe('best power at every duration the rider model uses', () => {
         expect(s.best[900]).toBeNull();
         const none = rideSummary(Array.from({length: 700}, () => ({power: 0, heartRate: 140})), {id: 'y', start: Date.UTC(2026, 10, 20), ftp: 250, weight: 75});
         expect(Object.values(none.best).every(v => v === null)).toBe(true);
+    });
+});
+
+describe('decoupling and durability on ride summaries', () => {
+    test('steady 2 h ride with HR drift stores decoupling and 1,000 kJ durability', () => {
+        // 7200 s at 200 W = 1,440 kJ; HR drifts linearly from 135 to 149 bpm
+        const samples = Array.from({length: 7200}, (_, t) => ({
+            power: 200, heartRate: Math.round(135 + 14 * (t / 7200)), cadence: 90,
+        }));
+        const s = rideSummary(samples, meta);
+        expect(s.decoupling).toBeGreaterThan(3.5);
+        expect(s.decoupling).toBeLessThan(6.0);
+        expect(s.durability).toEqual({1000: {300: 200, 1200: 200}});
+    });
+
+    test('short or highly variable rides have null decoupling; short rides have null durability', () => {
+        // 40 min steady: under 45 min minimum
+        const short = rideSummary(steady(2400, 200), meta);
+        expect(short.decoupling).toBeNull();
+        expect(short.durability).toBeNull();
+        // 60 min intervals (VI > 1.10): no decoupling
+        const intervals = Array.from({length: 3600}, (_, t) => ({
+            power: t % 300 < 90 ? 380 : 100, heartRate: 155, cadence: 90,
+        }));
+        expect(rideSummary(intervals, meta).decoupling).toBeNull();
+    });
+
+    test('durabilityPowers captures 1,000 and 2,000 kJ thresholds separately', () => {
+        // 5000 s at 200 W = 1,000 kJ, then 4000 s at 250 W = +1,000 kJ (2,000 kJ total), then 1500 s at 220 W
+        const powers = [...Array(5000).fill(200), ...Array(4000).fill(250), ...Array(1500).fill(220)];
+        expect(durabilityPowers(powers)).toEqual({
+            1000: {300: 250, 1200: 250},
+            2000: {300: 220, 1200: 220},
+        });
+        expect(decouplingOf(steady(2600, 200))).toBeNull();
     });
 });
 

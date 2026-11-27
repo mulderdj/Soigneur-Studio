@@ -11,11 +11,13 @@
 //
 // Over time (ride summaries, wellness days):
 //   efficiency(summaries)                  → [{day, ef, name, id}] steady rides, and .rolling
+//   decouplingTrend(summaries)             → [{day, decoupling, duration, name, id}] long steady rides, and .rolling
+//   durabilityTrend(summaries, today, opt) → [{week, watts, fresh, pct, from, freshFrom}] per week
 //   readinessPairs(summaries, wellness, x) → {points: [{day, x, y, name}], r, n}
 //   polarised(summaries, today, weeks)     → [{week, easy, middle, hard, seconds}] shares 0–1
 //
 
-import { bestPowers, DURATIONS } from '../training/summary.js';
+import { bestPowers, DURATIONS, DECOUPLING_MIN, STEADY_VI, DURABILITY_KJ } from '../training/summary.js';
 
 const num = x => Number.isFinite(x);
 const mean = xs => (xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : null);
@@ -217,4 +219,67 @@ function polarised(summaries = [], today, weeks = 52) {
     });
 }
 
-export { efforts, reps, hrRecovery, rideCurve, powerHr, efficiency, readinessPairs, polarised, pearson, weekOf };
+// aerobic decoupling (%) of long steady cycling rides (≥ 45 min, VI ≤ 1.10)
+// with a 28-day rolling mean; falling = better aerobic endurance
+function decouplingTrend(summaries = [], rollDays = 28) {
+    const list = summaries
+        .filter(s => s?.day && (s.sport ?? 'cycling') === 'cycling' && num(s.decoupling) &&
+            (s.duration ?? 0) >= DECOUPLING_MIN &&
+            !(num(s.np) && num(s.avgPower) && s.avgPower > 0 && s.np / s.avgPower > STEADY_VI))
+        .map(s => ({day: s.day, decoupling: round(s.decoupling, 1), duration: s.duration ?? null, name: s.name, id: s.id}))
+        .sort((a, b) => (a.day < b.day ? -1 : a.day > b.day ? 1 : 0));
+    const rolling = [];
+    let lo = 0, sum = 0, hi = 0;
+    list.forEach((p, i) => {
+        while(hi < list.length && list[hi].day <= p.day) { sum += list[hi].decoupling; hi++; }
+        const from = addDays(p.day, -(rollDays - 1));
+        while(list[lo].day < from) { sum -= list[lo].decoupling; lo++; }
+        rolling[i] = round(sum / (hi - lo), 1);
+    });
+    return Object.assign(list, {rolling});
+}
+
+// weekly durability: best `duration` (300 or 1200 s) power after `kj`
+// (1000 / 2000 / 3000 kJ) of work, against the rider's fresh best at that
+// duration over the preceding `freshDays` (90 days)
+function durabilityTrend(summaries = [], today, {kj = 1000, duration = 300, weeks = 52, freshDays = 90} = {}) {
+    if(!today) return [];
+    const cycling = summaries.filter(s => s?.day && (s.sport ?? 'cycling') === 'cycling');
+    const first = addDays(weekOf(today), -7 * (weeks - 1));
+    const out = [];
+    for(let w = first; w <= today; w = addDays(w, 7)) {
+        const end = addDays(w, 6) < today ? addDays(w, 6) : today;
+        const freshFromDay = addDays(end, -(freshDays - 1));
+        let best = null, fresh = null;
+        for(const s of cycling) {
+            if(s.day >= w && s.day <= end) {
+                const pw = s.durability?.[kj]?.[duration];
+                if(num(pw) && pw > 0 && (!best || pw > best.watts || (pw === best.watts && s.day < best.day))) {
+                    best = {watts: Math.round(pw), id: s.id, day: s.day, name: s.name ?? null};
+                }
+            }
+            if(s.day >= freshFromDay && s.day <= end) {
+                const fw = s.best?.[duration];
+                if(num(fw) && fw > 0 && (!fresh || fw > fresh.watts || (fw === fresh.watts && s.day < fresh.day))) {
+                    fresh = {watts: Math.round(fw), id: s.id, day: s.day, name: s.name ?? null};
+                }
+            }
+        }
+        const pct = best && fresh ? round(Math.min(100, (best.watts / fresh.watts) * 100), 1) : null;
+        out.push({
+            week: w,
+            watts: best?.watts ?? null,
+            fresh: fresh?.watts ?? null,
+            pct,
+            from: best ? {id: best.id, day: best.day, name: best.name} : null,
+            freshFrom: fresh ? {id: fresh.id, day: fresh.day, name: fresh.name} : null,
+        });
+    }
+    return out;
+}
+
+export {
+    efforts, reps, hrRecovery, rideCurve, powerHr,
+    efficiency, decouplingTrend, durabilityTrend, readinessPairs, polarised,
+    pearson, weekOf, DURABILITY_KJ,
+};
