@@ -66,7 +66,7 @@ async function setup({stravaConfigured = true} = {}) {
     const base = `http://127.0.0.1:${fake.server.address().port}`;
     const app = createApp({connections: {
         fetch: globalThis.fetch, stravaBase: base, intervalsBase: base,
-        publicUrl: stravaConfigured ? 'https://auuki.lan:8443' : '',
+        publicUrl: stravaConfigured ? 'https://soigneur.lan:8443' : '',
         strava: stravaConfigured ? {clientId: '123', clientSecret: 'secret'} : {},
         pollDelayMs: 5, retryDelaysMs: [20, 20],
     }});
@@ -97,7 +97,7 @@ async function connectStrava(call, token) {
     const start = await call('POST', '/api/me/connections/strava/start', {token, body: {}});
     assert.equal(start.status, 200);
     const u = new URL(start.json.url);
-    assert.equal(u.searchParams.get('redirect_uri'), 'https://auuki.lan:8443/api/connect/strava/callback');
+    assert.equal(u.searchParams.get('redirect_uri'), 'https://soigneur.lan:8443/api/connect/strava/callback');
     assert.equal(u.searchParams.get('scope'), 'read,activity:write');
     const state = u.searchParams.get('state');
     const cb = await call('GET', `/api/connect/strava/callback?state=${state}&code=good&scope=read,activity:write`);
@@ -111,7 +111,7 @@ test('Strava: connect, auto-upload, status, disconnect', async () => {
 
     const {cb, state} = await connectStrava(call, token);
     assert.equal(cb.status, 302);
-    assert.equal(cb.location, 'https://auuki.lan:8443/?connect=strava&result=connected');
+    assert.equal(cb.location, 'https://soigneur.lan:8443/?connect=strava&result=connected');
     // a state works once
     const again = await call('GET', `/api/connect/strava/callback?state=${state}&code=good&scope=read,activity:write`);
     assert.match(again.location, /result=error/);
@@ -128,7 +128,7 @@ test('Strava: connect, auto-upload, status, disconnect', async () => {
     });
     assert.equal(ride.uploads.strava.url, 'https://www.strava.com/activities/999');
     const up = fake.log.find(e => e.path === '/api/v3/uploads');
-    assert.deepEqual(up.fields, {data_type: 'fit', external_id: 'auuki-r1.fit', trainer: '1', name: 'Sweet spot'});
+    assert.deepEqual(up.fields, {data_type: 'fit', external_id: 'soigneur-r1.fit', trainer: '1', name: 'Sweet spot'});
     assert.ok(up.file.equals(FIT));
     assert.equal(up.auth, 'Bearer at1');
 

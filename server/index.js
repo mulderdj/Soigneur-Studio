@@ -20,8 +20,17 @@ fs.mkdirSync(dataDir, {recursive: true});
 
 const intervalsReadOnly = String(process.env.INTERVALS_READ_ONLY ?? '').toLowerCase() === 'true';
 
+const dbPath = path.join(dataDir, 'soigneur.db');
+const legacyDbPath = path.join(dataDir, 'auuki.db');
+if(!fs.existsSync(dbPath) && fs.existsSync(legacyDbPath)) {
+    fs.renameSync(legacyDbPath, dbPath);
+    for(const suffix of ['-wal', '-shm']) {
+        if(fs.existsSync(legacyDbPath + suffix)) fs.renameSync(legacyDbPath + suffix, dbPath + suffix);
+    }
+}
+
 const { server, connections, intervalsSync, garminSync, close } = createApp({
-    dbPath: path.join(dataDir, 'auuki.db'), // the file name from before the rename: keeps existing accounts
+    dbPath,
     allowSignup: String(process.env.ALLOW_SIGNUP ?? '').toLowerCase() === 'true',
     connections: {
         // the address riders open the app at, e.g. https://soigneur.lan:8443;

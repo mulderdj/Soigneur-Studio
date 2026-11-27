@@ -139,6 +139,7 @@ function createBleSession(config) {
     const cpsDecoder = createCyclingPowerDecoder();
     const cscDecoder = createCscDecoder();
 
+    /** @type {string} */
     let status = Status.disconnected;
     let userDisconnected = false;
     let recovering = false;
@@ -162,6 +163,7 @@ function createBleSession(config) {
     let supportedResistanceRange = null;
 
     // Live trainer control state
+    /** @type {string} */
     let mode = ControlMode.erg;
     let powerTarget = 0;
     let powerMatchOffset = 0;

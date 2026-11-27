@@ -31,7 +31,8 @@ describe('Palette model and theme application', () => {
         expect(models.palette.label('other')).toBe('Default');
 
         expect(models.palette.switch('default')).toBe('abricot');
-        expect(models.palette.switch('abricot')).toBe('default');
+        expect(models.palette.switch('abricot')).toBe('material');
+        expect(models.palette.switch('material')).toBe('default');
         expect(models.palette.switch('bad')).toBe('default');
 
         models.palette.backup('abricot');

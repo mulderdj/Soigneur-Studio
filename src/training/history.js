@@ -464,7 +464,7 @@ async function planEntries() {
 }
 
 async function putEntry(entry) {
-    const e = {...entry, updatedAt: Date.now(), dirty: true};
+    const e = {...entry, updatedAt: Math.max(Date.now(), (entry.updatedAt ?? 0) + 1), dirty: true};
     await idb.put(PLAN, e);
     changed();
     schedulePush();

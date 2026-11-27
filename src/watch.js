@@ -132,7 +132,9 @@ class SessionWatch {
         this.intervalDuration = 0;
         this.stepDuration = 0;
 
+        /** @type {string} */
         this.state = TimerStatus.stopped;
+        /** @type {string} */
         this.stateWorkout = TimerStatus.stopped;
         this.intervalType = 'duration';
 

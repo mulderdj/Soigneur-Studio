@@ -272,7 +272,8 @@ function calculateCRC(bytes, start, end) {
     return crc;
 }
 
-const FIT_BASE_TYPE_ACCESSORS = new Map([
+/** @type {Map<number | string, string>} */
+const FIT_BASE_TYPE_ACCESSORS = new Map(/** @type {Array<[number | string, string]>} */ ([
     [0, 'Uint8'], ['enum', 'Uint8'],
     [1, 'Int8'], ['sint8', 'Int8'],
     [2, 'Uint8'], ['uint8', 'Uint8'],
@@ -290,7 +291,7 @@ const FIT_BASE_TYPE_ACCESSORS = new Map([
     [142, 'Int64'], ['sint64', 'Int64'],
     [143, 'Uint64'], ['uint64', 'Uint64'],
     [144, 'Uint64'], ['uint64z', 'Uint64'],
-]);
+]));
 
 function typeToAccessor(baseType, prefix = 'set') {
     const suffix = FIT_BASE_TYPE_ACCESSORS.get(baseType) ?? 'Uint8';

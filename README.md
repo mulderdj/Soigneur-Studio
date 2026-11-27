@@ -2,9 +2,7 @@
 
 # Soigneur Studio
 
-Indoor cycling and training, on your own server. Ride structured workouts on a smart trainer in the browser, over Bluetooth or ANT+, and keep your training, health data and plan together, for you and your household. One interface for every screen (phone, portrait or on the handlebars in landscape, tablet, laptop, PC and TV), in dark and light.
-
-Soigneur Studio is based on [Auuki](https://github.com/dvmarinoff/Auuki) by Dimitar Marinov, which provides the trainer and sensor engine; see [Credits and licence](#credits-and-licence).
+Indoor and outdoor cycling and training, on your own server. Ride structured workouts on a smart trainer in the browser over Bluetooth or WebUSB ANT+, record outdoor GPS rides with interactive maps, and keep your training, health data and plan together for you and your household. One interface for every screen (phone, portrait or on the handlebars in landscape, tablet, laptop, PC and TV), in dark, light, and Material You themes.
 
 **Walkthrough**: [a tour of every page with screenshots](docs/walkthrough/README.md) and a [44-second screencast](docs/walkthrough/walkthrough.mp4).
 
@@ -64,9 +62,7 @@ New files: `src/analytics.js` (the statistics, tested in `test/analytics.test.js
 
 **Design system** (`src/css/`): `tokens.css` (every colour, size and font, dark and light), `base.css` (page shell, bottom bar), `components.css` (buttons, cards, tiles, tabs, fields, dialogs, the workout graph) and one layout file per page: `ride.css`, `training.css`, `workouts.css`, `settings.css`, `rider-menu.css`. Page files only arrange components and use tokens. `npm run check:visual` (with `npm start` running; set `CHROME_PATH` if Playwright's own Chromium isn't installed) opens every page at phone, tablet and desktop sizes in both themes and fails on sideways scrolling, tap targets under 44 px on phones, text overflowing its tile and console errors; screenshots go to `test/visual/out/`.
 
-**Compared with Auuki**: the original layout and its stylesheet, dock mode, the auuki.com account and its Settings connections (intervals.icu, Strava, TrainingPeaks through Auuki's server), the intervals.icu planned list and the Ride Report tab are gone. Accounts and connected services are in the rider menu, through your own server. Rides recorded on a device stay under *Workouts → Your rides* for download.
-
-Run it locally with `npm install` then `npm start`, and open the printed address in Chrome or Edge. Web Bluetooth needs `localhost` or HTTPS. For accounts in development, run `npm run server` in a second terminal; the Parcel dev server forwards `/api` to it (`.proxyrc.json`). Server tests: `npm run test:server`.
+Run it locally with `npm install` then `npm start`, and open the printed address in Chrome or Edge. Web Bluetooth needs `localhost` or HTTPS. For accounts in development, run `npm run server` in a second terminal; the Vite dev server forwards `/api` to it. Server tests: `npm run test:server`.
 
 No trainer at hand? Open the dev server with `?simulate` (e.g. `http://localhost:1234/?simulate`) and a simulated rider feeds power, cadence, speed and heart rate into the app. It follows the ERG target, a badge shows it is on, and it only exists on `npm start`, never in production builds or Docker. Don't upload rides recorded this way to Strava or intervals.icu.
 
@@ -92,7 +88,7 @@ The container only serves the web page. Bluetooth and ANT+ still run in Chrome o
 docker compose up -d --build
 ```
 
-This starts two containers: `soigneur-studio` (Caddy serving the app; compose service `auuki`) and `soigneur-studio-api` (the account server; service `api`, data in the `api-data` volume). Open the app, click the rider pill, and create the first account under *Account*; it becomes the admin. Set `ALLOW_SIGNUP=true` to let riders create their own accounts.
+This starts two containers: `soigneur-studio` (Caddy serving the app; compose service `web`) and `soigneur-studio-api` (the account server; service `api`, data in the `api-data` volume). Open the app, click the rider pill, and create the first account under *Account*; it becomes the admin. Set `ALLOW_SIGNUP=true` to let riders create their own accounts.
 
 * **Riding on the same machine:** open `http://localhost:8080`. No certificate needed.
 * **Riding on another device** (Docker on a notebook or NAS, riding on a PC or Android phone): start it with the address the other devices use, then open `https://<that address>:8443` there.
@@ -102,7 +98,7 @@ This starts two containers: `soigneur-studio` (Caddy serving the app; compose se
   docker compose up -d --build
   ```
 
-  Put the address in a file named `.env` next to `docker-compose.yml` (`SOIGNEUR_HOST=192.168.1.20`), so later rebuilds keep it; without it the certificate is made for `localhost` only and other devices get *ERR_SSL_PROTOCOL_ERROR*. (`AUUKI_HOST`, the name before the rename, still works.) Use that same address in the browser.
+  Put the address in a file named `.env` next to `docker-compose.yml` (`SOIGNEUR_HOST=192.168.1.20`), so later rebuilds keep it; without it the certificate is made for `localhost` only and other devices get *ERR_SSL_PROTOCOL_ERROR*. Use that same address in the browser.
 
   Then make each riding device trust Caddy's root certificate. Without it the browser shows the address as not secure, the app can't be installed and Bluetooth doesn't work. You do this once per device: the certificate stays in the `caddy-data` volume across rebuilds and lasts 10 years.
 
@@ -112,21 +108,17 @@ This starts two containers: `soigneur-studio` (Caddy serving the app; compose se
   3. Check: *Encryption & credentials → Trusted credentials →* tab **User** lists *Caddy Local Authority - 2026 ECC Root*.
   4. *Settings → Apps → Chrome →* **Force stop**: Chrome reads trusted certificates only when it starts. Then open `https://<that address>:8443`; the address is no longer red, and the Chrome menu offers *Install app*.
 
-  **Windows:** download the file the same way (or copy it with `docker compose cp auuki:/data/caddy/pki/authorities/local/root.crt ./soigneur-root.crt`), double-click it, *Install Certificate → Local Machine →* place it in **Trusted Root Certification Authorities**, and restart the browser.
+  **Windows:** download the file the same way (or copy it with `docker compose cp web:/data/caddy/pki/authorities/local/root.crt ./soigneur-root.crt`), double-click it, *Install Certificate → Local Machine →* place it in **Trusted Root Certification Authorities**, and restart the browser.
 
   To check you have the right certificate: its name is *Caddy Local Authority - …*, and its SHA-256 fingerprint matches `openssl x509 -in soigneur-root.crt -noout -fingerprint -sha256` on the Docker machine. Only the public certificate is offered for download; its private key never leaves the container.
 * **Quick test without a certificate**, one PC only: in Chrome open `chrome://flags/#unsafely-treat-insecure-origin-as-secure`, add `http://<host>:8080`, and relaunch Chrome.
 
-* **Updating from Auuki Desktop:** `docker compose up -d --build` replaces the containers (now named `soigneur-studio` and `soigneur-studio-api`); accounts, rides and certificates stay, because the data volumes keep their names.
-
 ## Browsers and trainers
 
-**Browsers.** Bluetooth in the browser needs a Chromium browser: Chrome, Edge, Opera, Samsung Internet or Brave (enable it in Brave's settings first), on Windows, macOS, Linux or Android. Firefox and Safari, and every browser on iOS, have no Web Bluetooth. On Linux, Chrome and Edge may need `chrome://flags/#enable-experimental-web-platform-features` (or `edge://…`). ANT+ uses a USB stick through Web Serial and is experimental.
+**Browsers.** Bluetooth in the browser needs a Chromium browser: Chrome, Edge, Opera, Samsung Internet or Brave (enable it in Brave's settings first), on Windows, macOS, Linux or Android. Firefox and Safari, and every browser on iOS, have no Web Bluetooth. On Linux, Chrome and Edge may need `chrome://flags/#enable-experimental-web-platform-features` (or `edge://…`). ANT+ uses a USB stick through WebUSB (`web-ant-plus`).
 
-**Trainers.** Smart trainers that speak the Bluetooth Fitness Machine Service (FTMS), Tacx trainers over FE-C on Bluetooth, Wahoo trainers over their own protocol, and ANT+ FE-C trainers through a USB stick. Most smart trainers from 2020 onwards support FTMS. Power meters, heart-rate straps, speed and cadence sensors, Moxy and CoreTemp connect over Bluetooth.
+**Trainers.** Smart trainers that speak the Bluetooth Fitness Machine Service (FTMS), Tacx trainers over FE-C on Bluetooth, and ANT+ FE-C trainers through a USB stick. Power meters, heart-rate straps, speed and cadence sensors, Moxy, CORE body temp, OpenBikeControl buttons, and phone GPS are supported.
 
-## Credits and licence
+## Licence
 
-Soigneur Studio is based on [Auuki](https://github.com/dvmarinoff/Auuki) by Dimitar Marinov (dvmarinoff), imported in November 2026 and developed separately since. Auuki provides the trainer and sensor engine (Bluetooth, ANT+), the FIT file format and the data models; the interface, the design system, the Training page and the account server were written for Soigneur Studio. It is not made or supported by the Auuki project. See [NOTICE](NOTICE).
-
-Free software under the [GNU AGPL-3.0](LICENSE.txt). If you run a modified version on a server that others use over a network, offer them its source code.
+Open-source software under the [MIT Licence](LICENSE.txt). FIT encoding and decoding uses Garmin's `@garmin/fitsdk`, and WebUSB ANT+ uses `web-ant-plus` (MIT).

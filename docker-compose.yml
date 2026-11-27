@@ -1,11 +1,10 @@
-# The project name is fixed so the data volumes (auuki-desktop_api-data,
-# auuki-desktop_caddy-data) stay the same whatever the folder is called.
-name: auuki-desktop
+# Fixed project name so data volumes (soigneur-studio_api-data,
+# soigneur-studio_caddy-data) stay stable regardless of folder name.
+name: soigneur-studio
 
 services:
-  # the app; the service keeps its old name so an update replaces the
-  # running container instead of starting a second one on the same ports
-  auuki:
+  # Caddy serving the PWA and proxying /api to the account server
+  web:
     build: .
     image: soigneur-studio
     container_name: soigneur-studio
@@ -17,8 +16,7 @@ services:
       - no-new-privileges:true
     environment:
       # the hostname or IP other devices use to reach this machine
-      # (AUUKI_HOST, the name before the rename, still works)
-      SOIGNEUR_HOST: ${SOIGNEUR_HOST:-${AUUKI_HOST:-localhost}}
+      SOIGNEUR_HOST: ${SOIGNEUR_HOST:-localhost}
       # more names the app answers to over https, with the port, comma
       # separated, e.g. a Tailscale name: fedora.example.ts.net:8443
       SOIGNEUR_EXTRA_HOSTS: ${SOIGNEUR_EXTRA_HOSTS:-unused.invalid:8443}

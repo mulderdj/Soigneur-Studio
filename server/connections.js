@@ -148,7 +148,7 @@ function createConnections({db, fail, options = {}}) {
         form.append('name', summary.name ?? 'Indoor ride');
         form.append('description', 'Recorded with Soigneur Studio');
         form.append('trainer', '1');
-        form.append('external_id', `auuki-${rideId}.fit`);
+        form.append('external_id', `soigneur-${rideId}.fit`);
 
         const res = await fetchImpl(`${stravaBase}/api/v3/uploads`, withTimeout({
             method: 'POST', headers: {Authorization: `Bearer ${token}`}, body: form,

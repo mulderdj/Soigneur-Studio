@@ -128,6 +128,11 @@ function map(collection, mapper) {
     throw new TypeError('map expects an array, plain object, or string');
 }
 
+/**
+ * @param {any} root
+ * @param {(acc: any, key: string, val: any, node: any) => any} [visitor]
+ * @param {any} [initial]
+ */
 function traverse(root, visitor = x => x, initial = []) {
     let acc = initial;
     function walk(node) {

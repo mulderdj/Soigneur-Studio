@@ -61,7 +61,8 @@ function synthesizeSamples(key, ftp, rnd, fitnessProgress = 0.5) {
     return samples;
 }
 
-function generateHistory({ today, days = 120, ftp = 250, weight = 75, seed = 1 } = {}) {
+/** @param {{ today?: string, days?: number, ftp?: number, weight?: number, seed?: number }} [opts] */
+function generateHistory({ today = '', days = 120, ftp = 250, weight = 75, seed = 1 } = {}) {
     const rnd = createPrng(seed);
     const startDay = addDays(today, -(days - 1));
     const summaries = [];
@@ -364,7 +365,7 @@ async function seedRideFiles(summaries, { ftp, weight, idb }) {
         const view = fit.localActivity.encode({ records, laps: [], events: [], ftp });
         await idb.put('activity', {
             id: summary.id,
-            blob: new Blob([view.buffer]),
+            blob: new Blob([/** @type {BlobPart} */ (new Uint8Array(view.buffer, view.byteOffset, view.byteLength))]),
             summary: {
                 name: summary.name,
                 timestamp: summary.start + summary.duration * 1000,
@@ -429,7 +430,8 @@ async function seedRideFiles(summaries, { ftp, weight, idb }) {
     await storeActivity(outdoorSummary, outdoorRecords);
 }
 
-async function seedHistory({ ftp, weight } = {}) {
+/** @param {{ ftp?: number, weight?: number }} [opts] */
+async function seedHistory({ ftp = 250, weight = 75 } = {}) {
     const { history } = await import('../training/history.js');
     const { idb } = await import('../storage/idb.js');
     const { today } = await import('../training/dates.js');

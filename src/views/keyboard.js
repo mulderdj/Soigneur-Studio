@@ -126,6 +126,7 @@ function Keyboard() {
 
 
 function KeyboardControls() {
+    /** @type {string} */
     let mode = ControlMode.erg;
     xf.sub('db:mode', x => mode = x);
 
