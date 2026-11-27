@@ -19,7 +19,7 @@ import { currentModel, powerProfile, meanMaximal } from '../../src/training/ride
 import { hrvRangeOn, hrvState, restingTrend, sortedDays } from '../../src/training/wellness.js';
 import { localDay, today as localToday, addDays, daysBetween, weekStart } from '../../src/training/dates.js';
 import { analyseRide } from '../../src/analysis/ride.js';
-import { reps, hrRecovery, rideCurve, efficiency, polarised } from '../../src/analysis/insights.js';
+import { reps, hrRecovery, rideCurve, efficiency, decouplingTrend, durabilityTrend, polarised } from '../../src/analysis/insights.js';
 import { workouts as builtinZwo } from '../../src/workouts/workouts.js';
 import { protocols } from '../../src/tests/protocols.js';
 import { readWorkout } from './zwo.js';
@@ -408,8 +408,13 @@ function createSoigneur({api, today = localToday, cacheMs = CACHE_MS, now = () =
         const list = countable(await summaries());
         const curve = powerCurve(list, t);
         const eff = efficiency(list);
+        const dec = decouplingTrend(list);
         const since = addDays(t, -7 * weeks);
         const effRecent = eff.map((x, i) => ({...x, rolling: eff.rolling[i]})).filter(x => x.day >= since);
+        const decRecent = dec.map((x, i) => ({...x, rolling: dec.rolling[i]})).filter(x => x.day >= since);
+        const durFor = (kj, duration) => durabilityTrend(list, t, {kj, duration, weeks})
+            .filter(w => w.pct !== null)
+            .map(w => ({week_of: w.week, watts: w.watts, fresh_90d_w: w.fresh, retained_pct: w.pct, ride: w.from?.name ?? null, day: w.from?.day ?? null}));
         const cmp = weekCompare(list, t);
         const vol = v => ({rides: v.rides, hours: r1(v.hours), tss: r0(v.tss), kj: r0(v.kj)});
         return {
@@ -422,6 +427,16 @@ function createSoigneur({api, today = localToday, cacheMs = CACHE_MS, now = () =
             aerobic_efficiency: {
                 explain: 'NP ÷ average heart rate of steady rides (cycling, ≥ 30 min, IF ≤ 0.85); rising = more power for the same heart rate.',
                 rides: effRecent.map(x => ({day: x.day, ef: x.ef, rolling_28_days: x.rolling, name: x.name})),
+            },
+            aerobic_decoupling: {
+                explain: 'Power-to-HR drift (%) in the second half vs first half of long steady rides (cycling, ≥ 45 min, first 10 min skipped, VI ≤ 1.10); under 5 % is steady, falling = better endurance.',
+                rides: decRecent.map(x => ({day: x.day, decoupling_pct: x.decoupling, rolling_28_days_pct: x.rolling, name: x.name})),
+            },
+            durability: {
+                explain: 'Weekly best 5- and 20-minute power after 1,000 / 2,000 / 3,000 kJ of work, as a share of the 90-day fresh best (% retained).',
+                after_1000_kj: {best_5min: durFor(1000, 300), best_20min: durFor(1000, 1200)},
+                after_2000_kj: {best_5min: durFor(2000, 300), best_20min: durFor(2000, 1200)},
+                after_3000_kj: {best_5min: durFor(3000, 300), best_20min: durFor(3000, 1200)},
             },
             zones: 'easy = Z1–Z2, middle = Z3–Z5, hard = Z6–Z7 (power zones from FTP).',
         };

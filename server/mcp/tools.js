@@ -89,7 +89,7 @@ function registerTools(server, data) {
 
     server.registerTool('get_progress', {
         title: 'Progress',
-        description: `Trends over the last weeks (default 12): weekly volume (rides, hours, TSS, kJ), this week so far against the same days last week, intensity distribution per week in 3 zones (easy Z1–Z2, middle Z3–Z5, hard Z6–Z7), the power curve (last 42 days against all time), weekly FTP estimates from the best 20 or 60 minutes, and aerobic efficiency of steady rides with its 28-day rolling mean. ${UNITS}`,
+        description: `Trends over the last weeks (default 12): weekly volume (rides, hours, TSS, kJ), this week so far against the same days last week, intensity distribution per week in 3 zones (easy Z1–Z2, middle Z3–Z5, hard Z6–Z7), the power curve (last 42 days against all time), weekly FTP estimates from the best 20 or 60 minutes, aerobic efficiency of steady rides with its 28-day rolling mean, aerobic decoupling of long steady rides with its 28-day rolling mean, and weekly durability (best 5- and 20-minute power after 1,000 / 2,000 / 3,000 kJ as % of 90-day fresh best). ${UNITS}`,
         inputSchema: {weeks: z.number().int().min(1).max(52).optional().describe('how many weeks (default 12)')},
         annotations: READ,
     }, run(a => data.progress({weeks: a.weeks ?? 12})));

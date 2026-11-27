@@ -27,7 +27,7 @@ const SESSIONS = {
     endurance: {name: 'Endurance',      blocks: [[600, 0.55], [3600, 0.68], [300, 0.5]]},
     sweetspot: {name: 'Sweet spot 2x20', blocks: [[900, 0.6], [1200, 0.9], [300, 0.5], [1200, 0.9], [600, 0.5]]},
     vo2:       {name: 'VO2 max 5x4',    blocks: [[900, 0.6], ...Array.from({length: 5}, () => [[240, 1.15], [240, 0.5]]).flat(), [600, 0.5]]},
-    long:      {name: 'Long ride',      blocks: [[600, 0.55], [6600, 0.67], [300, 0.5]]},
+    long:      {name: 'Long ride',      blocks: [[600, 0.55], [5100, 0.72], [1500, 0.84], [300, 0.5]]},
 };
 
 // Monday rest, Friday easy, Saturday long
@@ -42,12 +42,18 @@ function toWorkout(key) {
     };
 }
 
-function samplesFor(key, ftp, rnd) {
+function samplesFor(key, ftp, rnd, progress = 0.5) {
     const samples = [];
+    const total = SESSIONS[key].blocks.reduce((a, [d]) => a + d, 0);
+    // aerobic drift on steady rides improves as the rider gets fitter (progress 0 → 1)
+    const drift = key === 'endurance' || key === 'long' ? 0.075 - 0.04 * progress : 0.02;
+    let t = 0;
     for(const [duration, rel] of SESSIONS[key].blocks) {
-        for(let i = 0; i < duration; i++) {
+        for(let i = 0; i < duration; i++, t++) {
             const power = Math.max(0, Math.round(ftp * rel * (1 + (rnd() - 0.5) * 0.12)));
-            samples.push({power, heartRate: Math.round(95 + 85 * rel), cadence: 88});
+            const baseHr = 95 + 85 * rel;
+            const heartRate = Math.round(baseHr * (1 + drift * (t / total)));
+            samples.push({power, heartRate, cadence: 88});
         }
     }
     return samples;
@@ -70,7 +76,7 @@ function generateHistory({today, days = 120, ftp = 250, weight = 75, seed = 1} =
 
         const dayFtp = Math.round(ftp - 15 + 15 * (d / days)); // getting fitter
         const start = dayToDate(day).getTime() + 6 * 3600 * 1000 + Math.round(rnd() * 3600) * 1000; // evening
-        summaries.push(rideSummary(samplesFor(key, dayFtp, rnd), {
+        summaries.push(rideSummary(samplesFor(key, dayFtp, rnd, d / days), {
             id: `seed-${day}`, start, name: SESSIONS[key].name, workoutId: `seed-${key}`,
             ftp: dayFtp, weight, distance: null,
         }));

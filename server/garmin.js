@@ -80,6 +80,8 @@ function toSummary(a) {
         kj: hasPower && avgPower > 0 ? Math.round(avgPower * duration / 1000) : null,
         zoneSeconds,
         best,
+        decoupling: null,
+        durability: null,
         avgHr: first(a.averageHR, a.averageHr, a.avgHr),
         maxHr: first(a.maxHR, a.maxHr),
         ftp: first(a.functionalThresholdPower, a.ftp),

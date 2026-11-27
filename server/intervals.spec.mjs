@@ -92,3 +92,12 @@ test('heart rate comes along, for a load when intervals.icu has none (live check
     assert.equal(none.avgHr, null);
     assert.equal(none.maxHr, null);
 });
+
+test('aerobic decoupling is kept for long steady cycling rides, null otherwise', () => {
+    const steady = toSummary({...ride, moving_time: 5400, icu_weighted_avg_watts: 210, icu_average_watts: 200, average_heartrate: 145, decoupling: 4.36}, {});
+    assert.equal(steady.decoupling, 4.4);
+    assert.equal(steady.durability, null);
+    // short (< 45 min) or variable (VI > 1.10) rides leave decoupling null
+    assert.equal(toSummary({...ride, moving_time: 2400, icu_weighted_avg_watts: 210, icu_average_watts: 200, average_heartrate: 145, decoupling: 4.0}, {}).decoupling, null);
+    assert.equal(toSummary({...ride, moving_time: 5400, icu_weighted_avg_watts: 240, icu_average_watts: 200, average_heartrate: 145, decoupling: 4.0}, {}).decoupling, null);
+});

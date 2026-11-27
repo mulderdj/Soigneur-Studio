@@ -9,13 +9,10 @@
 //
 
 import { SessionStats, ZONES, BEST_WINDOWS } from '../analytics.js';
+import { decouplingOf, DECOUPLING_MIN, DECOUPLING_SKIP, STEADY_VI, DURABILITY_KJ } from '../training/summary.js';
 import { pickIntervals } from './intervals.js';
 
 const SHORT = 20;                         // s: below this, averages only
-const DECOUPLING_MIN = 45 * 60;           // s of riding
-const DECOUPLING_SKIP = 10 * 60;          // s of warm-up left out
-const STEADY_VI = 1.10;                   // decoupling only when NP is within 10 % of average power (steady riding)
-const DURABILITY_KJ = [1000, 2000, 3000];
 const RECENT_DAYS = 42;
 const ON_TARGET = 0.05, ON_TARGET_MIN_W = 5;
 // heart-rate zones from LTHR (upper bounds of Z1–Z4, as a fraction)
@@ -106,19 +103,6 @@ function plannedVsActual(intervals, samples) {
             status: ridden < iv.planned * 0.5 ? 'cut-short' : 'done',
         };
     });
-}
-
-function decouplingOf(active) {
-    if(active.length < DECOUPLING_MIN) return null;
-    const rest = active.slice(DECOUPLING_SKIP);
-    const half = Math.floor(rest.length / 2);
-    const ef = list => {
-        const both = list.filter(s => s.power > 0 && s.heartRate > 0);
-        if(both.length < 60) return null;
-        return mean(both.map(s => s.power)) / mean(both.map(s => s.heartRate));
-    };
-    const a = ef(rest.slice(0, half)), b = ef(rest.slice(half));
-    return a && b ? round((a - b) / a * 100, 1) : null;
 }
 
 function hrZonesOf(active, lthr) {

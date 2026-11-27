@@ -7,11 +7,13 @@
 //   rideCurveChart(ride, colors)      ride = {samples, summaries, today, id}
 //   powerHrChart(ride, colors)        ride = {samples, pauses}
 //   efficiencyChart(data, colors)     data = {summaries}
+//   decouplingChart(data, colors)     data = {summaries, today}
+//   durabilityChart(data, dur, colors) data = {summaries, today}; dur 300 | 1200
 //   readinessChart(data, x, colors)   data = {summaries, wellness}; x 'hrv' | 'sleep'
 //   polarisedChart(data, colors)      data = {summaries, today}
 //
 
-import { reps, hrRecovery, rideCurve, powerHr, efficiency, readinessPairs, polarised } from '../../analysis/insights.js';
+import { reps, hrRecovery, rideCurve, powerHr, efficiency, decouplingTrend, durabilityTrend, readinessPairs, polarised, DURABILITY_KJ } from '../../analysis/insights.js';
 import { meanMaximal } from '../../training/rider-model.js';
 import { DURATIONS } from '../../training/summary.js';
 import { fmtDay } from '../training/format.js';
@@ -165,6 +167,90 @@ function efficiencyChart({summaries = []}, c = {}) {
     return {model, readout, list};
 }
 
+function decouplingChart({summaries = [], today}, c = {}) {
+    const list = decouplingTrend(summaries);
+    if(!list.length) return empty();
+    const model = {
+        x: list.map(p => daySec(p.day)),
+        series: [
+            {label: '5 % threshold', color: c.muted, width: 1, dash: [4, 4], values: list.map(() => 5)},
+            {label: 'Ride', color: c.accent, kind: 'points', values: list.map(p => p.decoupling)},
+            {label: '28 days', color: c.good, values: list.rolling, width: 2},
+        ],
+        ranges: [['3m', '3 months'], ['1y', '1 year'], ['all', 'All']],
+        defaultRange: '1y',
+        ...(today ? {today: daySec(today)} : {}),
+        yFormat: v => `${v} %`,
+        marks: {zero: true},
+    };
+    const readout = (i) => {
+        const p = list[i];
+        if(!p) return null;
+        return {
+            title: shortDay(p.day),
+            day: p.day,
+            rows: [
+                {label: 'Decoupling', color: c.accent, value: `${p.decoupling.toFixed(1)} %`, note: p.name},
+                {label: '28-day mean', color: c.good, value: num(list.rolling[i]) ? `${list.rolling[i].toFixed(1)} %` : '–'},
+            ],
+            more: [p.decoupling < 5 ? 'Under 5 %: heart rate held steady with power' : 'Above 5 %: heart rate drifted up against power'],
+        };
+    };
+    return {model, readout, list};
+}
+
+const KJ_LABEL = {1000: 'After 1,000 kJ', 2000: 'After 2,000 kJ', 3000: 'After 3,000 kJ'};
+
+function durabilityChart({summaries = [], today}, duration = 300, c = {}) {
+    const colorOf = {1000: c.accent, 2000: c.good, 3000: c.warn};
+    const byKj = DURABILITY_KJ.map(kj => ({kj, rows: durabilityTrend(summaries, today, {kj, duration, weeks: 52})}))
+        .filter(g => g.rows.some(r => r.pct !== null));
+    if(!byKj.length) return {...empty(), thresholds: []};
+    const weeks = byKj[0].rows.map(r => r.week);
+    const allPct = byKj.flatMap(g => g.rows.map(r => r.pct).filter(num));
+    const minY = Math.min(85, Math.max(0, Math.floor((Math.min(...allPct) - 5) / 5) * 5));
+    const model = {
+        x: weeks.map(w => daySec(w)),
+        series: byKj.map(g => ({
+            label: KJ_LABEL[g.kj],
+            color: colorOf[g.kj],
+            width: 2,
+            points: true,
+            values: g.rows.map(r => r.pct),
+        })),
+        ranges: [['12w', '12 weeks'], ['1y', '1 year']],
+        defaultRange: '12w',
+        today: daySec(today),
+        xFormat: t => shortDay(new Date(t * 1000).toISOString().slice(0, 10)),
+        yRange: [minY, 100],
+        yFormat: v => `${v} %`,
+    };
+    const readout = (i) => {
+        const w = weeks[i];
+        if(!w) return null;
+        const rows = [];
+        let day;
+        for(const g of byKj) {
+            const r = g.rows[i];
+            if(!r || r.pct === null) continue;
+            day = r.from?.day ?? day;
+            rows.push({
+                label: KJ_LABEL[g.kj],
+                color: colorOf[g.kj],
+                value: `${Math.round(r.pct)} %`,
+                note: `${r.watts} W of ${r.fresh} W fresh${r.from?.name ? ` · ${r.from.name}` : ''}`,
+            });
+        }
+        return {
+            title: weekTitle(w),
+            rows,
+            more: rows.length ? [] : ['No ride past 1,000 kJ this week'],
+            ...(day ? {day} : {}),
+        };
+    };
+    return {model, readout, thresholds: byKj.map(g => g.kj)};
+}
+
 function readinessChart({summaries = [], wellness = []}, x = 'hrv', c = {}) {
     const out = readinessPairs(summaries, wellness, x);
     const pts = [...out.points].sort((a, b) => a.x - b.x);
@@ -219,4 +305,4 @@ function polarisedChart({summaries = [], today}, c = {}) {
     return {model, readout, weeks};
 }
 
-export { repsChart, recoveryChart, rideCurveChart, powerHrChart, efficiencyChart, readinessChart, polarisedChart };
+export { repsChart, recoveryChart, rideCurveChart, powerHrChart, efficiencyChart, decouplingChart, durabilityChart, readinessChart, polarisedChart };

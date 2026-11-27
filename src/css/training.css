@@ -181,6 +181,8 @@
 
 .pc-key--recent { background-color: var(--accent); }
 .pc-key--all    { background-color: var(--muted); }
+.pc-key--good   { background-color: var(--good); }
+.pc-key--warn   { background-color: var(--warn); }
 
 .pc-nudge {
     display: flex;

@@ -1,4 +1,4 @@
-import { efforts, reps, hrRecovery, rideCurve, powerHr, efficiency, readinessPairs, polarised, pearson, weekOf } from '../../src/analysis/insights.js';
+import { efforts, reps, hrRecovery, rideCurve, powerHr, efficiency, decouplingTrend, durabilityTrend, readinessPairs, polarised, pearson, weekOf } from '../../src/analysis/insights.js';
 
 // a ride of `seconds` with power and heart rate from functions of t
 const ride = (seconds, power, hr) => Array.from({length: seconds}, (_, t) => ({t, power: power(t), heartRate: hr(t)}));
@@ -153,5 +153,51 @@ describe('review fixes', () => {
         const samples = ride(40 * 60, () => 200, () => 130);
         const pts = powerHr(samples, [{start: 615, end: 630}]);
         expect(pts.every(p => p.t < 615 - 29 || p.t >= 630)).toBe(true);
+    });
+});
+
+describe('aerobic decoupling trend', () => {
+    test('long steady cycling rides only, sorted, with a 28-day rolling mean', () => {
+        const list = decouplingTrend([
+            S('2026-11-10', 200, 140, {duration: 5400, decoupling: 3.2}),
+            S('2026-11-01', 200, 140, {duration: 5400, decoupling: 6.4}),
+            S('2026-11-05', 200, 140, {duration: 2400, decoupling: 4.0}),              // under 45 min: out
+            S('2026-11-06', 240, 150, {duration: 5400, avgPower: 200, decoupling: 4}), // VI 1.20 > 1.10: out
+            S('2026-11-07', 200, 140, {duration: 5400, decoupling: null}),             // missing: out
+            S('2026-11-08', 200, 140, {duration: 5400, sport: 'run', decoupling: 4}),  // not cycling: out
+        ]);
+        expect(list.map(p => [p.day, p.decoupling])).toEqual([['2026-11-01', 6.4], ['2026-11-10', 3.2]]);
+        expect(list.rolling).toEqual([6.4, 4.8]);
+    });
+});
+
+describe('durability trend', () => {
+    test('weekly best after kJ threshold as % of 90-day fresh best', () => {
+        const rides = [
+            {id: 'fresh', day: '2026-11-02', sport: 'cycling', name: 'VO2', best: {300: 320, 1200: 280}, durability: null},
+            {id: 'long1', day: '2026-11-18', sport: 'cycling', name: 'Long 1', best: {300: 290, 1200: 250},
+             durability: {1000: {300: 272, 1200: 238}}},
+            {id: 'long2', day: '2026-11-25', sport: 'cycling', name: 'Long 2', best: {300: 300, 1200: 260},
+             durability: {1000: {300: 288, 1200: 252}, 2000: {300: 256, 1200: null}}},
+            {id: 'run1', day: '2026-11-25', sport: 'run', name: 'Run', best: {300: 400}, durability: {1000: {300: 350}}},
+        ];
+        const w5 = durabilityTrend(rides, '2026-11-26', {kj: 1000, duration: 300, weeks: 3});
+        expect(w5.map(w => w.week)).toEqual(['2026-11-09', '2026-11-16', '2026-11-23']);
+        expect(w5[0]).toMatchObject({watts: null, fresh: 320, pct: null});
+        expect(w5[1]).toMatchObject({watts: 272, fresh: 320, pct: 85});
+        expect(w5[2]).toMatchObject({watts: 288, fresh: 320, pct: 90});
+
+        const w2k = durabilityTrend(rides, '2026-11-26', {kj: 2000, duration: 300, weeks: 3});
+        expect(w2k[1].pct).toBeNull();
+        expect(w2k[2]).toMatchObject({watts: 256, fresh: 320, pct: 80});
+    });
+
+    test('gracefully skips rides without durability fields (Garmin / intervals.icu / older summaries)', () => {
+        const rides = [
+            {id: 'garmin-1', day: '2026-11-20', sport: 'cycling', best: {300: 300}},
+            {id: 'icu-1', day: '2026-11-22', sport: 'cycling', best: {300: 310}, durability: null},
+        ];
+        const rows = durabilityTrend(rides, '2026-11-25', {kj: 1000, duration: 300, weeks: 4});
+        expect(rows.every(r => r.pct === null)).toBe(true);
     });
 });

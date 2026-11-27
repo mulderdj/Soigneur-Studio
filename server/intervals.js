@@ -68,6 +68,11 @@ function toSummary(a, {powerCurve = null, auukiRideId = null} = {}) {
     const sport = sportOf(a.type);
     const cycling = sport === 'cycling';
     const start = Number.isFinite(Date.parse(a.start_date)) ? Date.parse(a.start_date) : Date.parse(a.start_date_local);
+    const duration = num(a.moving_time) ?? num(a.elapsed_time) ?? 0;
+    const np = num(a.icu_weighted_avg_watts);
+    const avgPower = num(a.icu_average_watts);
+    const avgHr = num(a.average_heartrate);
+    const steady = cycling && np > 0 && avgPower > 0 && np / avgPower <= 1.10 && duration >= 45 * 60 && avgHr > 0;
     return {
         version:   SUMMARY_VERSION,
         id:        `icu-${a.id}`,
@@ -77,16 +82,18 @@ function toSummary(a, {powerCurve = null, auukiRideId = null} = {}) {
         day:       a.start_date_local.slice(0, 10),
         name:      a.name || a.type || 'Activity',
         workoutId: null,
-        duration:  num(a.moving_time) ?? num(a.elapsed_time) ?? 0,
+        duration,
         distance:  num(a.distance),
         tss:       num(a.icu_training_load),
         if:        num(a.icu_intensity) !== null ? a.icu_intensity / 100 : null,
-        np:        num(a.icu_weighted_avg_watts),
-        avgPower:  num(a.icu_average_watts),
+        np,
+        avgPower,
         kj:        Number.isFinite(a.icu_joules) ? Math.round(a.icu_joules / 1000) : null,
         zoneSeconds: cycling ? zonesFromZoneTimes(a.icu_zone_times) : Array(7).fill(0),
         best:      cycling ? bestFromPowerCurve(powerCurve) : bestFromPowerCurve(null),
-        avgHr:     num(a.average_heartrate), // for a heart-rate load when there is no load
+        decoupling: steady && num(a.decoupling) !== null ? Math.round(a.decoupling * 10) / 10 : null,
+        durability: null,
+        avgHr, // for a heart-rate load when there is no load
         maxHr:     num(a.max_heartrate),
         ftp:       num(a.icu_ftp),
         weight:    num(a.icu_weight),

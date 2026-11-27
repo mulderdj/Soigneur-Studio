@@ -225,6 +225,9 @@ test('health, plan, progress and the library', async () => {
     const progress = (await tool('get_progress', {weeks: 4})).json;
     assert.equal(progress.weekly_volume.length, 4);
     assert.ok(progress.power_curve_w.find(x => x.seconds === 240).all_time >= 230);
+    assert.ok(Array.isArray(progress.aerobic_decoupling.rides));
+    assert.ok(Array.isArray(progress.durability.after_1000_kj.best_5min));
+    assert.ok(Array.isArray(progress.durability.after_1000_kj.best_20min));
 
     const lib = (await tool('list_workouts', {query: 'test'})).json.workouts;
     assert.ok(lib.some(w => w.from === 'test'));

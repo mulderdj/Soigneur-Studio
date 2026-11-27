@@ -1,4 +1,4 @@
-import { repsChart, recoveryChart, rideCurveChart, powerHrChart, efficiencyChart, readinessChart, polarisedChart } from '../../src/views/charts/insight-models.js';
+import { repsChart, recoveryChart, rideCurveChart, powerHrChart, efficiencyChart, decouplingChart, durabilityChart, readinessChart, polarisedChart } from '../../src/views/charts/insight-models.js';
 
 const iv = (start, end, kind, stats = {}) => ({start, end, kind, stats});
 const work = (n, start, p, hr) => iv(start, start + 240, 'work', {avgPower: p, avgTarget: 200, avgHr: hr, maxHr: hr + 8});
@@ -64,5 +64,35 @@ describe('trend charts', () => {
         const i = model.x.length - 1;
         expect(model.series.map(s => s.values[i])).toEqual([100, 87.5, 75]);
         expect(readout(i).rows.map(r => r.value)).toEqual(['75 %', '13 %', '13 %']);
+    });
+    test('decoupling: 5 % reference line, ride points, 28-day rolling mean and readout', () => {
+        const summaries = [
+            {id: '1', day: '2026-11-01', sport: 'cycling', name: 'Endurance', duration: 5400, np: 200, avgPower: 195, decoupling: 6.2},
+            {id: '2', day: '2026-11-10', sport: 'cycling', name: 'Long ride', duration: 7200, np: 200, avgPower: 195, decoupling: 3.4},
+        ];
+        const {model, readout} = decouplingChart({summaries, today: '2026-11-15'}, {});
+        expect(model.series.map(s => s.label)).toEqual(['5 % threshold', 'Ride', '28 days']);
+        expect(model.x).toHaveLength(2);
+        expect(readout(1).rows.map(r => r.value)).toEqual(['3.4 %', '4.8 %']);
+        expect(readout(1).more[0]).toMatch(/Under 5 %/);
+        expect(decouplingChart({summaries: []}, {}).model.x).toEqual([]);
+    });
+    test('durability: active kJ thresholds as % of 90-day fresh best, empty when no ride reaches 1,000 kJ', () => {
+        const summaries = [
+            {id: 'a', day: '2026-11-02', sport: 'cycling', name: 'VO2', best: {300: 320, 1200: 280}, durability: null},
+            {id: 'b', day: '2026-11-24', sport: 'cycling', name: 'Long ride', best: {300: 300, 1200: 260},
+             durability: {1000: {300: 288, 1200: 252}, 2000: {300: 256, 1200: null}}},
+        ];
+        const out5 = durabilityChart({summaries, today: '2026-11-25'}, 300, {});
+        expect(out5.thresholds).toEqual([1000, 2000]);
+        expect(out5.model.series.map(s => s.label)).toEqual(['After 1,000 kJ', 'After 2,000 kJ']);
+        const last = out5.model.x.length - 1;
+        expect(out5.readout(last).rows.map(r => r.value)).toEqual(['90 %', '80 %']);
+        expect(out5.readout(last).rows[0].note).toContain('288 W of 320 W fresh');
+        expect(out5.readout(last).day).toBe('2026-11-24');
+
+        const out20 = durabilityChart({summaries, today: '2026-11-25'}, 1200, {});
+        expect(out20.thresholds).toEqual([1000]);
+        expect(durabilityChart({summaries: [], today: '2026-11-25'}, 300, {}).model.x).toEqual([]);
     });
 });
