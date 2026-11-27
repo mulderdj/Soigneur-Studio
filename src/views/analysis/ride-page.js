@@ -12,6 +12,7 @@ import { analyseRide } from '../../analysis/ride.js';
 import { esc, fmtDuration, fmtDay, sportLabelFor } from '../training/format.js';
 import { openRide, rideFromHash } from './open-ride.js';
 import './ride-chart.js';
+import '../charts/route-map.js';
 import './ride-insights.js';
 import './interval-table.js';
 import './ride-cards.js';
@@ -162,14 +163,28 @@ class RidePage extends HTMLElement {
     renderRide() {
         const a = this.analysis;
         const workout = this.context.workout?.name ? `<p class="card__note rp-workout">Planned: ${esc(this.context.workout.name)}</p>` : '';
+        const gpsPoints = (this.ride.samples ?? [])
+            .filter(s => Number.isFinite(s.lat) && Number.isFinite(s.lon))
+            .map(s => ({lat: s.lat, lon: s.lon, power: s.power}));
+        const hasRoute = gpsPoints.length >= 2;
         this.querySelector('.rp-body').innerHTML = `
             ${workout}
             <section class="card rp-chart"><ride-chart></ride-chart></section>
+            ${hasRoute ? '<section class="card rp-route"><div class="card__head"><h2 class="card__title">Route</h2></div><route-map class="rp-map"></route-map></section>' : ''}
             <section class="rp-intervals"></section>
             <ride-insights class="rp-insights"></ride-insights>
             <section class="rp-cards"></section>`;
         this.$chart = this.querySelector('ride-chart');
         this.$chart.data = {samples: this.ride.samples, analysis: a, ftp: this.context.ftp};
+        this.$map = hasRoute ? this.querySelector('route-map') : null;
+        if(this.$map) {
+            this.$map.setTrack({points: gpsPoints, ftp: this.context.ftp});
+            this.$chart.addEventListener('ride-chart:cursor', e => {
+                const idx = e.detail?.index;
+                const s = Number.isInteger(idx) ? this.ride.samples[idx] : null;
+                this.$map.setCursor(s && Number.isFinite(s.lat) && Number.isFinite(s.lon) ? {lat: s.lat, lon: s.lon} : null);
+            });
+        }
         const table = document.createElement('interval-table');
         this.querySelector('.rp-intervals').append(table);
         table.data = {analysis: a, ftp: this.context.ftp};

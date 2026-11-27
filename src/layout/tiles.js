@@ -36,6 +36,7 @@ const RIDE_TILES = [
     {id: 'chart',                 name: 'Live chart',       description: 'Power, target, heart rate and cadence over the ride', sizes: GRAPH, size: 'large', graph: true},
     {id: 'workout',               name: 'Workout',          description: 'The workout\'s intervals and where you are', sizes: GRAPH, size: 'large', graph: true},
     {id: 'stats',                 name: 'Statistics',       description: 'Training load, peaks and zones of this ride', sizes: GRAPH, size: 'large', graph: true},
+    {id: 'map',                   name: 'Map',              description: 'Live GPS route and position', sizes: GRAPH, size: 'large', graph: true},
 ];
 
 const CARD = ['narrow', 'wide', 'full'];

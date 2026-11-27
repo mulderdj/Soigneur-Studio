@@ -60,6 +60,30 @@ describe('records to 1 s samples', () => {
     test('no records: an empty ride', () => {
         expect(samplesFromRecords([]).samples).toEqual([]);
     });
+
+    test('GPS semicircles and degrees decode cleanly; (0, 0) and invalid sentinels return null', () => {
+        const semi = deg => Math.round(deg * 2147483648 / 180);
+        const r = samplesFromRecords([
+            rec(0, {position_lat: semi(52.3676), position_long: semi(4.9041)}),
+            rec(1, {position_lat: 52.3702, position_long: 4.8952}),
+            rec(20, {position_lat: 0, position_long: 0}),
+            rec(40, {position_lat: 0x7fffffff, position_long: 0x7fffffff}),
+            rec(60, {position_lat: 95, position_long: 4.9}),
+            rec(80, {position_lat: NaN, position_long: 4.9}),
+        ]);
+        expect(r.samples[0].lat).toBeCloseTo(52.3676, 4);
+        expect(r.samples[0].lon).toBeCloseTo(4.9041, 4);
+        expect(r.samples[1].lat).toBeCloseTo(52.3702, 4);
+        expect(r.samples[1].lon).toBeCloseTo(4.8952, 4);
+        expect(r.samples[20].lat).toBeNull();
+        expect(r.samples[20].lon).toBeNull();
+        expect(r.samples[40].lat).toBeNull();
+        expect(r.samples[40].lon).toBeNull();
+        expect(r.samples[60].lat).toBeNull();
+        expect(r.samples[60].lon).toBeNull();
+        expect(r.samples[80].lat).toBeNull();
+        expect(r.samples[80].lon).toBeNull();
+    });
 });
 
 describe('reading a .fit', () => {
