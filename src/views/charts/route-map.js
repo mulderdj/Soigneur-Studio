@@ -357,7 +357,7 @@ function isLightTheme() {
 }
 
 const MAP_PROVIDERS = {
-    standard:      {label: 'Standard',      maxZoom: 18, attribution: '© OSM · CARTO'},
+    standard:      {label: 'Standard',      maxZoom: 16, attribution: '© Esri'},
     terrain:       {label: 'Terrain',       maxZoom: 17, attribution: '© OSM · OpenTopoMap'},
     cyclosm:       {label: 'CyclOSM',       maxZoom: 18, attribution: '© OSM · CyclOSM'},
     satellite:     {label: 'Satellite',     maxZoom: 18, attribution: '© Esri'},
@@ -413,8 +413,8 @@ function tileUrl(z, x, y, light, style = 'standard', cfg = {}) {
     }
     default:
         return light
-            ? `https://a.basemaps.cartocdn.com/rastertiles/voyager/${z}/${x}/${y}@2x.png`
-            : `https://a.basemaps.cartocdn.com/dark_all/${z}/${x}/${y}@2x.png`;
+            ? `https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/${z}/${y}/${x}`
+            : `https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/${z}/${y}/${x}`;
     }
 }
 

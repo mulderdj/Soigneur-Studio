@@ -530,7 +530,7 @@ class MapStyle extends Model {
         const self = this;
         self.values = ['standard', 'terrain', 'cyclosm', 'satellite', 'osm', 'thunderforest', 'custom'];
         self.labels = {
-            standard:      'Standard (CARTO)',
+            standard:      'Standard (Dark/Light)',
             terrain:       'Terrain (OpenTopoMap)',
             cyclosm:       'CyclOSM',
             satellite:     'Satellite (Esri)',

@@ -120,8 +120,8 @@ describe('Web Mercator helpers', () => {
     });
 
     test('tileUrl and tileRange support all map providers including API key and custom URL', () => {
-        expect(tileUrl(12, 2099, 1461, false, 'standard')).toContain('basemaps.cartocdn.com/dark_all/');
-        expect(tileUrl(12, 2099, 1461, true, 'standard')).toContain('basemaps.cartocdn.com/rastertiles/voyager/');
+        expect(tileUrl(12, 2099, 1461, false, 'standard')).toContain('World_Dark_Gray_Base/MapServer/tile/12/1461/2099');
+        expect(tileUrl(12, 2099, 1461, true, 'standard')).toContain('World_Light_Gray_Base/MapServer/tile/12/1461/2099');
         expect(tileUrl(12, 2099, 1461, false, 'terrain')).toBe('https://a.tile.opentopomap.org/12/2099/1461.png');
         expect(tileUrl(12, 2099, 1461, false, 'cyclosm')).toBe('https://a.tile-cyclosm.openstreetmap.fr/cyclosm/12/2099/1461.png');
         expect(tileUrl(12, 2099, 1461, false, 'satellite')).toBe('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/12/1461/2099');
