@@ -1,14 +1,16 @@
 // @ts-check
 //
 // Settings → Devices: show only connected or paired (saved) devices, with an
-// "+ Add device" button below to reveal and pair additional sensor types.
+// "+ Add device" button below to reveal and pair additional sensor types,
+// Forget actions for saved sensors, and an Auto-reconnect saved sensors toggle.
 //
 
 import { xf } from '../functions.js';
 import { sensors } from '../sensors.js';
 
 /**
- * Bind filtering and the "+ Add device" picker to a `.settings__devices` section.
+ * Bind filtering, saved-sensor controls, and the "+ Add device" picker
+ * to a `.settings__devices` section.
  * @param {HTMLElement|null} section
  * @returns {{refresh: () => void, destroy: () => void}|null}
  */
@@ -28,10 +30,20 @@ function initDeviceList(section) {
         const ids = switches.map(el => el.getAttribute('for')).filter(Boolean);
         const primary = ids[0] ?? '';
         const title = card.querySelector('.device-card--title')?.textContent?.trim() || primary;
-        return {card, ids, primary, title};
+
+        let $footer = /** @type {HTMLElement|null} */ (card.querySelector('.device-card--footer'));
+        if(!$footer) {
+            $footer = document.createElement('div');
+            $footer.className = 'device-card--footer';
+            $footer.hidden = true;
+            const $body = card.querySelector('.device-card--body');
+            ($body ?? card).append($footer);
+        }
+
+        return {card, ids, primary, title, $footer};
     }).filter(e => e.primary);
 
-    // Ensure empty note, Add button, and picker exist below the cards
+    // Ensure empty note, Add button, picker, and auto-reconnect toggle exist below the cards
     let $empty = /** @type {HTMLElement|null} */ (section.querySelector('.devices-empty'));
     if(!$empty) {
         $empty = document.createElement('p');
@@ -53,15 +65,25 @@ function initDeviceList(section) {
     let $picker = /** @type {HTMLElement|null} */ (section.querySelector('.devices-picker'));
     if(!$picker) {
         $picker = document.createElement('div');
-        $picker.className = 'card devices-picker';
+        $picker.className = 'devices-picker';
         $picker.hidden = true;
         section.append($picker);
     }
 
+    let $auto = /** @type {HTMLElement|null} */ (section.querySelector('.devices-auto'));
+    if(!$auto) {
+        $auto = document.createElement('label');
+        $auto.className = 'devices-auto';
+        $auto.innerHTML = '<input type="checkbox" class="devices-auto__input"> <span>Auto-reconnect saved sensors</span>';
+        $auto.hidden = true;
+        section.append($auto);
+    }
+    const $autoInput = /** @type {HTMLInputElement|null} */ ($auto.querySelector('.devices-auto__input'));
+
     let pickerOpen = false;
 
-    function pairedSet() {
-        return new Set(sensors.list().map(d => d.identifier));
+    function pairedMap() {
+        return new Map(sensors.list().map(d => [d.identifier, d]));
     }
 
     function isShown(entry, paired) {
@@ -85,18 +107,32 @@ function initDeviceList(section) {
             .join('');
     }
 
+    function renderFooter(entry, paired) {
+        const savedId = entry.ids.find(id => paired.has(id));
+        if(!savedId) {
+            entry.$footer.hidden = true;
+            entry.$footer.innerHTML = '';
+            return;
+        }
+        entry.$footer.hidden = false;
+        entry.$footer.innerHTML = `<button type="button" class="btn btn--quiet btn--danger device-card--forget" data-forget-device="${savedId}">Forget</button>`;
+    }
+
     function refresh() {
-        const paired = pairedSet();
+        const paired = pairedMap();
         let shownCount = 0;
         const hiddenEntries = [];
         for(const e of entries) {
             const show = isShown(e, paired);
             e.card.hidden = !show;
+            renderFooter(e, paired);
             if(show) shownCount++;
             else hiddenEntries.push(e);
         }
         if($empty) $empty.hidden = shownCount > 0;
         renderPicker(hiddenEntries);
+        if($auto) $auto.hidden = paired.size === 0;
+        if($autoInput) $autoInput.checked = sensors.isAuto();
     }
 
     // Track live connection state for every device role in the section
@@ -127,6 +163,22 @@ function initDeviceList(section) {
         refresh();
         xf.dispatch(`ui:${id}:switch`);
     }, signal);
+
+    section.addEventListener('click', ev => {
+        const target = /** @type {HTMLElement|null} */ (ev.target);
+        const btn = /** @type {HTMLElement|null} */ (target?.closest('[data-forget-device]'));
+        if(!btn) return;
+        const id = btn.dataset.forgetDevice;
+        if(!id) return;
+        revealed.delete(id);
+        sensors.forget(id);
+    }, signal);
+
+    if($autoInput) {
+        $autoInput.addEventListener('change', () => {
+            sensors.setAuto($autoInput.checked);
+        }, signal);
+    }
 
     refresh();
 

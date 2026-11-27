@@ -70,6 +70,19 @@ describe('<sensor-panel>', () => {
         open('ble:heartRateMonitor');
         expect(q(el, '[data-k="title"]').textContent).toBe('Heart rate');
     });
+
+    test('"All sensors" closes the panel and navigates to Settings', () => {
+        const el = mount();
+        const pages = [];
+        const ac = new AbortController();
+        xf.sub('ui:page-set', p => pages.push(p), {signal: ac.signal});
+        open('ble:controllable');
+        expect(q(el, 'dialog').hasAttribute('open')).toBe(true);
+        q(el, '[data-sp="all"]').click();
+        expect(q(el, 'dialog').hasAttribute('open')).toBe(false);
+        expect(pages).toEqual(['settings']);
+        ac.abort();
+    });
 });
 
 describe('the trainer controls while the panel is closed', () => {

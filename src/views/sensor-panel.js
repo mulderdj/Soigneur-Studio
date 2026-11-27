@@ -2,7 +2,7 @@
 // <sensor-panel>: the small panel under a sensor button in the Ride header.
 // Status, the device, its battery when it reports one, Connect / Disconnect,
 // and for the trainer its mode (ERG, Resistance, Slope), the mode lock and
-// the target. "All sensors" opens the rider menu's Sensors tab.
+// the target. "All sensors" opens Settings.
 //
 // A <connection-switch data-panel> or a <sensor-tray> button asks for it with
 // 'ui:sensor-panel' {for, anchor}; "+N" asks with {for: 'more', ids}: a list
@@ -87,8 +87,7 @@ class SensorPanel extends HTMLElement {
         if(b.dataset.sp === 'close') this.close();
         if(b.dataset.sp === 'all') {
             this.close();
-            const menu = document.querySelector('rider-menu');
-            if(menu) { menu.tab = 'sensors'; menu.open?.(); }
+            xf.dispatch('ui:page-set', 'settings');
         }
     }
 
