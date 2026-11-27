@@ -1,113 +1,139 @@
-import { exists, equals, first, toFixed, } from '../functions.js';
-import { FITjs } from './fitjs.js';
+// @ts-check
+//
+// Soigneur FIT Course Decoder powered by Garmin's official @garmin/fitsdk.
+//
+// Decodes a binary .fit course into { meta, points, pointsSimplified } for
+// indoor elevation simulation (src/course.js) and route previews.
+//
+
+import { decodeFit } from './decoder.js';
 import { g } from '../views/graph.js';
 
+/** @typedef {{ x: number, y: number, r: number, slope: number, distance: number, position_lat?: number, position_long?: number }} CoursePoint */
+
+/**
+ * Simplify raw course points with Ramer-Douglas-Peucker and compute segment run/slope.
+ * @param {CoursePoint[]} points
+ * @param {number} distance
+ * @param {string} name
+ * @param {string} description
+ */
 function toCourse(points, distance, name, description) {
-    const pointsSimplified = g.simplify(points, 0.5, true).map((p, i, xs) => {
-        const x1 = xs[i].x;
-        const y1 = xs[i].y;
-        const x2 = (xs[i+1]?.x ?? xs[i].x);
-        const y2 = (xs[i+1]?.y ?? xs[i].y);
-        const run = x2 - x1;
-        const rise = y2 - y1;
-        const r = Math.sqrt(run**2 + rise**2);
-        const slope = equals(run, 0) ? 0 : (100 * (rise/run));
-        xs[i].r = r;
-        xs[i].slope = slope;
-        return xs[i];
+    const simplified = /** @type {CoursePoint[]} */ (g.simplify(points, 0.5, true)).map((p, i, xs) => {
+        const x1 = p.x;
+        const y1 = p.y;
+        const next = xs[i + 1] ?? p;
+        const run = next.x - x1;
+        const rise = next.y - y1;
+        const r = Math.sqrt(run ** 2 + rise ** 2);
+        const slope = run === 0 ? 0 : 100 * (rise / run);
+        return {...p, r, slope};
     });
 
     return {
         meta: {
-            name: name ?? 'Course',
+            name: name || 'Course',
             author: 'n/a',
             category: 'Course',
-            description: description,
+            description,
             distance,
         },
-        // id: 0,
         points,
-        pointsSimplified,
+        pointsSimplified: simplified,
     };
 }
 
-function isDataRecord(x) {
-    return equals(x.type, 'data') && equals(x.name, 'record');
+/**
+ * Resolve human-readable course name from the FIT `course` message or fallback filename.
+ * @param {Array<{ name: string, fields: Record<string, any> }>} messages
+ * @param {string} [fileName]
+ * @returns {string}
+ */
+function resolveCourseName(messages, fileName = '') {
+    const courseMsg = messages.find(m => m.name === 'course' && typeof m.fields?.name === 'string' && m.fields.name.trim() !== '');
+    const raw = courseMsg?.fields?.name ?? fileName ?? 'Course';
+    return String(raw).replace(/\.fit$/gi, '').replace(/[_-]/g, ' ').trim() || 'Course';
 }
 
-function hasAltitude(x) {
-    return exists(x.fields.altitude);
+/**
+ * Extract altitude (m) from a FIT record's fields, preferring standard altitude then enhanced_altitude.
+ * @param {Record<string, any> | undefined} fields
+ * @returns {number | undefined}
+ */
+function recordAltitude(fields) {
+    if(!fields) return undefined;
+    if(Number.isFinite(fields.altitude)) return fields.altitude;
+    if(Number.isFinite(fields.enhanced_altitude)) return fields.enhanced_altitude;
+    return undefined;
 }
 
-function hasDistance(x) {
-    return exists(x.fields.distance);
-}
+/**
+ * Decode a binary .fit course payload into { meta, points, pointsSimplified }.
+ * @param {ArrayBuffer | ArrayBufferView} view
+ * @param {string} [fileName]
+ */
+function decode(view, fileName = '') {
+    const messages = decodeFit(view);
+    const name = resolveCourseName(messages, fileName);
+    const description = '';
 
-function isCourseDataMessage(x) {
-    return equals(x.type, 'data') && equals(x.message, 'course');
-}
+    const dataRecords = messages.filter(m => m.name === 'record' && Number.isFinite(m.fields?.distance));
+    if(dataRecords.length === 0) {
+        return toCourse([], 0, name, description);
+    }
 
-function courseName(course, fileName) {
-    const courseDataMessage = course.find(isCourseDataMessage);
-    const name = courseDataMessage?.fields?.name ?? fileName;
-    return name.replace(/.fit/gi, '').replace(/_|-/gi, ' ');
-}
+    let prevAltitude = 0;
+    for(const rec of dataRecords) {
+        const alt = recordAltitude(rec.fields);
+        if(alt !== undefined) {
+            prevAltitude = alt;
+            break;
+        }
+    }
 
-function decode(view, fileName) {
-    const courseJS = FITjs.decode(view);
-    console.log(courseJS);
-
-    const name = courseName(courseJS, fileName);
-    const author = `n/a`;
-    const description = ``;
+    const altitudes = dataRecords.map(rec => {
+        const alt = recordAltitude(rec.fields);
+        if(alt !== undefined) prevAltitude = alt;
+        return prevAltitude;
+    });
 
     let distanceTotal = 0;
     let x = 0;
+    /** @type {CoursePoint[]} */
+    const points = [];
 
-    const dataRecords = courseJS.filter(r => isDataRecord(r) && hasDistance(r));
-    const altitudeRecords = dataRecords.filter(hasAltitude);
+    for(let i = 0; i < dataRecords.length; i++) {
+        const fields = dataRecords[i].fields;
+        const altitude = altitudes[i];
+        const altitudeNext = altitudes[i + 1] ?? altitude;
+        const distance = fields.distance;
+        const distanceNext = dataRecords[i + 1]?.fields?.distance ?? distance;
 
-    let prevAltitude = first(altitudeRecords).fields.altitude;
+        const rise = altitudeNext - altitude;
+        const r = distanceNext - distance;
+        const run = r === 0 ? 0 : Math.sqrt(Math.abs(r ** 2 - rise ** 2));
+        const slope = run === 0 ? 0 : 100 * (rise / run);
 
-    const points = dataRecords.reduce((acc, m, i, xs) => {
-        if(!exists(m.fields.altitude)) {
-            m.fields.altitude = prevAltitude;
-            console.log(prevAltitude);
-        } else {
-            prevAltitude = m.fields.altitude;
-        }
-
-        const altitude     = m.fields.altitude;
-        const altitudeNext = xs[i+1]?.fields?.altitude ?? m.fields.altitude;
-
-        const distance = m.fields.distance;
-        const distanceNext = xs[i+1]?.fields?.distance ?? m.fields.distance;
-
-        const rise  = altitudeNext - altitude;
-        const r     = distanceNext - distance;
-        const run   = equals(r, 0) ? 0 : Math.sqrt(Math.abs(r**2 - rise**2));
-        const slope = equals(run, 0) ? 0 : 100 * (rise/run);
-
-        acc.push({
+        points.push({
             x,
             y: altitude,
             r,
             slope,
             distance,
-            position_lat: m.fields.position_lat,
-            position_long: m.fields.position_long,
+            position_lat: fields.position_lat,
+            position_long: fields.position_long,
         });
+
         x += run;
         distanceTotal = distance;
-        return acc;
-    }, []);
+    }
 
     return toCourse(points, distanceTotal, name, description);
 }
 
-const localCourse = {
+const localCourse = Object.freeze({
     decode,
-};
+});
 
 export {
     localCourse,
