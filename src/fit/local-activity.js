@@ -188,10 +188,24 @@ function LocalActivity(args = {}) {
         return type.timestamp.elapsed(lap.start_time, lap.timestamp);
     }
 
+    const SEMICIRCLES_PER_DEGREE = 2147483648 / 180;
+
     function hasValidGps(record) {
         return Number.isFinite(record?.position_lat) &&
                Number.isFinite(record?.position_long) &&
                !(record.position_lat === 0 && record.position_long === 0);
+    }
+
+    function toFitPosition(lat, lon) {
+        // Coordinates within degree bounds are converted to FIT semicircles;
+        // larger magnitudes are already in semicircles (e.g. FIT courses).
+        if(Math.abs(lat) <= 90 && Math.abs(lon) <= 180) {
+            return {
+                lat: Math.round(lat * SEMICIRCLES_PER_DEGREE),
+                lon: Math.round(lon * SEMICIRCLES_PER_DEGREE),
+            };
+        }
+        return {lat: Math.round(lat), lon: Math.round(lon)};
     }
 
     // Normalize records before encoding so absent sensors and indoor (0, 0)
@@ -208,12 +222,13 @@ function LocalActivity(args = {}) {
         return records.map(r => {
             if(!r || r.time !== undefined) return r;
             const gps = hasValidGps(r);
+            const pos = gps ? toFitPosition(r.position_lat, r.position_long) : null;
             const moxy = (Number.isFinite(r.total_hemoglobin_conc) && r.total_hemoglobin_conc > 0) ||
                          (Number.isFinite(r.saturated_hemoglobin_percent) && r.saturated_hemoglobin_percent > 0);
             return {
                 ...r,
-                position_lat:  gps ? r.position_lat : undefined,
-                position_long: gps ? r.position_long : undefined,
+                position_lat:  pos ? pos.lat : undefined,
+                position_long: pos ? pos.lon : undefined,
                 altitude:      rideHasElevation && Number.isFinite(r.altitude) ? r.altitude : undefined,
                 grade:         rideHasElevation && Number.isFinite(r.grade) ? r.grade : undefined,
                 heart_rate:    Number.isFinite(r.heart_rate) && r.heart_rate > 0 ? r.heart_rate : undefined,

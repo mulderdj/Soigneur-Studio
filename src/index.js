@@ -3,6 +3,7 @@ import './db.js';
 import './views/views.js';
 import './ble/devices.js';
 import './ble/obc/controls.js';
+import './gps.js';
 import './watch.js';
 import { startPowerMatch } from './power-match.js';
 import { startFuelling } from './fuelling.js';

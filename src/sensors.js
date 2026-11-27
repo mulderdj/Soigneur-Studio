@@ -23,6 +23,7 @@ const ROLES = {
     'ble:smo2':               'Moxy',
     'ble:coreTemp':           'Core temperature',
     'ble:openBikeControl':    'Bike controls',
+    'gps':                    'GPS',
 };
 
 const FLAG_URL = 'chrome://flags/#enable-web-bluetooth-new-permissions-backend';
@@ -75,9 +76,15 @@ function isAuto() {
 
 // asks each saved role to reconnect; results arrive as 'sensor:reconnect-result'
 function reconnectAll() {
-    if(!canReconnect()) return false;
-    list().forEach(d => xf.dispatch(`ui:${d.identifier}:reconnect`, d.id));
-    return true;
+    const canBle = canReconnect();
+    let dispatched = false;
+    list().forEach(d => {
+        if(d.identifier === 'gps' || canBle) {
+            xf.dispatch(`ui:${d.identifier}:reconnect`, d.id);
+            dispatched = true;
+        }
+    });
+    return canBle || dispatched;
 }
 
 xf.sub('sensor:connected', ({identifier, id, name}) => {
