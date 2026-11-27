@@ -15,6 +15,6 @@ module.exports = {
         }]
     },
     "transformIgnorePatterns": [
-        "/node_modules/(?!@material/material-color-utilities/)"
+        "/node_modules/(?!(@material/material-color-utilities|@garmin/fitsdk|web-ant-plus)/)"
     ]
 };

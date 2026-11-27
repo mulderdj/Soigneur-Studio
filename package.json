@@ -31,9 +31,11 @@
         "vite": "^8.4.0"
     },
     "dependencies": {
+        "@garmin/fitsdk": "^21.222.0",
         "@material/material-color-utilities": "^0.4.0",
         "@modelcontextprotocol/sdk": "1.32.2",
         "uplot": "^1.6.32",
+        "web-ant-plus": "^2.1.0",
         "zod": "4.6.7"
     }
 }
