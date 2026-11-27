@@ -12,11 +12,13 @@
 //
 
 import { zoneIndex } from '../../analytics.js';
+import { xf } from '../../functions.js';
 
 const MAX_LAT = 85.05112878;
 const TILE_SIZE = 256;
 const MAX_CACHE = 128;
 const MAX_TILES = 64;
+const TERRAIN_MAX_ZOOM = 17;
 
 /** @type {Map<string, {img: HTMLImageElement, status: 'loading' | 'ready' | 'error'}>} */
 const tileCache = new Map();
@@ -106,9 +108,10 @@ function fitBounds(points, width, height, pad = 28) {
 /**
  * Compute the list of slippy map tiles covering a fitted viewport.
  * @param {ReturnType<typeof fitBounds>} view
+ * @param {number} [maxZoom=18]
  */
-function tileRange(view) {
-    const z = view.tileZoom;
+function tileRange(view, maxZoom = 18) {
+    const z = Math.min(view.tileZoom, maxZoom);
     const n = Math.pow(2, z);
     const halfW = (view.width / 2) / view.scale;
     const halfH = (view.height / 2) / view.scale;
@@ -142,13 +145,21 @@ function isLightTheme() {
     return false;
 }
 
+function currentMapStyle() {
+    return document.body?.dataset?.mapStyle === 'terrain' ? 'terrain' : 'standard';
+}
+
 /**
  * @param {number} z
  * @param {number} x
  * @param {number} y
  * @param {boolean} light
+ * @param {'standard' | 'terrain'} [style='standard']
  */
-function tileUrl(z, x, y, light) {
+function tileUrl(z, x, y, light, style = 'standard') {
+    if(style === 'terrain') {
+        return `https://a.tile.opentopomap.org/${z}/${x}/${y}.png`;
+    }
     return light
         ? `https://a.basemaps.cartocdn.com/rastertiles/voyager/${z}/${x}/${y}@2x.png`
         : `https://a.basemaps.cartocdn.com/dark_all/${z}/${x}/${y}@2x.png`;
@@ -187,6 +198,10 @@ class RouteMap extends HTMLElement {
         this._pending = false;
         /** @type {HTMLCanvasElement | null} */
         this.$canvas = null;
+        /** @type {HTMLButtonElement | null} */
+        this.$styleBtn = null;
+        /** @type {'standard' | 'terrain' | null} */
+        this._mapStyle = null;
         /** @type {ResizeObserver | null} */
         this._resize = null;
         /** @type {MutationObserver | null} */
@@ -203,15 +218,54 @@ class RouteMap extends HTMLElement {
             this.$canvas.style.height = '100%';
             this.append(this.$canvas);
         }
+        if(!this.$styleBtn) {
+            this.$styleBtn = document.createElement('button');
+            this.$styleBtn.type = 'button';
+            this.$styleBtn.className = 'rm-style-btn';
+            this.$styleBtn.setAttribute('aria-label', 'Switch map style');
+            this.$styleBtn.addEventListener('click', () => {
+                if(this._mapStyle) {
+                    this.setMapStyle(this._mapStyle === 'terrain' ? 'standard' : 'terrain');
+                } else {
+                    xf.dispatch('ui:mapStyle-switch');
+                }
+            });
+            this.append(this.$styleBtn);
+        }
+        this._syncStyleBtn();
         if(typeof ResizeObserver === 'function') {
             this._resize = new ResizeObserver(() => this.scheduleDraw());
             this._resize.observe(this);
         }
         if(typeof MutationObserver === 'function' && document.body) {
-            this._theme = new MutationObserver(() => this.scheduleDraw());
-            this._theme.observe(document.body, {attributes: true, attributeFilter: ['class', 'data-palette']});
+            this._theme = new MutationObserver(() => {
+                this._syncStyleBtn();
+                this.scheduleDraw();
+            });
+            this._theme.observe(document.body, {attributes: true, attributeFilter: ['class', 'data-palette', 'data-map-style']});
         }
         this.draw();
+    }
+
+    /** @returns {'standard' | 'terrain'} */
+    getMapStyle() {
+        return this._mapStyle ?? currentMapStyle();
+    }
+
+    /** @param {'standard' | 'terrain' | null} style */
+    setMapStyle(style) {
+        this._mapStyle = style === 'terrain' || style === 'standard' ? style : null;
+        this._syncStyleBtn();
+        this.scheduleDraw();
+    }
+
+    _syncStyleBtn() {
+        if(!this.$styleBtn) return;
+        const style = this.getMapStyle();
+        const isTerrain = style === 'terrain';
+        this.$styleBtn.textContent = isTerrain ? 'Terrain' : 'Map';
+        this.$styleBtn.setAttribute('aria-pressed', String(isTerrain));
+        this.$styleBtn.title = isTerrain ? 'Switch to standard map' : 'Switch to terrain map';
     }
 
     disconnectedCallback() {
@@ -354,14 +408,17 @@ class RouteMap extends HTMLElement {
             : this._points;
 
         if(all.length === 0) {
+            if(this.$styleBtn) this.$styleBtn.hidden = true;
             this._drawGrid(ctx, w, h, c.line);
             ctx.restore();
             return;
         }
+        if(this.$styleBtn) this.$styleBtn.hidden = false;
 
         const pad = Math.min(32, Math.round(Math.min(w, h) * 0.12));
         const view = fitBounds(all, w, h, pad);
-        const drewTiles = this._drawBasemap(ctx, view);
+        const mapStyle = this.getMapStyle();
+        const drewTiles = this._drawBasemap(ctx, view, mapStyle);
         if(!drewTiles) {
             this._drawGrid(ctx, w, h, c.line);
         }
@@ -399,7 +456,7 @@ class RouteMap extends HTMLElement {
         }
 
         if(drewTiles) {
-            this._drawAttribution(ctx, w, h, c);
+            this._drawAttribution(ctx, w, h, c, mapStyle);
         }
 
         ctx.restore();
@@ -433,15 +490,17 @@ class RouteMap extends HTMLElement {
     /**
      * @param {CanvasRenderingContext2D} ctx
      * @param {ReturnType<typeof fitBounds>} view
+     * @param {'standard' | 'terrain'} [style='standard']
      * @returns {boolean}
      */
-    _drawBasemap(ctx, view) {
+    _drawBasemap(ctx, view, style = 'standard') {
         if(typeof navigator !== 'undefined' && navigator.onLine === false) return false;
         const light = isLightTheme();
-        const tiles = tileRange(view);
+        const maxZoom = style === 'terrain' ? TERRAIN_MAX_ZOOM : 18;
+        const tiles = tileRange(view, maxZoom);
         let drewAny = false;
         for(const t of tiles) {
-            const url = tileUrl(t.z, t.x, t.y, light);
+            const url = tileUrl(t.z, t.x, t.y, light, style);
             const entry = this._requestTile(url);
             if(entry && entry.status === 'ready') {
                 try {
@@ -615,11 +674,12 @@ class RouteMap extends HTMLElement {
      * @param {number} w
      * @param {number} h
      * @param {ReturnType<RouteMap['_colors']>} c
+     * @param {'standard' | 'terrain'} [style='standard']
      */
-    _drawAttribution(ctx, w, h, c) {
+    _drawAttribution(ctx, w, h, c, style = 'standard') {
         ctx.save();
         ctx.font = '10px system-ui, -apple-system, sans-serif';
-        const text = '© OSM · CARTO';
+        const text = style === 'terrain' ? '© OSM · OpenTopoMap' : '© OSM · CARTO';
         const tw = ctx.measureText ? ctx.measureText(text).width : 76;
         const px = 6, py = 3;
         const bx = w - tw - px * 2 - 4;
@@ -639,4 +699,4 @@ if(!customElements.get('route-map')) {
     customElements.define('route-map', RouteMap);
 }
 
-export { RouteMap, projectPoint, fitBounds, tileRange };
+export { RouteMap, projectPoint, fitBounds, tileRange, tileUrl };

@@ -3,7 +3,7 @@
  */
 import '../training/browser-stubs.js';
 import { xf } from '../../src/functions.js';
-import { RouteMap, projectPoint, fitBounds, tileRange } from '../../src/views/charts/route-map.js';
+import { RouteMap, projectPoint, fitBounds, tileRange, tileUrl } from '../../src/views/charts/route-map.js';
 import { RideMap } from '../../src/views/ride-map.js';
 import { RidePage } from '../../src/views/analysis/ride-page.js';
 import { RideChart } from '../../src/views/analysis/ride-chart.js';
@@ -116,6 +116,19 @@ describe('Web Mercator helpers', () => {
             expect(t.x).toBeGreaterThanOrEqual(0);
             expect(t.y).toBeGreaterThanOrEqual(0);
             expect(t.size).toBeGreaterThan(0);
+        }
+    });
+
+    test('tileUrl and tileRange support terrain tiles with max zoom 17', () => {
+        expect(tileUrl(12, 2099, 1461, false, 'standard')).toContain('basemaps.cartocdn.com/dark_all/');
+        expect(tileUrl(12, 2099, 1461, true, 'standard')).toContain('basemaps.cartocdn.com/rastertiles/voyager/');
+        expect(tileUrl(12, 2099, 1461, false, 'terrain')).toBe('https://a.tile.opentopomap.org/12/2099/1461.png');
+
+        const closeView = fitBounds([{lat: 52.3676, lon: 4.9041}, {lat: 52.3677, lon: 4.9042}], 400, 300, 24);
+        const terrainTiles = tileRange(closeView, 17);
+        expect(terrainTiles.length).toBeGreaterThan(0);
+        for(const t of terrainTiles) {
+            expect(t.z).toBeLessThanOrEqual(17);
         }
     });
 });

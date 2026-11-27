@@ -1555,8 +1555,18 @@ function applyPalette(palette) {
     updateThemeColor(currentThemeMode(), palette);
 }
 
+function applyMapStyle(style) {
+    if(typeof document === 'undefined' || !document.body) return;
+    if(style === 'terrain') {
+        document.body.dataset.mapStyle = 'terrain';
+    } else {
+        delete document.body.dataset.mapStyle;
+    }
+}
+
 if(typeof window !== 'undefined') {
     xf.sub('db:palette', applyPalette);
+    xf.sub('db:mapStyle', applyMapStyle);
     xf.sub('db:sources', s => { if(s?.theme) applyThemeMode(s.theme); });
     if(typeof window.matchMedia === 'function') {
         const mq = window.matchMedia('(prefers-color-scheme: light)');
@@ -1629,6 +1639,36 @@ class PaletteLayout extends DataView {
 }
 
 customElements.define('palette-layout', PaletteLayout);
+
+class MapStyleLayout extends DataView {
+    postInit() {
+        this.state = models.mapStyle.default;
+    }
+    getDefaults() {
+        return {
+            prop: 'db:mapStyle',
+        };
+    }
+    subs() {
+        this.state = models.mapStyle.state || models.mapStyle.default;
+        this.render();
+        xf.sub(`${this.prop}`, this.onUpdate.bind(this), this.signal);
+        this.addEventListener('pointerup', this.onEffect.bind(this), this.signal);
+    }
+    onUpdate(value) {
+        this.state = models.mapStyle.isValid(value) ? value : models.mapStyle.default;
+        this.render();
+    }
+    onEffect() {
+        xf.dispatch('ui:mapStyle-switch');
+    }
+    render() {
+        this.textContent = models.mapStyle.label(this.state);
+        applyMapStyle(this.state);
+    }
+}
+
+customElements.define('map-style-layout', MapStyleLayout);
 
 class SoundControl extends DataView {
     postInit() {

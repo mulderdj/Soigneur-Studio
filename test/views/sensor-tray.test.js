@@ -24,7 +24,7 @@ describe('fit', () => {
 });
 
 describe('<sensor-tray>', () => {
-    afterEach(() => ['ant:hrm', 'ble:powerMeter', 'ble:speedCadenceSensor', 'ble:smo2', 'ble:coreTemp', 'ble:openBikeControl']
+    afterEach(() => ['ant:hrm', 'ble:powerMeter', 'ble:speedCadenceSensor', 'ble:smo2', 'ble:coreTemp', 'ble:openBikeControl', 'gps']
         .forEach(id => xf.dispatch(`${id}:disconnected`)));
 
     test('nothing in use: hidden', () => {
@@ -68,5 +68,21 @@ describe('<sensor-tray>', () => {
         ['ble:powerMeter', 'ble:speedCadenceSensor', 'ble:smo2', 'ble:coreTemp'].forEach(id => xf.dispatch(`${id}:connected`));
         expect(ids(el)).toHaveLength(4);
         expect(el.querySelector('[data-more]')).toBeNull();
+    });
+
+    test('GPS shows in the tray while connecting/connected and opens its sensor panel', () => {
+        phone(true);
+        const el = mount();
+        xf.dispatch('gps:connecting');
+        expect(ids(el)).toEqual(['gps']);
+        expect(el.querySelector('.hdr-icon__dot').classList.contains('loading')).toBe(true);
+        xf.dispatch('gps:connected');
+        expect(el.querySelector('.hdr-icon__dot').classList.contains('on')).toBe(true);
+        el.querySelector('[data-sensor="gps"]').click();
+        const panel = document.querySelector('sensor-panel');
+        expect(panel.querySelector('[data-k="title"]').textContent).toBe('GPS');
+        expect(panel.querySelector('[data-k="status"]').textContent).toBe('Connected');
+        xf.dispatch('gps:disconnected');
+        expect(el.hidden).toBe(true);
     });
 });

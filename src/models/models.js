@@ -500,6 +500,36 @@ class Palette extends Model {
     }
 }
 
+class MapStyle extends Model {
+    postInit(args = {}) {
+        const self = this;
+        self.values = ['standard', 'terrain'];
+        self.labels = {
+            standard: 'Standard',
+            terrain: 'Terrain',
+        };
+        const storageModel = {
+            key: self.prop,
+            fallback: self.defaultValue(),
+            isValid: (v) => self.defaultIsValid(v),
+        };
+        self.state = self.default;
+        self.storage = new args.storage(storageModel);
+    }
+    defaultValue() { return 'standard'; }
+    defaultIsValid(value) { return this.values.includes(value); }
+    label(value) { return this.labels[value] ?? this.labels.standard; }
+    switch(style) {
+        const self = this;
+        const idx = self.values.indexOf(style);
+        if(idx === -1) {
+            self.onInvalid(style);
+            return self.set(self.default);
+        }
+        return self.set(self.values[(idx + 1) % self.values.length]);
+    }
+}
+
 class Measurement extends Model {
     postInit(args = {}) {
         const self = this;
@@ -1554,6 +1584,7 @@ const ftp = new FTP({prop: 'ftp', storage: LocalStorageItem});
 const weight = new Weight({prop: 'weight', storage: LocalStorageItem});
 const theme = new Theme({prop: 'theme', storage: LocalStorageItem});
 const palette = new Palette({prop: 'palette', storage: LocalStorageItem});
+const mapStyle = new MapStyle({prop: 'mapStyle', storage: LocalStorageItem});
 const volume = new Volume({prop: 'volume', storage: LocalStorageItem});
 const measurement = new Measurement({prop: 'measurement', storage: LocalStorageItem});
 const dataTileSwitch = new DataTileSwitch({prop: 'dataTileSwitch', storage: LocalStorageItem});
@@ -1607,6 +1638,7 @@ let models = {
     volume,
     theme,
     palette,
+    mapStyle,
     measurement,
     dataTileSwitch,
 
