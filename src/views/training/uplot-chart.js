@@ -160,6 +160,7 @@ class UPlotCard extends HTMLElement {
         const font = `11px ${token(this, '--font-text', 'system-ui')}`;
         const axis = {stroke: muted, font, grid: {stroke: line, width: 1}, ticks: {show: false}};
         const bars = U.paths?.bars ? U.paths.bars({size: [0.7, 48], align: 0}) : null;
+        const spline = U.paths?.spline ? U.paths.spline() : null;
         const time = model.time !== false;
         const y2 = model.series.some(s => s.scale === 'y2');
         const series = [{}, ...model.series.map(s => ({
@@ -169,10 +170,10 @@ class UPlotCard extends HTMLElement {
             width: s.width ?? (s.kind === 'bars' ? 0 : 2),
             dash: s.dash,
             scale: s.scale === 'y2' ? 'y2' : 'y',
-            // points: no line between them (a scatter)
-            paths: s.kind === 'bars' ? bars : s.kind === 'points' ? () => null : undefined,
+            // points: no line between them (a scatter); smooth: monotone spline
+            paths: s.kind === 'bars' ? bars : s.kind === 'points' ? () => null : (s.smooth && spline ? spline : undefined),
             points: {show: !!s.points || s.kind === 'points', size: s.kind === 'points' ? 7 : 6, fill: s.color, stroke: s.color},
-            spanGaps: false,
+            spanGaps: !!s.spanGaps,
         }))];
         // a window of days only for a time axis (reps, watts: their own range)
         const span = model.time === false ? null : rangeWindow(model.x, this.range ?? 'all', model.today ?? model.x[model.x.length - 1]);

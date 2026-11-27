@@ -120,13 +120,13 @@ function healthSmoothDays(range, days) {
 }
 
 // Trailing calendar-day rolling mean for wellness metrics (HRV, resting HR).
-// Preserves null on nights without a reading when windowDays === 1.
+// Bridges missing nights using available readings in the window so the trend
+// line stays continuous without gaps.
 function rollingWellness(days, key, windowDays) {
     if(windowDays <= 1) return days.map(d => (has(d[key]) ? d[key] : null));
     const secs = days.map(d => daySec(d.day));
     const span = (windowDays - 1) * 86400;
     return days.map((d, i) => {
-        if(!has(d[key])) return null;
         const from = secs[i] - span;
         let sum = 0, count = 0;
         for(let j = i; j >= 0 && secs[j] >= from; j--) {
@@ -149,10 +149,10 @@ function healthChart(data, colors = {}, range = '3m') {
     const model = {
         x: days.map(d => daySec(d.day)),
         series: [
-            {label: 'Range high', color: 'transparent', width: 0, values: ranges.map(r => r?.high ?? null)},
-            {label: 'Range low', color: 'transparent', width: 0, values: ranges.map(r => r?.low ?? null)},
-            {label: 'HRV', color: colors.accent, width: 2.5, values: hrvLine},
-            {label: 'Resting HR', color: colors.hr, width: 1.5, values: rhrLine},
+            {label: 'Range high', color: 'transparent', width: 0, spanGaps: true, smooth: true, values: ranges.map(r => r?.high ?? null)},
+            {label: 'Range low', color: 'transparent', width: 0, spanGaps: true, smooth: true, values: ranges.map(r => r?.low ?? null)},
+            {label: 'HRV', color: colors.accent, width: 2.5, spanGaps: true, smooth: true, values: hrvLine},
+            {label: 'Resting HR', color: colors.hr, width: 1.5, spanGaps: true, smooth: true, values: rhrLine},
         ],
         bands: [[1, 2, colors.band]],
         ranges: [['1m', '1 month'], ['3m', '3 months'], ['all', 'All']],

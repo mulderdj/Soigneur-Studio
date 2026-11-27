@@ -117,6 +117,12 @@ describe('health chart', () => {
         const r = m3.readout(longHistory.length - 1);
         expect(r.rows[0].value).toBe('50 ms');
         expect(r.more[0]).toMatch(/7-day avg: HRV 54 ms · RHR 52 bpm/);
+        // Smooth spline & continuous line across missing nights (no gaps)
+        expect(m3.model.series[2].spanGaps).toBe(true);
+        expect(m3.model.series[2].smooth).toBe(true);
+        const withGap = [night('2026-11-10', {hrv: 60}), {day: '2026-11-11', hrv: null, restingHr: null}, night('2026-11-12', {hrv: 64})];
+        const mGap = healthChart({today: '2026-11-12', wellness: withGap}, colors, '3m');
+        expect(mGap.model.series[2].values[1]).toBe(60);
     });
 });
 
