@@ -248,7 +248,14 @@ function sizeForWidth(w, kind = 'ride') {
     return w >= 10 ? 'large' : w >= 6 ? 'wide' : 'small';
 }
 
+function gridColsFor(width, layoutName = 'desktop', kind = 'ride') {
+    if(screenClass(layoutName) === 'phone') return GRID_COLS;
+    const w = Number(width) || 1200;
+    if(kind === 'training') return w >= 1080 ? 12 : w >= 760 ? 8 : 4;
+    return w >= 1100 ? 12 : w >= 840 ? 9 : 6;
+}
+
 export {
     RIDE_TILES, TRAINING_CARDS, RIDE_BY_ID, CARD_BY_ID, MAX_SCREENS, GRID_COLS, MAX_ROW_SPAN,
-    defaultLayouts, readLayout, screenClass, columnsFor, spanFor, widthFor, heightFor, sizeForWidth,
+    defaultLayouts, readLayout, screenClass, columnsFor, spanFor, widthFor, heightFor, sizeForWidth, gridColsFor,
 };

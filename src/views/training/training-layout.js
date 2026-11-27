@@ -12,7 +12,7 @@
 
 import { xf } from '../../functions.js';
 import { layouts } from '../../layout/store.js';
-import { TRAINING_CARDS, CARD_BY_ID, GRID_COLS, MAX_ROW_SPAN, defaultLayouts, screenClass, widthFor, heightFor, sizeForWidth } from '../../layout/tiles.js';
+import { TRAINING_CARDS, CARD_BY_ID, GRID_COLS, MAX_ROW_SPAN, defaultLayouts, screenClass, widthFor, heightFor, sizeForWidth, gridColsFor } from '../../layout/tiles.js';
 import { currentLayout } from '../layout.js';
 import { LayoutEditor, editList } from '../layout-editor.js';
 import { confirmAction } from '../confirm.js';
@@ -61,10 +61,17 @@ class TrainingLayout {
         xf.sub('layouts:changed', () => { if(!this.editing) this.apply(); });
         window.addEventListener('resize', () => {
             const cls = screenClass(currentLayout());
-            if(cls === this.cls) return;
-            if(this.editing) this.cancel();
-            this.apply();
+            if(cls !== this.cls) {
+                if(this.editing) this.cancel();
+                this.apply();
+                return;
+            }
+            this.syncCols();
         });
+        if(typeof ResizeObserver === 'function') {
+            this.ro = new ResizeObserver(() => this.syncCols());
+            this.ro.observe(this.$grid);
+        }
         this.apply();
     }
 
@@ -81,9 +88,29 @@ class TrainingLayout {
         });
     }
 
+    columns(layoutName = currentLayout()) {
+        const width = this.$grid?.clientWidth || window.innerWidth;
+        return gridColsFor(width, layoutName, 'training');
+    }
+
+    syncCols() {
+        const layoutName = currentLayout();
+        const cols = this.columns(layoutName);
+        if(this.$grid.style.getPropertyValue('--cols') === String(cols)) return;
+        this.$grid.style.setProperty('--cols', String(cols));
+        for(const c of this.all()) {
+            const el = this.cards[c.id];
+            if(!el || c.hidden) continue;
+            const w = widthFor(c, layoutName, 'training');
+            el.style.gridColumn = `span ${Math.min(w, cols)}`;
+        }
+    }
+
     apply() {
         const layoutName = currentLayout();
         this.cls = screenClass(layoutName);
+        const cols = this.columns(layoutName);
+        this.$grid.style.setProperty('--cols', String(cols));
         const seen = new Set();
         for(const c of this.all()) {
             const el = this.cards[c.id];
@@ -95,7 +122,7 @@ class TrainingLayout {
             el.dataset.size = c.w != null ? sizeForWidth(w, 'training') : c.size;
             el.dataset.w = String(w);
             el.dataset.h = String(h);
-            el.style.gridColumn = `span ${w}`;
+            el.style.gridColumn = `span ${Math.min(w, cols)}`;
             el.style.gridRow = h > 1 ? `span ${h}` : '';
             el.style.setProperty('--row-span', String(h));
             this.$grid.append(el);          // in order
