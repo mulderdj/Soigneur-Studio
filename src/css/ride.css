@@ -49,9 +49,32 @@
     margin-left: auto;
 }
 
-.ride__header .ride__layout[aria-pressed="true"] {
+.ride__header .ride__fullscreen {
+    flex: none;
+}
+
+.ride__header .ride__fullscreen svg {
+    width: 20px;
+    height: 20px;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+
+.ride__header .ride__layout[aria-pressed="true"],
+.ride__header .ride__fullscreen[aria-pressed="true"] {
     background-color: var(--surface-2);
     color: var(--accent);
+}
+
+body.is-app-full .ride {
+    height: 100dvh;
+    padding: max(var(--space-2), env(safe-area-inset-top, 0px))
+             max(var(--space-2), env(safe-area-inset-right, 0px))
+             max(var(--space-2), env(safe-area-inset-bottom, 0px))
+             max(var(--space-2), env(safe-area-inset-left, 0px));
 }
 
 /* trainer and heart rate: an icon with the connection state as a badge */

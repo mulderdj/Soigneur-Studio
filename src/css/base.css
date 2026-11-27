@@ -358,6 +358,14 @@ svg {
     }
 }
 
+body.is-app-full {
+    --app-bar-h: 0px;
+}
+
+body.is-app-full .app-bar {
+    display: none;
+}
+
 @media (prefers-reduced-motion: reduce) {
     *, *::before, *::after {
         transition: none !important;
